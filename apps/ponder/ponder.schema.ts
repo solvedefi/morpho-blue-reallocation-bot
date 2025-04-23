@@ -95,3 +95,10 @@ export const config = onchainTable(
     vaultIdx: index().on(table.chainId, table.vault),
   }),
 );
+
+export const configRelations = relations(config, ({ one }) => ({
+  vault: one(vault, {
+    fields: [config.chainId, config.vault],
+    references: [vault.chainId, vault.address],
+  }),
+}));
