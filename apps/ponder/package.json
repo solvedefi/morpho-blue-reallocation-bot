@@ -1,5 +1,5 @@
 {
-  "name": "@morpho-blue-liquidation-bot/ponder",
+  "name": "@morpho-blue-reallocation-bot/ponder",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "hono": "^4.5.0"
   },
   "devDependencies": {
-    "@morpho-blue-liquidation-bot/config": "workspace:*",
+    "@morpho-blue-reallocation-bot/config": "workspace:*",
     "@morpho-org/test": "^2.1.1",
     "@ponder/client": "^0.9.27",
     "@types/node": "^22.13.14"

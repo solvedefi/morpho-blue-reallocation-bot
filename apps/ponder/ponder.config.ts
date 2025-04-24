@@ -1,7 +1,7 @@
 import { createConfig, factory } from "ponder";
 import { type AbiEvent, getAbiItem, http } from "viem";
 
-import { chainConfig, chainConfigs } from "@morpho-blue-liquidation-bot/config";
+import { chainConfig, chainConfigs } from "@morpho-blue-reallocation-bot/config";
 
 import { adaptiveCurveIrmAbi } from "./abis/AdaptiveCurveIrm";
 import { metaMorphoAbi } from "./abis/MetaMorpho";

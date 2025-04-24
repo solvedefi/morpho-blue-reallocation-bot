@@ -1,5 +1,5 @@
 {
-  "name": "@morpho-blue-liquidation-bot/config",
+  "name": "@morpho-blue-reallocation-bot/config",
   "version": "0.0.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

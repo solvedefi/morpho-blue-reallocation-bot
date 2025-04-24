@@ -4,9 +4,7 @@ export type ChainConfig = Config & {
   chainId: number;
   rpcUrl: string;
   vaultWhitelist: Address[];
-  additionalMarketsWhitelist: Hex[];
-  executorAddress: Address;
-  liquidationPrivateKey: Hex;
+  reallocatorPrivateKey: Hex;
 };
 
 export interface Config {
