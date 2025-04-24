@@ -1,3 +1,4 @@
+import { toAssetsDown } from "./../../../client/src/utils/maths";
 import { Hono } from "hono";
 import { and, client, eq, graphql, inArray } from "ponder";
 import { db, publicClients } from "ponder:api";
@@ -80,23 +81,32 @@ app.get("/chain/:id/vault/:address", async (c) => {
 
       return {
         market: {
-          ...market,
-          lltv: `${market.lltv}`,
+          chainId: market.chainId,
+          id: market.id,
+          params: {
+            loanToken: market.loanToken,
+            collateralToken: market.collateralToken,
+            irm: market.irm,
+            oracle: market.oracle,
+            lltv: `${market.lltv}`,
+          },
           rateAtTarget: `${market.rateAtTarget}`,
-          totalSupplyAssets: `${accruedState.totalSupplyAssets}`,
-          totalSupplyShares: `${accruedState.totalSupplyShares}`,
-          totalBorrowAssets: `${accruedState.totalBorrowAssets}`,
-          totalBorrowShares: `${accruedState.totalBorrowShares}`,
-          lastUpdate: `${accruedState.lastUpdate}`,
-          fee: `${accruedState.fee}`,
+          state: {
+            totalSupplyAssets: `${accruedState.totalSupplyAssets}`,
+            totalSupplyShares: `${accruedState.totalSupplyShares}`,
+            totalBorrowAssets: `${accruedState.totalBorrowAssets}`,
+            totalBorrowShares: `${accruedState.totalBorrowShares}`,
+            lastUpdate: `${accruedState.lastUpdate}`,
+            fee: `${accruedState.fee}`,
+          },
         },
         cap: `${cap}`,
-        shares: `${position.supplyShares}`,
+        vaultAssets: `${toAssetsDown(position.supplyShares, accruedState.totalSupplyAssets, accruedState.totalSupplyShares)}`,
       };
     }),
   );
 
-  return c.json({ vaultPositions });
+  return c.json(vaultPositions);
 });
 
 export default app;

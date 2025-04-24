@@ -32,6 +32,9 @@ export const wMulDown = (x: bigint, y: bigint): bigint => mulDivDown(x, y, WAD);
 export const toSharesDown = (assets: bigint, totalAssets: bigint, totalShares: bigint): bigint => {
   return mulDivDown(assets, totalShares + VIRTUAL_SHARES, totalAssets + VIRTUAL_ASSETS);
 };
+export const toAssetsDown = (shares: bigint, totalAssets: bigint, totalShares: bigint): bigint => {
+  return mulDivDown(shares, totalAssets + VIRTUAL_ASSETS, totalShares + VIRTUAL_SHARES);
+};
 
 export function accrueInterest(
   marketState: MarketState,
