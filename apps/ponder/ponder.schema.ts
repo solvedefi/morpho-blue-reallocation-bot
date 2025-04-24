@@ -68,37 +68,9 @@ export const vault = onchainTable(
     address: t.hex().notNull(),
 
     withdrawQueue: t.hex().array().notNull().default([]),
-    timelock: t.bigint().notNull().default(0n),
   }),
   (table) => ({
     // Composite primary key uniquely identifies a vault across chains
     pk: primaryKey({ columns: [table.chainId, table.address] }),
   }),
 );
-
-export const config = onchainTable(
-  "config",
-  (t) => ({
-    chainId: t.integer().notNull(),
-    vault: t.hex().notNull(),
-    marketId: t.hex().notNull(),
-
-    // Position fields
-    cap: t.bigint().notNull().default(0n),
-    enabled: t.boolean().notNull().default(false),
-    removableAt: t.bigint().notNull().default(0n),
-  }),
-  (table) => ({
-    // Composite primary key uniquely identifies a position across chains
-    pk: primaryKey({ columns: [table.chainId, table.vault, table.marketId] }),
-    // Index speeds up relational queries
-    vaultIdx: index().on(table.chainId, table.vault),
-  }),
-);
-
-export const configRelations = relations(config, ({ one }) => ({
-  vault: one(vault, {
-    fields: [config.chainId, config.vault],
-    references: [vault.chainId, vault.address],
-  }),
-}));

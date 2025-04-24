@@ -4,9 +4,6 @@ import type { MarketState } from "./types";
 
 const YEAR = 60n * 60n * 24n * 365n;
 const WAD = parseUnits("1", 18);
-const ORACLE_PRICE_SCALE = parseUnits("1", 36);
-const LIQUIDATION_CURSOR = parseUnits("0.3", 18);
-const MAX_LIQUIDATION_INCENTIVE_FACTOR = parseUnits("1.15", 18);
 
 const VIRTUAL_ASSETS = 1n;
 const VIRTUAL_SHARES = 10n ** 6n;
@@ -28,23 +25,9 @@ const WEXP_UPPER_VALUE = parseUnits(
   18,
 );
 
-const min = (a: bigint, b: bigint) => (a < b ? a : b);
-
 const mulDivDown = (x: bigint, y: bigint, d: bigint): bigint => (x * y) / d;
-const mulDivUp = (x: bigint, y: bigint, d: bigint): bigint => (x * y + (d - 1n)) / d;
 const wDivDown = (x: bigint, y: bigint): bigint => mulDivDown(x, WAD, y);
-const wDivUp = (x: bigint, y: bigint): bigint => mulDivUp(x, WAD, y);
 export const wMulDown = (x: bigint, y: bigint): bigint => mulDivDown(x, y, WAD);
-
-const toAssetsUp = (shares: bigint, totalAssets: bigint, totalShares: bigint): bigint => {
-  return mulDivUp(shares, totalAssets + VIRTUAL_ASSETS, totalShares + VIRTUAL_SHARES);
-};
-const toAssetsDown = (shares: bigint, totalAssets: bigint, totalShares: bigint): bigint => {
-  return mulDivDown(shares, totalAssets + VIRTUAL_ASSETS, totalShares + VIRTUAL_SHARES);
-};
-const toSharesUp = (assets: bigint, totalAssets: bigint, totalShares: bigint): bigint => {
-  return mulDivUp(assets, totalShares + VIRTUAL_SHARES, totalAssets + VIRTUAL_ASSETS);
-};
 
 export const toSharesDown = (assets: bigint, totalAssets: bigint, totalShares: bigint): bigint => {
   return mulDivDown(assets, totalShares + VIRTUAL_SHARES, totalAssets + VIRTUAL_ASSETS);
@@ -86,13 +69,6 @@ export function accrueInterest(
   }
   return marketState;
 }
-
-const liquidationIncentiveFactor = (lltv: bigint): bigint => {
-  return min(
-    MAX_LIQUIDATION_INCENTIVE_FACTOR,
-    wDivDown(WAD, WAD - wMulDown(LIQUIDATION_CURSOR, WAD - lltv)),
-  );
-};
 
 const wTaylorCompounded = (x: bigint, n: bigint): bigint => {
   const firstTerm = x * n;

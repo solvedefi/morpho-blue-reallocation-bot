@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { and, client, eq, graphql, inArray } from "ponder";
-import { db } from "ponder:api";
+import { db, publicClients } from "ponder:api";
 import schema from "ponder:schema";
 import { type Address } from "viem";
 import { accrueInterest } from "./helpers";
+import { metaMorphoAbi } from "../../abis/MetaMorpho";
 
 const app = new Hono();
 
@@ -39,7 +40,7 @@ app.get("/chain/:id/vault/:address", async (c) => {
 
   const vaultPositions = await Promise.all(
     markets.map(async (market) => {
-      const [positions, configs] = await Promise.all([
+      const [positions, config] = await Promise.all([
         db
           .select()
           .from(schema.position)
@@ -51,17 +52,13 @@ app.get("/chain/:id/vault/:address", async (c) => {
             ),
           )
           .limit(1),
-        db
-          .select()
-          .from(schema.config)
-          .where(
-            and(
-              eq(schema.config.chainId, Number(chainId)),
-              eq(schema.config.vault, address as Address),
-              eq(schema.config.marketId, market.id),
-            ),
-          )
-          .limit(1),
+        // biome-ignore lint/style/noNonNullAssertion: Never null
+        publicClients[chainId as unknown as keyof typeof publicClients]!.readContract({
+          address: address as Address,
+          abi: metaMorphoAbi,
+          functionName: "config",
+          args: [market.id],
+        }),
       ]);
 
       const position = positions[0] ?? {
@@ -73,14 +70,7 @@ app.get("/chain/:id/vault/:address", async (c) => {
         supplyShares: 0n,
       };
 
-      const config = configs[0] ?? {
-        chainId: Number(chainId),
-        marketId: market.id,
-        vault: address as Address,
-        cap: 0n,
-        rate: 0n,
-        enabled: false,
-      };
+      const cap = config[0];
 
       const accruedState = accrueInterest(
         market,
@@ -100,7 +90,7 @@ app.get("/chain/:id/vault/:address", async (c) => {
           lastUpdate: `${accruedState.lastUpdate}`,
           fee: `${accruedState.fee}`,
         },
-        cap: `${config.cap}`,
+        cap: `${cap}`,
         shares: `${position.supplyShares}`,
       };
     }),
