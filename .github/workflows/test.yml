@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  indexer-test:
+  reallocation-bot-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,5 +33,10 @@ jobs:
 
       - name: Run strategies tests
         run: pnpm test:strategies
+        env:
+          RPC_URL_1: ${{ secrets.RPC_URL_1 }}
+
+      - name: Run execution tests
+        run: pnpm test:execution
         env:
           RPC_URL_1: ${{ secrets.RPC_URL_1 }}
