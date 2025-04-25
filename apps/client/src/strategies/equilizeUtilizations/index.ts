@@ -49,7 +49,8 @@ export class EquilizeUtilizations implements Strategy {
     let remainingWithdrawal = toReallocate;
     let remainingDeposit = toReallocate;
 
-    const reallocation: MarketAllocation[] = [];
+    const withdrawals: MarketAllocation[] = [];
+    const deposits: MarketAllocation[] = [];
 
     for (const marketData of marketsData) {
       const utilization = getUtilization(marketData.state);
@@ -58,7 +59,7 @@ export class EquilizeUtilizations implements Strategy {
         const deposit = min(getDepositableAmount(marketData, targetUtilization), remainingDeposit);
         remainingDeposit -= deposit;
 
-        reallocation.push({
+        deposits.push({
           marketParams: marketData.params,
           assets: remainingDeposit === 0n ? maxUint256 : marketData.vaultAssets + deposit,
         });
@@ -69,7 +70,7 @@ export class EquilizeUtilizations implements Strategy {
         );
         remainingWithdrawal -= withdrawal;
 
-        reallocation.push({
+        withdrawals.push({
           marketParams: marketData.params,
           assets: marketData.vaultAssets - withdrawal,
         });
@@ -78,6 +79,6 @@ export class EquilizeUtilizations implements Strategy {
       if (remainingWithdrawal === 0n && remainingDeposit === 0n) break;
     }
 
-    return reallocation;
+    return [...withdrawals, ...deposits];
   }
 }
