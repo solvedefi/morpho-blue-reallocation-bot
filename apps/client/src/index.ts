@@ -16,7 +16,7 @@ export const launchBot = (config: ChainConfig) => {
     config.chainId,
     client,
     config.vaultWhitelist,
-    new EquilizeUtilizations(),
+    new EquilizeUtilizations(250, 0), // Reject updates where no utilization would change by > 2.5%
   );
 
   // Run on startup.

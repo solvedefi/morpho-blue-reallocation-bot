@@ -7,6 +7,11 @@ import { Strategy } from "../strategy";
 import { getDepositableAmount, getWithdrawableAmount } from "./helpers";
 
 export class EquilizeUtilizations implements Strategy {
+  constructor(
+    private readonly minUtilizationDeltaBips: number,
+    private readonly minAprDeltaBips: number,
+  ) {}
+
   findReallocation(vaultData: VaultData) {
     const marketsData = vaultData.marketsData.filter(
       (marketData) => marketData.params.collateralToken !== zeroAddress,
@@ -20,6 +25,10 @@ export class EquilizeUtilizations implements Strategy {
     let totalWithdrawableAmount = 0n;
     let totalDepositableAmount = 0n;
 
+    let didExceedMinUtilizationDelta = false; // (true if *at least one* market moves enough)
+    // TODO: to estimate change in APR, we need `startRateAtTarget`, which we're not currently fetching or passing in
+    // let didExceedMinAprDelta = false; // (true if *at least one* market moves enough)
+
     for (const marketData of marketsData) {
       const utilization = getUtilization(marketData.state);
       if (utilization > targetUtilization) {
@@ -27,11 +36,15 @@ export class EquilizeUtilizations implements Strategy {
       } else {
         totalWithdrawableAmount += getWithdrawableAmount(marketData, targetUtilization);
       }
+
+      didExceedMinUtilizationDelta ||=
+        Math.abs(Number((utilization - targetUtilization) / 1_000_000_000n) / 1e5) >
+        this.minUtilizationDeltaBips;
     }
 
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
 
-    if (toReallocate === 0n) return;
+    if (toReallocate === 0n || !didExceedMinUtilizationDelta) return;
 
     let remainingWithdrawal = toReallocate;
     let remainingDeposit = toReallocate;
