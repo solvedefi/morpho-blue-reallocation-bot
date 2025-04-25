@@ -7,9 +7,11 @@ import {
   type Transport,
 } from "viem";
 import { estimateGas, writeContract } from "viem/actions";
-import { fetchVaultData } from "./utils/fetchers.js";
-import { Strategy } from "./strategies/strategy.js";
+
 import { metaMorphoAbi } from "../abis/MetaMorpho.js";
+
+import { Strategy } from "./strategies/strategy.js";
+import { fetchVaultData } from "./utils/fetchers.js";
 
 export class ReallocationBot {
   private chainId: number;

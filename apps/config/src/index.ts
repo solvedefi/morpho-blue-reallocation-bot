@@ -1,7 +1,8 @@
+import dotenv from "dotenv";
 import type { Address, Chain, Hex } from "viem";
+
 import { chainConfigs } from "./config";
 import type { ChainConfig } from "./types";
-import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -11,13 +12,17 @@ export function chainConfig(chainId: number): ChainConfig {
     throw new Error(`No config found for chainId ${chainId}`);
   }
 
-  const { rpcUrl, vaultWhitelist, reallocatorPrivateKey } = getSecrets(chainId, config.chain);
+  const { rpcUrl, vaultWhitelist, reallocatorPrivateKey, executionInterval } = getSecrets(
+    chainId,
+    config.chain,
+  );
   return {
     ...config,
     chainId,
     rpcUrl,
     reallocatorPrivateKey,
     vaultWhitelist,
+    executionInterval,
   };
 }
 
@@ -27,6 +32,7 @@ export function getSecrets(chainId: number, chain?: Chain) {
   const rpcUrl = process.env[`RPC_URL_${chainId}`] ?? defaultRpcUrl;
   const vaultWhitelist = process.env[`VAULT_WHITELIST_${chainId}`]?.split(",") ?? [];
   const reallocatorPrivateKey = process.env[`REALLOCATOR_PRIVATE_KEY_${chainId}`];
+  const executionInterval = process.env[`EXECUTION_INTERVAL_${chainId}`];
 
   if (!rpcUrl) {
     throw new Error(`No RPC URL found for chainId ${chainId}`);
@@ -37,10 +43,14 @@ export function getSecrets(chainId: number, chain?: Chain) {
   if (!vaultWhitelist) {
     throw new Error(`No vault whitelist found for chainId ${chainId}`);
   }
+  if (!executionInterval) {
+    throw new Error(`No execution interval found for chainId ${chainId}`);
+  }
   return {
     rpcUrl,
     vaultWhitelist: vaultWhitelist as Address[],
     reallocatorPrivateKey: reallocatorPrivateKey as Hex,
+    executionInterval: Number(executionInterval),
   };
 }
 

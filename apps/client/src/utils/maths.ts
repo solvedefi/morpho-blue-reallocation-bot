@@ -1,4 +1,5 @@
 import { parseUnits } from "viem";
+
 import { MarketState } from "./types";
 
 export const WAD = parseUnits("1", 18);

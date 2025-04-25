@@ -1,11 +1,13 @@
 import { maxUint256, zeroAddress } from "viem";
+
+import { getUtilization, min, wDivDown } from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
-import { getUtilization, min, wDivDown } from "../../utils/maths";
+
 import { getDepositableAmount, getWithdrawableAmount } from "./helpers";
 
 export class EquilizeUtilizations implements Strategy {
-  findReallocation(vaultData: VaultData): MarketAllocation[] | undefined {
+  findReallocation(vaultData: VaultData) {
     const marketsData = vaultData.marketsData.filter(
       (marketData) => marketData.params.collateralToken !== zeroAddress,
     );

@@ -1,10 +1,8 @@
+import type { ChainConfig } from "@morpho-blue-reallocation-bot/config";
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { watchBlocks } from "viem/actions";
 
 import { ReallocationBot } from "./bot";
-
-import type { ChainConfig } from "@morpho-blue-reallocation-bot/config";
 import { EquilizeUtilizations } from "./strategies";
 
 export const launchBot = (config: ChainConfig) => {
@@ -21,9 +19,11 @@ export const launchBot = (config: ChainConfig) => {
     new EquilizeUtilizations(),
   );
 
-  watchBlocks(client, {
-    onBlock: () => {
-      void bot.run();
-    },
-  });
+  // Run on startup.
+  void bot.run();
+
+  // Thereafter, run every `executionInterval` seconds.
+  setInterval(() => {
+    void bot.run();
+  }, config.executionInterval);
 };

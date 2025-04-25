@@ -1,4 +1,5 @@
 import type { Address } from "viem";
+
 import type { VaultData, VaultMarketData } from "./types";
 
 export async function fetchVaultData(chainId: number, vaultAddress: Address): Promise<VaultData> {
