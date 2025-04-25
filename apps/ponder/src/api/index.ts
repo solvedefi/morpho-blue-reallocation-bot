@@ -37,7 +37,7 @@ app.get("/chain/:id/vault/:address", async (c) => {
         inArray(schema.market.id, vault.withdrawQueue),
       ),
     )
-    .limit(1);
+    .limit(100);
 
   const vaultPositions = await Promise.all(
     markets.map(async (market) => {
@@ -52,7 +52,7 @@ app.get("/chain/:id/vault/:address", async (c) => {
               eq(schema.position.user, address as Address),
             ),
           )
-          .limit(1),
+          .limit(100),
         // biome-ignore lint/style/noNonNullAssertion: Never null
         publicClients[chainId as unknown as keyof typeof publicClients]!.readContract({
           address: address as Address,
