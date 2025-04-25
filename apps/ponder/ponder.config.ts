@@ -90,7 +90,7 @@ export default createConfig({
   database: {
     kind: "postgres",
     connectionString:
-      process.env.POSTGRES_DATABASE_URL ?? "postgres://ponder:ponder@localhost:5432/ponder",
+      process.env.POSTGRES_DATABASE_URL ?? "postgres://ponder:ponder@localhost:5433/ponder",
   },
 });
 
