@@ -8,7 +8,8 @@
     "prepare": "husky",
     "test:helpers": "vitest helpers",
     "build:config": "pnpm --filter @morpho-blue-reallocation-bot/config build",
-    "test:strategies": "vitest strategies"
+    "test:strategies": "vitest strategies",
+    "test:execution": "vitest execution"
   },
   "lint-staged": {
     "*.ts": [
