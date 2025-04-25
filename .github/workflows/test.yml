@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  indexer-test:
+  reallocation-bot-test:
     runs-on: ubuntu-latest
 
     steps:
