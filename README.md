@@ -28,7 +28,7 @@ Use at your own risk.
 ## Installation
 
 ```bash
-git clone https://github.com/your-username/morpho-blue-reallocation-bot.git
+git clone https://github.com/morpho-org/morpho-blue-reallocation-bot.git
 cd morpho-blue-reallocation-bot
 pnpm install
 ```
@@ -42,35 +42,43 @@ The bot can be configured to run on any EVM-compatible chain where the Morpho st
 **If you don't plan on supporting a new chain, you can ignore this section.**
 
 Morpho Blue:
+
 - `morpho.address`: The address of the Morpho contract.
 - `morpho.startBlock`: The block number of the Morpho contract deployment.
 
 Adaptive Curve IRM:
+
 - `adaptiveCurveIrm.address`: The address of the Adaptive Curve IRM contract.
 - `adaptiveCurveIrm.startBlock`: The block number of the Adaptive Curve IRM contract deployment.
 
 Meta Morpho Factories:
+
 - `metaMorphoFactories.addresses`: The addresses of the MetaMorpho factories.
 - `metaMorphoFactories.startBlock`: The block number of the oldest MetaMorpho factory deployment.
 
 ### Secrets
 
 **Database secrets (optional):**
+
 - `POSTGRES_DATABASE_URL`: The URL of the postgres database that will be used by the bot. If not set, the bot will launch a docker container with a local postgres database.
 
 **Chain secrets:**
 
 For each chain, the following secrets must be set:
+
 - `RPC_URL`: The RPC URL of the chain that will be used by the bot.
 - `REALLOCATOR_PRIVATE_KEY`: The private key of the EOA that will be used to execute the reallocations.
 
 **Vault Whitelist**: The bot will only rebalance assets within vaults that are whitelisted:
+
 - `VAULT_WHITELIST`: List of MetaMorpho vaults addresses.
 
 **Execution Interval**: The bot will run once every N seconds, with this value as N:
+
 - `EXECUTION_INTERVAL`: Seconds to wait between runs.
 
 The secrets must be set in the `.env` file at the root of the repository, with the following keys:
+
 - `RPC_URL_<chainId>`
 - `REALLOCATOR_PRIVATE_KEY_<chainId>`
 - `VAULT_WHITELIST_<chainId>`
