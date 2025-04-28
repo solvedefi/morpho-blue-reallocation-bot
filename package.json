@@ -9,7 +9,8 @@
     "test:helpers": "vitest helpers",
     "build:config": "pnpm --filter @morpho-blue-reallocation-bot/config build",
     "test:strategies": "vitest strategies",
-    "test:execution": "vitest execution"
+    "test:execution": "vitest execution",
+    "reallocate": "pnpm build:config && tsx apps/client/src/script.ts --env-file=.env"
   },
   "lint-staged": {
     "*.ts": [
