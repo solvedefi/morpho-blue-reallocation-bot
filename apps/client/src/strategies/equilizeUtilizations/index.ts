@@ -1,10 +1,14 @@
 import { maxUint256, zeroAddress } from "viem";
 
-import { getUtilization, min, wDivDown } from "../../utils/maths";
+import {
+  getUtilization,
+  min,
+  wDivDown,
+  getDepositableAmount,
+  getWithdrawableAmount,
+} from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
-
-import { getDepositableAmount, getWithdrawableAmount } from "./helpers";
 
 export class EquilizeUtilizations implements Strategy {
   constructor(

@@ -1,11 +1,14 @@
 import { parseUnits } from "viem";
 
-import { MarketState } from "./types";
+import { MarketState, VaultMarketData } from "./types";
 
 export const WAD = parseUnits("1", 18);
 
 const VIRTUAL_ASSETS = 1n;
 const VIRTUAL_SHARES = 10n ** 6n;
+
+const CURVE_STEEPNESS = parseUnits("4", 18);
+const TARGET_UTILIZATION = parseUnits("0.9", 18);
 
 export const min = (a: bigint, b: bigint) => (a < b ? a : b);
 
@@ -38,16 +41,51 @@ export const getUtilization = (marketState: MarketState) => {
   return wDivDown(marketState.totalBorrowAssets, marketState.totalSupplyAssets);
 };
 
-export function getWithdrawalToUtilization(marketState: MarketState, targetUtilization: bigint) {
+function getWithdrawalToUtilization(marketState: MarketState, targetUtilization: bigint) {
   return wMulDown(
     marketState.totalSupplyAssets,
     WAD - wDivDown(getUtilization(marketState), targetUtilization),
   );
 }
 
-export function getDepositToUtilization(marketState: MarketState, targetUtilization: bigint) {
+function getDepositToUtilization(marketState: MarketState, targetUtilization: bigint) {
   return wMulDown(
     marketState.totalSupplyAssets,
     wDivDown(getUtilization(marketState), targetUtilization) - WAD,
   );
 }
+
+export function getWithdrawableAmount(marketData: VaultMarketData, targetUtilization: bigint) {
+  return min(
+    getWithdrawalToUtilization(marketData.state, targetUtilization),
+    marketData.vaultAssets,
+  );
+}
+
+export function getDepositableAmount(marketData: VaultMarketData, targetUtilization: bigint) {
+  return min(
+    getDepositToUtilization(marketData.state, targetUtilization),
+    marketData.cap - marketData.vaultAssets,
+  );
+}
+
+export const rateToUtilization = (wantedRate: bigint, rateAtTarget: bigint): bigint => {
+  const maxRate = CURVE_STEEPNESS * rateAtTarget;
+  const minRate = rateAtTarget / CURVE_STEEPNESS;
+  let newUtilization = 0n;
+
+  if (wantedRate >= maxRate) {
+    newUtilization = WAD;
+  } else if (wantedRate >= rateAtTarget) {
+    newUtilization =
+      TARGET_UTILIZATION +
+      mulDivDown(WAD - TARGET_UTILIZATION, wantedRate - rateAtTarget, maxRate - rateAtTarget);
+  } else if (wantedRate > minRate) {
+    newUtilization = mulDivDown(TARGET_UTILIZATION, wantedRate - minRate, rateAtTarget - minRate);
+  }
+  return newUtilization;
+};
+
+export const percentToWad = (percent: number): bigint => {
+  return parseUnits(percent.toString(), 16);
+};
