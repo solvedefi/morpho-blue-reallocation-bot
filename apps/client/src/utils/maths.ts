@@ -3,6 +3,7 @@ import { parseUnits } from "viem";
 import { MarketState, VaultMarketData } from "./types";
 
 export const WAD = parseUnits("1", 18);
+const YEAR = 60n * 60n * 24n * 365n;
 
 const VIRTUAL_ASSETS = 1n;
 const VIRTUAL_SHARES = 10n ** 6n;
@@ -68,6 +69,14 @@ export function getDepositableAmount(marketData: VaultMarketData, targetUtilizat
     marketData.cap - marketData.vaultAssets,
   );
 }
+
+export const getRateFromAPY = (apy: bigint): bigint => {
+  const firstTerm = apy;
+  const secondTerm = wMulDown(firstTerm, firstTerm);
+  const thirdTerm = wMulDown(secondTerm, firstTerm);
+  const apr = firstTerm - secondTerm / 2n + thirdTerm / 3n;
+  return apr / YEAR;
+};
 
 export const rateToUtilization = (wantedRate: bigint, rateAtTarget: bigint): bigint => {
   const maxRate = CURVE_STEEPNESS * rateAtTarget;

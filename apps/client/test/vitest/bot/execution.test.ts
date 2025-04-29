@@ -6,7 +6,6 @@ import { readContract, writeContract } from "viem/actions";
 import { WBTC, MORPHO } from "../../constants.js";
 import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
 import { metaMorphoAbi } from "../../../abis/MetaMorpho.js";
-import { wDivDown } from "../../../src/utils/maths.js";
 import { ReallocationBot } from "../../../src/bot.js";
 import { test } from "../../setup.js";
 import {
@@ -90,6 +89,7 @@ describe("should test the reallocation execution", () => {
 
     /// Borrow
 
+    // Market 1 is put at 100% utilization
     await writeContract(client, {
       account: borrower,
       address: MORPHO,
@@ -115,11 +115,6 @@ describe("should test the reallocation execution", () => {
     });
 
     /// Equalize
-
-    const expectedUtilization = wDivDown(
-      loanAmount1 + loanAmount2 + loanAmount3,
-      suppliedAmount * 3n,
-    );
 
     const [marketState1, marketState2, marketState3] = await Promise.all([
       readContract(client, {

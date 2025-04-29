@@ -7,8 +7,9 @@ import {
   getWithdrawableAmount,
   rateToUtilization,
   percentToWad,
+  getRateFromAPY,
 } from "../../utils/maths";
-import { MarketAllocation, VaultData, VaultMarketData } from "../../utils/types";
+import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 import {
   marketsDefaultMinRates,
@@ -16,7 +17,7 @@ import {
   DEFAULT_MIN_RATE,
 } from "../../../../config/src/strategies/minRates";
 
-export class EquilizeUtilizations implements Strategy {
+export class MinRates implements Strategy {
   constructor(private readonly minUtilizationDeltaBips: number) {}
 
   findReallocation(vaultData: VaultData) {
@@ -37,7 +38,9 @@ export class EquilizeUtilizations implements Strategy {
 
     for (const marketData of marketsData) {
       const targetUtilization = rateToUtilization(
-        this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
+        getRateFromAPY(
+          this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
+        ),
         getUtilization(marketData.state),
       );
       const utilization = getUtilization(marketData.state);
@@ -83,7 +86,9 @@ export class EquilizeUtilizations implements Strategy {
 
     for (const marketData of marketsData) {
       const targetUtilization = rateToUtilization(
-        this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
+        getRateFromAPY(
+          this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
+        ),
         getUtilization(marketData.state),
       );
       const utilization = getUtilization(marketData.state);
