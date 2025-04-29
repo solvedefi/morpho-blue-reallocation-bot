@@ -3,7 +3,7 @@ import { parseUnits } from "viem";
 import { MarketState, VaultMarketData } from "./types";
 
 export const WAD = parseUnits("1", 18);
-const YEAR = 60n * 60n * 24n * 365n;
+export const YEAR = 60n * 60n * 24n * 365n;
 
 const VIRTUAL_ASSETS = 1n;
 const VIRTUAL_SHARES = 10n ** 6n;
@@ -13,7 +13,7 @@ const TARGET_UTILIZATION = parseUnits("0.9", 18);
 
 export const min = (a: bigint, b: bigint) => (a < b ? a : b);
 
-const mulDivDown = (x: bigint, y: bigint, d: bigint): bigint => (x * y) / d;
+export const mulDivDown = (x: bigint, y: bigint, d: bigint): bigint => (x * y) / d;
 export const mulDivUp = (x: bigint, y: bigint, d: bigint): bigint => (x * y + (d - 1n)) / d;
 export const wDivDown = (x: bigint, y: bigint): bigint => mulDivDown(x, WAD, y);
 export const wDivUp = (x: bigint, y: bigint): bigint => mulDivUp(x, WAD, y);

@@ -1,5 +1,5 @@
 import { AnvilTestClient, testAccount } from "@morpho-org/test";
-import { Address, maxUint256, parseUnits } from "viem";
+import { Address, maxUint256, parseUnits, zeroAddress } from "viem";
 import {
   USDC,
   WBTC,
@@ -14,6 +14,13 @@ import { morphoBlueAbi } from "../abis/MorphoBlue";
 import { metaMorphoFactoryAbi } from "../abis/MetaMorphoFactory";
 import { metaMorphoAbi } from "../../abis/MetaMorpho";
 import { vi } from "vitest";
+import { MarketParams } from "../../src/utils/types";
+
+export type BorrowStruct = {
+  marketParams: MarketParams;
+  collateralAmount: bigint;
+  loanAmount: bigint;
+};
 
 export const marketParams1 = {
   loanToken: USDC as Address,
@@ -39,14 +46,23 @@ export const marketParams3 = {
   lltv: parseUnits("0.77", 18),
 };
 
+export const idleMarketParams = {
+  loanToken: USDC as Address,
+  collateralToken: zeroAddress,
+  oracle: zeroAddress,
+  irm: zeroAddress,
+  lltv: 0n,
+};
+
 export const supplier = testAccount(2);
 export const borrower = testAccount(3);
 
 export const marketId1 = "0x60f25d76d9cd6762dabce33cc13d2d018f0d33f9bd62323a7fbe0726e0518388";
 export const marketId2 = "0x88d40fc93bdfe3328504a780f04c193e2938e0ec3d92e6339b6a960f4584229a";
 export const marketId3 = "0x91e04f21833b80e4f17241964c25dabcd9b062a6e4790ec4fd52f72f3f5b1f2e";
+export const idleMarketId = "0x54efdee08e272e929034a8f26f7ca34b1ebe364b275391169b28c6d7db24dbc8";
 
-export const setupVault = async (client: AnvilTestClient, cap: bigint, suppliedAmount: bigint) => {
+export async function setupVault(client: AnvilTestClient, cap: bigint, suppliedAmount: bigint) {
   /// Deploy markets
 
   await writeContract(client, {
@@ -167,7 +183,70 @@ export const setupVault = async (client: AnvilTestClient, cap: bigint, suppliedA
   });
 
   return vault;
-};
+}
+
+export async function enableIdleMarket(client: AnvilTestClient, vault: Address) {
+  await writeContract(client, {
+    address: vault,
+    abi: metaMorphoAbi,
+    functionName: "submitCap",
+    args: [idleMarketParams, maxUint256],
+  });
+
+  await syncTimestamp(client, (await client.timestamp()) + MIN_TIMELOCK);
+
+  await writeContract(client, {
+    address: vault,
+    abi: metaMorphoAbi,
+    functionName: "acceptCap",
+    args: [idleMarketParams],
+  });
+}
+
+export async function prepareBorrow(
+  client: AnvilTestClient,
+  collaterals: { address: Address; amount: bigint }[],
+) {
+  for (const collateral of collaterals) {
+    await client.deal({
+      erc20: collateral.address,
+      account: borrower,
+      amount: collateral.amount,
+    });
+
+    await client.approve({
+      account: borrower,
+      address: collateral.address,
+      args: [MORPHO, maxUint256],
+    });
+  }
+}
+
+export async function borrow(client: AnvilTestClient, borrowStructs: BorrowStruct[]) {
+  for (const borrowStruct of borrowStructs) {
+    await writeContract(client, {
+      account: borrower,
+      address: MORPHO,
+      abi: morphoBlueAbi,
+      functionName: "supplyCollateral",
+      args: [borrowStruct.marketParams, borrowStruct.collateralAmount, borrower.address, "0x"],
+    });
+
+    await writeContract(client, {
+      account: borrower,
+      address: MORPHO,
+      abi: morphoBlueAbi,
+      functionName: "borrow",
+      args: [
+        borrowStruct.marketParams,
+        borrowStruct.loanAmount,
+        0n,
+        borrower.address,
+        borrower.address,
+      ],
+    });
+  }
+}
 
 const syncTimestamp = async (client: AnvilTestClient, timestamp?: bigint) => {
   timestamp ??= (await client.timestamp()) + 60n;

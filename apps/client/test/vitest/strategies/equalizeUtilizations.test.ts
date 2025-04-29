@@ -9,13 +9,14 @@ import { wDivDown } from "../../../src/utils/maths.js";
 import { test } from "../../setup.js";
 import {
   setupVault,
-  borrower,
   marketParams1,
   marketParams2,
   marketParams3,
   marketId1,
   marketId2,
   marketId3,
+  prepareBorrow,
+  borrow,
 } from "../vaultSetup.js";
 
 describe("equilizeUtilizations strategy", () => {
@@ -33,13 +34,9 @@ describe("equilizeUtilizations strategy", () => {
   const tolerance = parseUnits("1", 12); // We check that the utilization diverges from 0.0001% from the target utilization.
 
   test.sequential("should equalize rates", async ({ client }) => {
-    const vault = await setupVault(client, caps, 3n * suppliedAmount);
+    // setup vault and supply
 
-    await client.deal({
-      erc20: WBTC,
-      account: borrower.address,
-      amount: 3n * collateralAmount,
-    });
+    const vault = await setupVault(client, caps, 3n * suppliedAmount);
 
     // reallocate
 
@@ -56,63 +53,15 @@ describe("equilizeUtilizations strategy", () => {
       args: [reallocation],
     });
 
-    /// Supply collateral
-
-    await client.approve({
-      account: borrower.address,
-      address: WBTC,
-      args: [MORPHO, maxUint256],
-    });
-
-    await writeContract(client, {
-      account: borrower,
-      address: MORPHO,
-      abi: morphoBlueAbi,
-      functionName: "supplyCollateral",
-      args: [marketParams1, collateralAmount, borrower.address, "0x"],
-    });
-
-    await writeContract(client, {
-      account: borrower,
-      address: MORPHO,
-      abi: morphoBlueAbi,
-      functionName: "supplyCollateral",
-      args: [marketParams2, collateralAmount, borrower.address, "0x"],
-    });
-
-    await writeContract(client, {
-      account: borrower,
-      address: MORPHO,
-      abi: morphoBlueAbi,
-      functionName: "supplyCollateral",
-      args: [marketParams3, collateralAmount, borrower.address, "0x"],
-    });
-
     /// Borrow
 
-    await writeContract(client, {
-      account: borrower,
-      address: MORPHO,
-      abi: morphoBlueAbi,
-      functionName: "borrow",
-      args: [marketParams1, loanAmount1, 0n, borrower.address, borrower.address],
-    });
+    await prepareBorrow(client, [{ address: WBTC, amount: 3n * collateralAmount }]);
 
-    await writeContract(client, {
-      account: borrower,
-      address: MORPHO,
-      abi: morphoBlueAbi,
-      functionName: "borrow",
-      args: [marketParams2, loanAmount2, 0n, borrower.address, borrower.address],
-    });
-
-    await writeContract(client, {
-      account: borrower,
-      address: MORPHO,
-      abi: morphoBlueAbi,
-      functionName: "borrow",
-      args: [marketParams3, loanAmount3, 0n, borrower.address, borrower.address],
-    });
+    await borrow(client, [
+      { marketParams: marketParams1, loanAmount: loanAmount1, collateralAmount: 1n },
+      { marketParams: marketParams2, loanAmount: loanAmount2, collateralAmount: 1n },
+      { marketParams: marketParams3, loanAmount: loanAmount3, collateralAmount: 1n },
+    ]);
 
     /// Equalize
 
