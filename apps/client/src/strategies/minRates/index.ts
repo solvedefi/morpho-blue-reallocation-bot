@@ -41,7 +41,7 @@ export class MinRates implements Strategy {
         getRateFromAPY(
           this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
         ),
-        getUtilization(marketData.state),
+        marketData.rateAtTarget,
       );
       const utilization = getUtilization(marketData.state);
       if (utilization > targetUtilization) {
@@ -89,7 +89,7 @@ export class MinRates implements Strategy {
         getRateFromAPY(
           this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
         ),
-        getUtilization(marketData.state),
+        marketData.rateAtTarget,
       );
       const utilization = getUtilization(marketData.state);
 
@@ -135,7 +135,7 @@ export class MinRates implements Strategy {
     return [...withdrawals, ...deposits];
   }
 
-  private getTargetRate(chainId: number, vaultAddress: Address, marketId: Hex) {
+  protected getTargetRate(chainId: number, vaultAddress: Address, marketId: Hex) {
     let targetRate = DEFAULT_MIN_RATE;
 
     if (

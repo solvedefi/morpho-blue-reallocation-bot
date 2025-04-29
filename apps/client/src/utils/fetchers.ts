@@ -33,6 +33,7 @@ export async function fetchVaultData(chainId: number, vaultAddress: Address): Pr
       },
       cap: BigInt(market.cap),
       vaultAssets: BigInt(market.vaultAssets),
+      rateAtTarget: BigInt(market.rateAtTarget),
     })),
   };
 }

@@ -8,7 +8,7 @@ export const YEAR = 60n * 60n * 24n * 365n;
 const VIRTUAL_ASSETS = 1n;
 const VIRTUAL_SHARES = 10n ** 6n;
 
-const CURVE_STEEPNESS = parseUnits("4", 18);
+const CURVE_STEEPNESS = 4n;
 const TARGET_UTILIZATION = parseUnits("0.9", 18);
 
 export const min = (a: bigint, b: bigint) => (a < b ? a : b);

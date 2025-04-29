@@ -1,5 +1,5 @@
 import { AnvilTestClient, testAccount } from "@morpho-org/test";
-import { Address, maxUint256, parseUnits, zeroAddress } from "viem";
+import { Address, maxUint184, maxUint256, parseUnits, zeroAddress } from "viem";
 import {
   USDC,
   WBTC,
@@ -190,7 +190,7 @@ export async function enableIdleMarket(client: AnvilTestClient, vault: Address) 
     address: vault,
     abi: metaMorphoAbi,
     functionName: "submitCap",
-    args: [idleMarketParams, maxUint256],
+    args: [idleMarketParams, maxUint184],
   });
 
   await syncTimestamp(client, (await client.timestamp()) + MIN_TIMELOCK);

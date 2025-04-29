@@ -18,6 +18,7 @@ import {
   prepareBorrow,
   borrow,
 } from "../vaultSetup.js";
+import { abs, formatMarketState } from "../helpers.js";
 
 describe("equilizeUtilizations strategy", () => {
   const strategy = new EquilizeUtilizations(0, 0);
@@ -98,46 +99,28 @@ describe("equilizeUtilizations strategy", () => {
           chainId: 1,
           id: marketId1 as Hex,
           params: marketParams1,
-          state: {
-            totalSupplyAssets: marketState1[0],
-            totalSupplyShares: marketState1[1],
-            totalBorrowAssets: marketState1[2],
-            totalBorrowShares: marketState1[3],
-            lastUpdate: marketState1[4],
-            fee: marketState1[5],
-          },
+          state: formatMarketState(marketState1),
           cap: caps,
           vaultAssets: suppliedAmount,
+          rateAtTarget: 0n, // unused for this strategy
         },
         {
           chainId: 1,
           id: marketId2 as Hex,
           params: marketParams2,
-          state: {
-            totalSupplyAssets: marketState2[0],
-            totalSupplyShares: marketState2[1],
-            totalBorrowAssets: marketState2[2],
-            totalBorrowShares: marketState2[3],
-            lastUpdate: marketState2[4],
-            fee: marketState2[5],
-          },
+          state: formatMarketState(marketState2),
           cap: caps,
           vaultAssets: suppliedAmount,
+          rateAtTarget: 0n, // unused for this strategy
         },
         {
           chainId: 1,
           id: marketId3 as Hex,
           params: marketParams3,
-          state: {
-            totalSupplyAssets: marketState3[0],
-            totalSupplyShares: marketState3[1],
-            totalBorrowAssets: marketState3[2],
-            totalBorrowShares: marketState3[3],
-            lastUpdate: marketState3[4],
-            fee: marketState3[5],
-          },
+          state: formatMarketState(marketState3),
           cap: caps,
           vaultAssets: suppliedAmount,
+          rateAtTarget: 0n, // unused for this strategy
         },
       ],
     };
@@ -194,5 +177,3 @@ describe("equilizeUtilizations strategy", () => {
     expect(abs(market3newUtilization - expectedUtilization)).toBeLessThan(tolerance);
   });
 });
-
-const abs = (x: bigint) => (x < 0n ? -x : x);
