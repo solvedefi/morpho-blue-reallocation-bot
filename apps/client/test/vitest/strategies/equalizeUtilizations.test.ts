@@ -58,9 +58,9 @@ describe("equilizeUtilizations strategy", () => {
     await prepareBorrow(client, [{ address: WBTC, amount: 3n * collateralAmount }]);
 
     await borrow(client, [
-      { marketParams: marketParams1, loanAmount: loanAmount1, collateralAmount: 1n },
-      { marketParams: marketParams2, loanAmount: loanAmount2, collateralAmount: 1n },
-      { marketParams: marketParams3, loanAmount: loanAmount3, collateralAmount: 1n },
+      { marketParams: marketParams1, loanAmount: loanAmount1, collateralAmount },
+      { marketParams: marketParams2, loanAmount: loanAmount2, collateralAmount },
+      { marketParams: marketParams3, loanAmount: loanAmount3, collateralAmount },
     ]);
 
     /// Equalize
