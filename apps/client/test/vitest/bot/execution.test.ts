@@ -103,6 +103,7 @@ describe("should test the reallocation execution", () => {
         },
         cap: caps,
         vaultAssets: suppliedAmount,
+        rateAtTarget: 0n, // unused for the equilizeUtilizations strategy
       },
       {
         chainId: 1,
@@ -118,6 +119,7 @@ describe("should test the reallocation execution", () => {
         },
         cap: caps,
         vaultAssets: suppliedAmount,
+        rateAtTarget: 0n, // unused for the equilizeUtilizations strategy
       },
       {
         chainId: 1,
@@ -133,6 +135,7 @@ describe("should test the reallocation execution", () => {
         },
         cap: caps,
         vaultAssets: suppliedAmount,
+        rateAtTarget: 0n, // unused for the equilizeUtilizations strategy
       },
     ];
 
