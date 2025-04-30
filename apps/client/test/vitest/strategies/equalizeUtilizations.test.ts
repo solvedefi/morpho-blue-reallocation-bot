@@ -21,7 +21,7 @@ import {
 import { abs, formatMarketState } from "../helpers.js";
 
 describe("equilizeUtilizations strategy", () => {
-  const strategy = new EquilizeUtilizations(0, 0);
+  const strategy = new EquilizeUtilizations();
 
   const caps = parseUnits("100000", 6);
 
