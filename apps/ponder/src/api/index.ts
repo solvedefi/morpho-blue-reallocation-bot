@@ -80,25 +80,23 @@ app.get("/chain/:id/vault/:address", async (c) => {
       );
 
       return {
-        market: {
-          chainId: market.chainId,
-          id: market.id,
-          params: {
-            loanToken: market.loanToken,
-            collateralToken: market.collateralToken,
-            irm: market.irm,
-            oracle: market.oracle,
-            lltv: `${market.lltv}`,
-          },
-          rateAtTarget: `${market.rateAtTarget}`,
-          state: {
-            totalSupplyAssets: `${accruedState.totalSupplyAssets}`,
-            totalSupplyShares: `${accruedState.totalSupplyShares}`,
-            totalBorrowAssets: `${accruedState.totalBorrowAssets}`,
-            totalBorrowShares: `${accruedState.totalBorrowShares}`,
-            lastUpdate: `${accruedState.lastUpdate}`,
-            fee: `${accruedState.fee}`,
-          },
+        chainId: market.chainId,
+        id: market.id,
+        params: {
+          loanToken: market.loanToken,
+          collateralToken: market.collateralToken,
+          irm: market.irm,
+          oracle: market.oracle,
+          lltv: `${market.lltv}`,
+        },
+        rateAtTarget: `${market.rateAtTarget}`,
+        state: {
+          totalSupplyAssets: `${accruedState.totalSupplyAssets}`,
+          totalSupplyShares: `${accruedState.totalSupplyShares}`,
+          totalBorrowAssets: `${accruedState.totalBorrowAssets}`,
+          totalBorrowShares: `${accruedState.totalBorrowShares}`,
+          lastUpdate: `${accruedState.lastUpdate}`,
+          fee: `${accruedState.fee}`,
         },
         cap: `${cap}`,
         vaultAssets: `${toAssetsDown(position.supplyShares, accruedState.totalSupplyAssets, accruedState.totalSupplyShares)}`,

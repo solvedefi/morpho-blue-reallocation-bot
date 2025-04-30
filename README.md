@@ -93,6 +93,11 @@ VAULT_WHITELIST_1=0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183,0x8eB67A509616cd6A7
 EXECUTION_INTERVAL_1=900
 ```
 
+### Strategies config
+
+Some strategies require some chains and vaults specific configutation.
+This configuration is handled in the `apps/config/src/strategies` folder, which contains the config files of every configurable strategies.
+
 ## Reallocation Strategy
 
 The bot uses an `EquilizeUtilizations` strategy that:

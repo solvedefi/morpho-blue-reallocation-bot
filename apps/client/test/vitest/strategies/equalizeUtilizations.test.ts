@@ -32,7 +32,7 @@ const syncTimestamp = async (client: AnvilTestClient, timestamp?: bigint) => {
 };
 
 describe("equilizeUtilizations strategy", () => {
-  const strategy = new EquilizeUtilizations(0, 0);
+  const strategy = new EquilizeUtilizations();
 
   const supplier = testAccount(2);
   const borrower = testAccount(3);

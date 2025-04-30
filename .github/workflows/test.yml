@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: pnpm i --frozen-lockfile
 
+      - name: Build config
+        run: pnpm build:config
+
       - name: Install Foundry (anvil, forge, cast)
         uses: foundry-rs/foundry-toolchain@v1
         with:
