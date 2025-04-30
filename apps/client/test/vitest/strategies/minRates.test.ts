@@ -49,6 +49,7 @@ class MinRatesTest extends MinRates {
   private readonly config: TestConfig;
 
   constructor(testConfig: TestConfig) {
+    super();
     this.config = testConfig;
   }
 
