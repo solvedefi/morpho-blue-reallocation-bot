@@ -38,6 +38,13 @@ export const bound = (x: bigint, min: bigint, max: bigint): bigint => {
   return x;
 };
 
+const wTaylorCompounded = (x: bigint, n: bigint): bigint => {
+  const firstTerm = x * n;
+  const secondTerm = mulDivDown(firstTerm, firstTerm, 2n * WAD);
+  const thirdTerm = mulDivDown(secondTerm, firstTerm, 3n * WAD);
+  return firstTerm + secondTerm + thirdTerm;
+};
+
 export const getUtilization = (marketState: MarketState) => {
   return wDivDown(marketState.totalBorrowAssets, marketState.totalSupplyAssets);
 };
@@ -78,23 +85,46 @@ export const getRateFromAPY = (apy: bigint): bigint => {
   return apr / YEAR;
 };
 
-export const rateToUtilization = (wantedRate: bigint, rateAtTarget: bigint): bigint => {
+export const rateToUtilization = (rate: bigint, rateAtTarget: bigint): bigint => {
   const maxRate = CURVE_STEEPNESS * rateAtTarget;
   const minRate = rateAtTarget / CURVE_STEEPNESS;
-  let newUtilization = 0n;
+  let utilization = 0n;
 
-  if (wantedRate >= maxRate) {
-    newUtilization = WAD;
-  } else if (wantedRate >= rateAtTarget) {
-    newUtilization =
+  if (rate >= maxRate) {
+    utilization = WAD;
+  } else if (rate >= rateAtTarget) {
+    utilization =
       TARGET_UTILIZATION +
-      mulDivDown(WAD - TARGET_UTILIZATION, wantedRate - rateAtTarget, maxRate - rateAtTarget);
-  } else if (wantedRate > minRate) {
-    newUtilization = mulDivDown(TARGET_UTILIZATION, wantedRate - minRate, rateAtTarget - minRate);
+      mulDivDown(WAD - TARGET_UTILIZATION, rate - rateAtTarget, maxRate - rateAtTarget);
+  } else if (rate > minRate) {
+    utilization = mulDivDown(TARGET_UTILIZATION, rate - minRate, rateAtTarget - minRate);
   }
-  return newUtilization;
+  return utilization;
+};
+
+export const utilizationToRate = (utilization: bigint, rateAtTarget: bigint): bigint => {
+  const maxRate = CURVE_STEEPNESS * rateAtTarget;
+  const minRate = rateAtTarget / CURVE_STEEPNESS;
+  let rate = minRate;
+
+  if (utilization >= WAD) {
+    rate = maxRate;
+  } else if (utilization >= rateAtTarget) {
+    rate =
+      rateAtTarget +
+      mulDivDown(
+        maxRate - rateAtTarget,
+        utilization - TARGET_UTILIZATION,
+        WAD - TARGET_UTILIZATION,
+      );
+  } else if (utilization > minRate) {
+    rate = minRate + mulDivDown(rateAtTarget - minRate, utilization, TARGET_UTILIZATION);
+  }
+  return rate;
 };
 
 export const percentToWad = (percent: number): bigint => {
   return parseUnits(percent.toString(), 16);
 };
+
+export const apyFromRate = (rate: bigint): bigint => wTaylorCompounded(rate, YEAR);

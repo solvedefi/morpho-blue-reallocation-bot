@@ -6,7 +6,7 @@ import { readContract, writeContract } from "viem/actions";
 import { WBTC, MORPHO, IRM } from "../../constants.js";
 import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
 import { metaMorphoAbi } from "../../../abis/MetaMorpho.js";
-import { percentToWad } from "../../../src/utils/maths.js";
+import { apyFromRate, percentToWad } from "../../../src/utils/maths.js";
 import { test } from "../../setup.js";
 import {
   setupVault,
@@ -22,7 +22,7 @@ import {
   idleMarketId,
   idleMarketParams,
 } from "../vaultSetup.js";
-import { abs, apyFromRate, formatMarketState } from "../helpers.js";
+import { abs, formatMarketState } from "../helpers.js";
 import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
 
 const targetMarket1 = 2;
@@ -48,8 +48,7 @@ type TestConfig = {
 class MinRatesTest extends MinRates {
   private readonly config: TestConfig;
 
-  constructor(minUtilizationDeltaBips: number, testConfig: TestConfig) {
-    super(minUtilizationDeltaBips);
+  constructor(testConfig: TestConfig) {
     this.config = testConfig;
   }
 
@@ -75,7 +74,7 @@ class MinRatesTest extends MinRates {
 }
 
 describe("equilizeUtilizations strategy", () => {
-  const strategy = new MinRatesTest(0, testConfig);
+  const strategy = new MinRatesTest(testConfig);
 
   const caps = parseUnits("100000", 6);
 

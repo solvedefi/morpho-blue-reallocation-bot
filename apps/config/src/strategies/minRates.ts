@@ -12,7 +12,7 @@ export const vaultsDefaultMinRates: Record<number, Record<string, number>> = {
   },
 };
 
-export const marketsDefaultMinRates: Record<number, Record<string, number>> = {
+export const marketsMinRates: Record<number, Record<string, number>> = {
   [mainnet.id]: {
     "0x3a85e619751152991742810df6ec69ce473daef99e28a64ab2340d7b7ccfee49": 5.25,
     "0x64d65c9a2d91c36d56fbc42d69e979335320169b3df63bf92789e2c8883fcc64": 5.15,
@@ -22,3 +22,9 @@ export const marketsDefaultMinRates: Record<number, Record<string, number>> = {
     "0x1c21c59df9db44bf6f645d854ee710a8ca17b479451447e9f56758aee10a2fad": 6,
   },
 };
+
+export const DEFAULT_MIN_APY_DELTA_BIPS = 25;
+
+export const vaultsDefaultMinApsDeltaBips: Record<number, Record<string, number>> = {};
+
+export const marketsMinApsDeltaBips: Record<number, Record<string, number>> = {};

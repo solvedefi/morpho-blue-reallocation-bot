@@ -8,17 +8,22 @@ import {
   rateToUtilization,
   percentToWad,
   getRateFromAPY,
+  apyFromRate,
+  utilizationToRate,
 } from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 import {
-  marketsDefaultMinRates,
+  marketsMinRates,
   vaultsDefaultMinRates,
   DEFAULT_MIN_RATE,
-} from "../../../../config/src/strategies/minRates";
+  marketsMinApsDeltaBips,
+  vaultsDefaultMinApsDeltaBips,
+  DEFAULT_MIN_APY_DELTA_BIPS,
+} from "@morpho-blue-reallocation-bot/config";
 
 export class MinRates implements Strategy {
-  constructor(private readonly minUtilizationDeltaBips: number) {}
+  constructor() {}
 
   findReallocation(vaultData: VaultData) {
     const idleMarket = vaultData.marketsData.find(
@@ -33,8 +38,6 @@ export class MinRates implements Strategy {
     let totalDepositableAmount = 0n;
 
     let didExceedMinUtilizationDelta = false; // (true if *at least one* market moves enough)
-    // TODO: to estimate change in APR, we need `startRateAtTarget`, which we're not currently fetching or passing in
-    // let didExceedMinAprDelta = false; // (true if *at least one* market moves enough)
 
     for (const marketData of marketsData) {
       const targetUtilization = rateToUtilization(
@@ -50,9 +53,13 @@ export class MinRates implements Strategy {
         totalWithdrawableAmount += getWithdrawableAmount(marketData, targetUtilization);
       }
 
+      const apyDelta =
+        apyFromRate(utilizationToRate(targetUtilization, marketData.rateAtTarget)) -
+        apyFromRate(utilizationToRate(utilization, marketData.rateAtTarget));
+
       didExceedMinUtilizationDelta ||=
-        Math.abs(Number((utilization - targetUtilization) / 1_000_000_000n) / 1e5) >
-        this.minUtilizationDeltaBips;
+        Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
+        this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
     }
 
     let idleWithdrawal = 0n;
@@ -138,20 +145,24 @@ export class MinRates implements Strategy {
   protected getTargetRate(chainId: number, vaultAddress: Address, marketId: Hex) {
     let targetRate = DEFAULT_MIN_RATE;
 
-    if (
-      vaultsDefaultMinRates[chainId] !== undefined &&
-      vaultsDefaultMinRates[chainId][vaultAddress] !== undefined
-    ) {
+    if (vaultsDefaultMinRates[chainId]?.[vaultAddress] !== undefined)
       targetRate = vaultsDefaultMinRates[chainId][vaultAddress];
-    }
 
-    if (
-      marketsDefaultMinRates[chainId] !== undefined &&
-      marketsDefaultMinRates[chainId][marketId] !== undefined
-    ) {
-      targetRate = marketsDefaultMinRates[chainId][marketId];
-    }
+    if (marketsMinRates[chainId]?.[marketId] !== undefined)
+      targetRate = marketsMinRates[chainId][marketId];
 
     return percentToWad(targetRate);
+  }
+
+  protected getMinApyDeltaBips(chainId: number, vaultAddress: Address, marketId: Hex) {
+    let minApyDeltaBips = DEFAULT_MIN_APY_DELTA_BIPS;
+
+    if (vaultsDefaultMinApsDeltaBips[chainId]?.[vaultAddress] !== undefined)
+      minApyDeltaBips = vaultsDefaultMinApsDeltaBips[chainId][vaultAddress];
+
+    if (marketsMinApsDeltaBips[chainId]?.[marketId] !== undefined)
+      minApyDeltaBips = marketsMinApsDeltaBips[chainId][marketId];
+
+    return minApyDeltaBips;
   }
 }
