@@ -7,22 +7,21 @@ import {
   getWithdrawableAmount,
   rateToUtilization,
   percentToWad,
-  getRateFromAPY,
   apyFromRate,
   utilizationToRate,
 } from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 import {
-  marketsMinRates,
-  vaultsDefaultMinRates,
-  DEFAULT_MIN_RATE,
+  marketsMinApys,
+  vaultsDefaultMinApys,
+  DEFAULT_MIN_APY,
   marketsMinApsDeltaBips,
   vaultsDefaultMinApsDeltaBips,
   DEFAULT_MIN_APY_DELTA_BIPS,
 } from "@morpho-blue-reallocation-bot/config";
 
-export class MinRates implements Strategy {
+export class ApyRange implements Strategy {
   constructor() {}
 
   findReallocation(vaultData: VaultData) {
@@ -40,26 +39,33 @@ export class MinRates implements Strategy {
     let didExceedMinUtilizationDelta = false; // (true if *at least one* market moves enough)
 
     for (const marketData of marketsData) {
-      const targetUtilization = rateToUtilization(
-        getRateFromAPY(
-          this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
-        ),
-        marketData.rateAtTarget,
-      );
+      const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
+
+      const upperUtilizationBound = rateToUtilization(apyRange.max, marketData.rateAtTarget);
+      const lowerUtilizationBound = rateToUtilization(apyRange.min, marketData.rateAtTarget);
       const utilization = getUtilization(marketData.state);
-      if (utilization > targetUtilization) {
-        totalDepositableAmount += getDepositableAmount(marketData, targetUtilization);
-      } else {
-        totalWithdrawableAmount += getWithdrawableAmount(marketData, targetUtilization);
+
+      if (utilization > upperUtilizationBound) {
+        totalDepositableAmount += getDepositableAmount(marketData, upperUtilizationBound);
+
+        const apyDelta =
+          apyFromRate(utilizationToRate(upperUtilizationBound, marketData.rateAtTarget)) -
+          apyFromRate(utilizationToRate(utilization, marketData.rateAtTarget));
+
+        didExceedMinUtilizationDelta ||=
+          Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
+          this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
+      } else if (utilization < lowerUtilizationBound) {
+        totalWithdrawableAmount += getWithdrawableAmount(marketData, lowerUtilizationBound);
+
+        const apyDelta =
+          apyFromRate(utilizationToRate(lowerUtilizationBound, marketData.rateAtTarget)) -
+          apyFromRate(utilizationToRate(utilization, marketData.rateAtTarget));
+
+        didExceedMinUtilizationDelta ||=
+          Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
+          this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
       }
-
-      const apyDelta =
-        apyFromRate(utilizationToRate(targetUtilization, marketData.rateAtTarget)) -
-        apyFromRate(utilizationToRate(utilization, marketData.rateAtTarget));
-
-      didExceedMinUtilizationDelta ||=
-        Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
-        this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
     }
 
     let idleWithdrawal = 0n;
@@ -92,25 +98,26 @@ export class MinRates implements Strategy {
     const deposits: MarketAllocation[] = [];
 
     for (const marketData of marketsData) {
-      const targetUtilization = rateToUtilization(
-        getRateFromAPY(
-          this.getTargetRate(marketData.chainId, vaultData.vaultAddress, marketData.id),
-        ),
-        marketData.rateAtTarget,
-      );
+      const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
+
+      const upperUtilizationBound = rateToUtilization(apyRange.max, marketData.rateAtTarget);
+      const lowerUtilizationBound = rateToUtilization(apyRange.min, marketData.rateAtTarget);
       const utilization = getUtilization(marketData.state);
 
-      if (utilization > targetUtilization) {
-        const deposit = min(getDepositableAmount(marketData, targetUtilization), remainingDeposit);
+      if (utilization > upperUtilizationBound) {
+        const deposit = min(
+          getDepositableAmount(marketData, upperUtilizationBound),
+          remainingDeposit,
+        );
         remainingDeposit -= deposit;
 
         deposits.push({
           marketParams: marketData.params,
           assets: remainingDeposit === 0n ? maxUint256 : marketData.vaultAssets + deposit,
         });
-      } else {
+      } else if (utilization < lowerUtilizationBound) {
         const withdrawal = min(
-          getWithdrawableAmount(marketData, targetUtilization),
+          getWithdrawableAmount(marketData, lowerUtilizationBound),
           remainingWithdrawal,
         );
         remainingWithdrawal -= withdrawal;
@@ -142,16 +149,19 @@ export class MinRates implements Strategy {
     return [...withdrawals, ...deposits];
   }
 
-  protected getTargetRate(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let targetRate = DEFAULT_MIN_RATE;
+  protected getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
+    let apyRange = DEFAULT_MIN_APY;
 
-    if (vaultsDefaultMinRates[chainId]?.[vaultAddress] !== undefined)
-      targetRate = vaultsDefaultMinRates[chainId][vaultAddress];
+    if (vaultsDefaultMinApys[chainId]?.[vaultAddress] !== undefined)
+      apyRange = vaultsDefaultMinApys[chainId][vaultAddress];
 
-    if (marketsMinRates[chainId]?.[marketId] !== undefined)
-      targetRate = marketsMinRates[chainId][marketId];
+    if (marketsMinApys[chainId]?.[marketId] !== undefined)
+      apyRange = marketsMinApys[chainId][marketId];
 
-    return percentToWad(targetRate);
+    return {
+      min: percentToWad(apyRange.min),
+      max: percentToWad(apyRange.max),
+    };
   }
 
   protected getMinApyDeltaBips(chainId: number, vaultAddress: Address, marketId: Hex) {

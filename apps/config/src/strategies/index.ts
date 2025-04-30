@@ -1,2 +1,2 @@
 export * from "./equilizeUtilizations";
-export * from "./minRates";
+export * from "./apyRange";
