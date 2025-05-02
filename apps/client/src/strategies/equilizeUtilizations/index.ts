@@ -1,11 +1,10 @@
 import { Address, maxUint256, zeroAddress } from "viem";
-
 import {
+  getDepositableAmount,
+  getWithdrawableAmount,
   getUtilization,
   min,
   wDivDown,
-  getDepositableAmount,
-  getWithdrawableAmount,
 } from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";

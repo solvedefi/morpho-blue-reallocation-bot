@@ -1,13 +1,16 @@
-import { WAD } from "../../../src/utils/maths";
+import { describe, expect } from "vitest";
 import { Address, Hex, maxUint184, maxUint256, parseUnits } from "viem";
 import { mainnet } from "viem/chains";
-import { describe, expect } from "vitest";
 import { readContract, writeContract } from "viem/actions";
-import { WBTC, MORPHO, IRM } from "../../constants.js";
+import { test } from "../../setup.js";
 import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
 import { metaMorphoAbi } from "../../../abis/MetaMorpho.js";
-import { apyFromRate, getUtilization, percentToWad } from "../../../src/utils/maths.js";
-import { test } from "../../setup.js";
+import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
+import { WBTC, MORPHO, IRM } from "../../constants.js";
+import { Range } from "@morpho-blue-reallocation-bot/config";
+import { rateToApy, getUtilization, percentToWad, WAD } from "../../../src/utils/maths.js";
+import { abs, formatMarketState } from "../helpers.js";
+import { ApyRange } from "../../../src/strategies/apyRange/index.js";
 import {
   setupVault,
   marketParams1,
@@ -22,16 +25,12 @@ import {
   idleMarketId,
   idleMarketParams,
 } from "../vaultSetup.js";
-import { abs, formatMarketState } from "../helpers.js";
-import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
-import { Range } from "@morpho-blue-reallocation-bot/config";
-import { ApyRange } from "../../../src/strategies/apyRange/index.js";
 
-const targetMarket1 = { min: 0.5, max: 1.5 };
+const targetMarket1 = { min: 0.5, max: 2 };
 const targetMarket2 = { min: 8, max: 12 };
 
 const testConfig = {
-  DEFAULT_APY_RANGE: { min: 3, max: 8 },
+  DEFAULT_APY_RANGE: { min: 2, max: 8 },
   vaultsDefaultApyRanges: {},
   marketsDefaultApyRanges: {
     [mainnet.id]: {
@@ -55,7 +54,7 @@ class MinRatesTest extends ApyRange {
     this.config = testConfig;
   }
 
-  getTargetRate(chainId: number, vaultAddress: Address, marketId: Hex) {
+  getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
     let apyRange = this.config.DEFAULT_APY_RANGE;
 
     if (this.config.vaultsDefaultApyRanges[chainId]?.[vaultAddress] !== undefined) {
@@ -254,12 +253,12 @@ describe("equilizeUtilizations strategy", () => {
     ]);
 
     // Market 1 should be at max apy
-    expect(abs(apyFromRate(marketState1Rate) - percentToWad(targetMarket1.max))).toBeLessThan(
+    expect(abs(rateToApy(marketState1Rate) - percentToWad(targetMarket1.max))).toBeLessThan(
       tolerance,
     );
 
     // Market 2 should be at min apy
-    expect(abs(apyFromRate(marketState2Rate) - percentToWad(targetMarket2.min))).toBeLessThan(
+    expect(abs(rateToApy(marketState2Rate) - percentToWad(targetMarket2.min))).toBeLessThan(
       tolerance,
     );
 

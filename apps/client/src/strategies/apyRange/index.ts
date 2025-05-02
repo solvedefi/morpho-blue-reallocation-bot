@@ -1,24 +1,24 @@
 import { Address, Hex, maxUint256, zeroAddress } from "viem";
-
 import {
-  getUtilization,
-  min,
+  apyToRate,
   getDepositableAmount,
   getWithdrawableAmount,
-  rateToUtilization,
+  getUtilization,
+  min,
   percentToWad,
-  apyFromRate,
+  rateToApy,
+  rateToUtilization,
   utilizationToRate,
 } from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 import {
-  marketsMinApys,
-  vaultsDefaultMinApys,
   DEFAULT_MIN_APY,
-  marketsMinApsDeltaBips,
-  vaultsDefaultMinApsDeltaBips,
   DEFAULT_MIN_APY_DELTA_BIPS,
+  marketsMinApys,
+  marketsMinApsDeltaBips,
+  vaultsDefaultMinApys,
+  vaultsDefaultMinApsDeltaBips,
 } from "@morpho-blue-reallocation-bot/config";
 
 export class ApyRange implements Strategy {
@@ -41,16 +41,23 @@ export class ApyRange implements Strategy {
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
 
-      const upperUtilizationBound = rateToUtilization(apyRange.max, marketData.rateAtTarget);
-      const lowerUtilizationBound = rateToUtilization(apyRange.min, marketData.rateAtTarget);
+      const upperUtilizationBound = rateToUtilization(
+        apyToRate(apyRange.max),
+        marketData.rateAtTarget,
+      );
+      const lowerUtilizationBound = rateToUtilization(
+        apyToRate(apyRange.min),
+        marketData.rateAtTarget,
+      );
+
       const utilization = getUtilization(marketData.state);
 
       if (utilization > upperUtilizationBound) {
         totalDepositableAmount += getDepositableAmount(marketData, upperUtilizationBound);
 
         const apyDelta =
-          apyFromRate(utilizationToRate(upperUtilizationBound, marketData.rateAtTarget)) -
-          apyFromRate(utilizationToRate(utilization, marketData.rateAtTarget));
+          rateToApy(utilizationToRate(upperUtilizationBound, marketData.rateAtTarget)) -
+          rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
 
         didExceedMinUtilizationDelta ||=
           Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
@@ -59,8 +66,8 @@ export class ApyRange implements Strategy {
         totalWithdrawableAmount += getWithdrawableAmount(marketData, lowerUtilizationBound);
 
         const apyDelta =
-          apyFromRate(utilizationToRate(lowerUtilizationBound, marketData.rateAtTarget)) -
-          apyFromRate(utilizationToRate(utilization, marketData.rateAtTarget));
+          rateToApy(utilizationToRate(lowerUtilizationBound, marketData.rateAtTarget)) -
+          rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
 
         didExceedMinUtilizationDelta ||=
           Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
@@ -100,8 +107,14 @@ export class ApyRange implements Strategy {
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
 
-      const upperUtilizationBound = rateToUtilization(apyRange.max, marketData.rateAtTarget);
-      const lowerUtilizationBound = rateToUtilization(apyRange.min, marketData.rateAtTarget);
+      const upperUtilizationBound = rateToUtilization(
+        apyToRate(apyRange.max),
+        marketData.rateAtTarget,
+      );
+      const lowerUtilizationBound = rateToUtilization(
+        apyToRate(apyRange.min),
+        marketData.rateAtTarget,
+      );
       const utilization = getUtilization(marketData.state);
 
       if (utilization > upperUtilizationBound) {
