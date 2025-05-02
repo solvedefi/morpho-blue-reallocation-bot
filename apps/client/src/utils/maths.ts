@@ -77,7 +77,7 @@ export function getDepositableAmount(marketData: VaultMarketData, targetUtilizat
   );
 }
 
-export const getRateFromAPY = (apy: bigint): bigint => {
+export const apyToRate = (apy: bigint): bigint => {
   const firstTerm = apy;
   const secondTerm = wMulDown(firstTerm, firstTerm);
   const thirdTerm = wMulDown(secondTerm, firstTerm);
@@ -127,4 +127,4 @@ export const percentToWad = (percent: number): bigint => {
   return parseUnits(percent.toString(), 16);
 };
 
-export const apyFromRate = (rate: bigint): bigint => wTaylorCompounded(rate, YEAR);
+export const rateToApy = (rate: bigint): bigint => wTaylorCompounded(rate, YEAR);

@@ -1,13 +1,16 @@
+import { describe, expect } from "vitest";
 import { Address, Hex, maxUint184, maxUint256, parseUnits } from "viem";
 import { mainnet } from "viem/chains";
-import { describe, expect } from "vitest";
-import { MinRates } from "../../../src/strategies/minRates/index.js";
 import { readContract, writeContract } from "viem/actions";
-import { WBTC, MORPHO, IRM } from "../../constants.js";
+import { test } from "../../setup.js";
 import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
 import { metaMorphoAbi } from "../../../abis/MetaMorpho.js";
-import { apyFromRate, percentToWad } from "../../../src/utils/maths.js";
-import { test } from "../../setup.js";
+import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
+import { WBTC, MORPHO, IRM } from "../../constants.js";
+import { Range } from "@morpho-blue-reallocation-bot/config";
+import { rateToApy, getUtilization, percentToWad, WAD } from "../../../src/utils/maths.js";
+import { abs, formatMarketState } from "../helpers.js";
+import { ApyRange } from "../../../src/strategies/apyRange/index.js";
 import {
   setupVault,
   marketParams1,
@@ -22,16 +25,14 @@ import {
   idleMarketId,
   idleMarketParams,
 } from "../vaultSetup.js";
-import { abs, formatMarketState } from "../helpers.js";
-import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
 
-const targetMarket1 = 2;
-const targetMarket2 = 12;
+const targetMarket1 = { min: 0.5, max: 2 };
+const targetMarket2 = { min: 8, max: 12 };
 
 const testConfig = {
-  DEFAULT_MIN_RATE: 4,
-  vaultsDefaultMinRates: {},
-  marketsDefaultMinRates: {
+  DEFAULT_APY_RANGE: { min: 2, max: 8 },
+  vaultsDefaultApyRanges: {},
+  marketsDefaultApyRanges: {
     [mainnet.id]: {
       [marketId1]: targetMarket1,
       [marketId2]: targetMarket2,
@@ -40,12 +41,12 @@ const testConfig = {
 };
 
 type TestConfig = {
-  DEFAULT_MIN_RATE: number;
-  vaultsDefaultMinRates: Record<number, Record<Address, number>>;
-  marketsDefaultMinRates: Record<number, Record<Hex, number>>;
+  DEFAULT_APY_RANGE: Range;
+  vaultsDefaultApyRanges: Record<number, Record<Address, Range>>;
+  marketsDefaultApyRanges: Record<number, Record<Hex, Range>>;
 };
 
-class MinRatesTest extends MinRates {
+class MinRatesTest extends ApyRange {
   private readonly config: TestConfig;
 
   constructor(testConfig: TestConfig) {
@@ -53,24 +54,21 @@ class MinRatesTest extends MinRates {
     this.config = testConfig;
   }
 
-  getTargetRate(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let targetRate = this.config.DEFAULT_MIN_RATE;
+  getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
+    let apyRange = this.config.DEFAULT_APY_RANGE;
 
-    if (
-      this.config.vaultsDefaultMinRates[chainId] !== undefined &&
-      this.config.vaultsDefaultMinRates[chainId][vaultAddress] !== undefined
-    ) {
-      targetRate = this.config.vaultsDefaultMinRates[chainId][vaultAddress];
+    if (this.config.vaultsDefaultApyRanges[chainId]?.[vaultAddress] !== undefined) {
+      apyRange = this.config.vaultsDefaultApyRanges[chainId][vaultAddress];
     }
 
-    if (
-      this.config.marketsDefaultMinRates[chainId] !== undefined &&
-      this.config.marketsDefaultMinRates[chainId][marketId] !== undefined
-    ) {
-      targetRate = this.config.marketsDefaultMinRates[chainId][marketId];
+    if (this.config.marketsDefaultApyRanges[chainId]?.[marketId] !== undefined) {
+      apyRange = this.config.marketsDefaultApyRanges[chainId][marketId];
     }
 
-    return percentToWad(targetRate);
+    return {
+      min: percentToWad(apyRange.min),
+      max: percentToWad(apyRange.max),
+    };
   }
 }
 
@@ -239,7 +237,7 @@ describe("equilizeUtilizations strategy", () => {
       }),
     ]);
 
-    const [marketState1Rate, marketState2Rate, marketState3Rate] = await Promise.all([
+    const [marketState1Rate, marketState2Rate] = await Promise.all([
       readContract(client, {
         address: IRM,
         abi: adaptiveCurveIrmAbi,
@@ -252,22 +250,21 @@ describe("equilizeUtilizations strategy", () => {
         functionName: "borrowRateView",
         args: [marketParams2, formatMarketState(marketState2PostReallocation)],
       }),
-      readContract(client, {
-        address: IRM,
-        abi: adaptiveCurveIrmAbi,
-        functionName: "borrowRateView",
-        args: [marketParams3, formatMarketState(marketState3PostReallocation)],
-      }),
     ]);
 
-    expect(abs(apyFromRate(marketState1Rate) - percentToWad(targetMarket1))).toBeLessThan(
+    // Market 1 should be at max apy
+    expect(abs(rateToApy(marketState1Rate) - percentToWad(targetMarket1.max))).toBeLessThan(
       tolerance,
     );
-    expect(abs(apyFromRate(marketState2Rate) - percentToWad(targetMarket2))).toBeLessThan(
+
+    // Market 2 should be at min apy
+    expect(abs(rateToApy(marketState2Rate) - percentToWad(targetMarket2.min))).toBeLessThan(
       tolerance,
     );
-    expect(
-      abs(apyFromRate(marketState3Rate) - percentToWad(testConfig.DEFAULT_MIN_RATE)),
-    ).toBeLessThan(tolerance);
+
+    // Market 3 should have not been touched (same utilization as before reallocation)
+    expect(getUtilization(formatMarketState(marketState3PostReallocation)) - WAD / 2n).toBeLessThan(
+      tolerance,
+    );
   });
 });
