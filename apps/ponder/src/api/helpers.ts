@@ -40,15 +40,13 @@ export function accrueInterest(
   marketState: MarketState,
   rateAtTarget: bigint,
   timestamp: bigint,
-): MarketState {
+): { marketState: MarketState; rateAtTarget: bigint } {
   const elapsed = timestamp - marketState.lastUpdate;
-  if (elapsed === 0n) return marketState;
+  if (elapsed === 0n) return { marketState, rateAtTarget };
 
   if (marketState.totalBorrowAssets !== 0n) {
-    const interest = wMulDown(
-      marketState.totalBorrowAssets,
-      wTaylorCompounded(borrowRate(marketState, rateAtTarget, timestamp), elapsed),
-    );
+    const { avgRate, newRateAtTarget } = borrowRate(marketState, rateAtTarget, timestamp);
+    const interest = wMulDown(marketState.totalBorrowAssets, wTaylorCompounded(avgRate, elapsed));
     const marketWithNewTotal = {
       ...marketState,
       totalBorrowAssets: marketState.totalBorrowAssets + interest,
@@ -64,13 +62,16 @@ export function accrueInterest(
         marketWithNewTotal.totalSupplyShares,
       );
       return {
-        ...marketWithNewTotal,
-        totalSupplyShares: marketWithNewTotal.totalSupplyShares + feeShares,
+        marketState: {
+          ...marketWithNewTotal,
+          totalSupplyShares: marketWithNewTotal.totalSupplyShares + feeShares,
+        },
+        rateAtTarget: newRateAtTarget,
       };
     }
-    return marketWithNewTotal;
+    return { marketState: marketWithNewTotal, rateAtTarget: newRateAtTarget };
   }
-  return marketState;
+  return { marketState, rateAtTarget };
 }
 
 const wTaylorCompounded = (x: bigint, n: bigint): bigint => {
@@ -84,7 +85,7 @@ export function borrowRate(
   market: MarketState,
   startRateAtTarget: bigint,
   timestamp: bigint,
-): bigint {
+): { avgRate: bigint; newRateAtTarget: bigint } {
   const utilization =
     market.totalSupplyAssets > 0n
       ? wDivDown(market.totalBorrowAssets, market.totalSupplyAssets)
@@ -116,7 +117,7 @@ export function borrowRate(
     }
   }
 
-  return curve(avgRateAtTarget, err);
+  return { avgRate: curve(avgRateAtTarget, err), newRateAtTarget: endRateAtTarget };
 }
 
 const wMulToZero = (x: bigint, y: bigint): bigint => {

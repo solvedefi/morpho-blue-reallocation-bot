@@ -100,12 +100,19 @@ This configuration is handled in the `apps/config/src/strategies` folder, which 
 
 ## Reallocation Strategy
 
-The bot uses an `EquilizeUtilizations` strategy that:
+The bot uses by default an `EquilizeUtilizations` strategy that:
 
 1. Calculates a target utilization rate across all markets within a vault
 2. Identifies markets with higher-than-target and lower-than-target utilization
 3. Determines optimal withdrawals and deposits to balance utilization rates
 4. Only executes reallocations when the utilization delta exceeds a minimum threshold (2.5% by default)
+
+## Apy Range Strategy
+
+The bot can also use the `ApyRange` strategy (if you change the strategy passed to the bot in the `apps/client/src/index.ts` file).
+
+This strategy tries to keep vaults listed markets borrow APY within the ranges defined in `apps/config/src/strategies/apyRange.ts`.
+Ranges can be defined at the global level, at the vaults level, or/and at the markets level.
 
 ## Run the bot
 

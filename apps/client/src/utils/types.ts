@@ -31,6 +31,7 @@ export type VaultMarketData = {
   state: MarketState;
   cap: bigint;
   vaultAssets: bigint;
+  rateAtTarget: bigint;
 };
 
 export type VaultData = {

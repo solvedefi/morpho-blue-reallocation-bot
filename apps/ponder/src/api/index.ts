@@ -73,7 +73,7 @@ app.get("/chain/:id/vault/:address", async (c) => {
 
       const cap = config[0];
 
-      const accruedState = accrueInterest(
+      const { marketState: accruedState, rateAtTarget } = accrueInterest(
         market,
         market.rateAtTarget,
         BigInt(Math.round(Date.now() / 1000)),

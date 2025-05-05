@@ -1,9 +1,13 @@
 import { Address, maxUint256, zeroAddress } from "viem";
-
-import { getUtilization, min, wDivDown } from "../../utils/maths";
+import {
+  getDepositableAmount,
+  getWithdrawableAmount,
+  getUtilization,
+  min,
+  wDivDown,
+} from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
-import { getDepositableAmount, getWithdrawableAmount } from "./helpers";
 import {
   DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
   vaultsMinUtilizationDeltaBips,
