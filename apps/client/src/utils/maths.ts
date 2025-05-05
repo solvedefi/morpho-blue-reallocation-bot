@@ -77,6 +77,7 @@ export function getDepositableAmount(marketData: VaultMarketData, targetUtilizat
   );
 }
 
+// Approximation of the natural logarithm with the first three terms of the Taylor series
 export const apyToRate = (apy: bigint): bigint => {
   const firstTerm = apy;
   const secondTerm = wMulDown(firstTerm, firstTerm);

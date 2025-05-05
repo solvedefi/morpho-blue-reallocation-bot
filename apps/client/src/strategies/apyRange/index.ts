@@ -36,7 +36,7 @@ export class ApyRange implements Strategy {
     let totalWithdrawableAmount = 0n;
     let totalDepositableAmount = 0n;
 
-    let didExceedMinUtilizationDelta = false; // (true if *at least one* market moves enough)
+    let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
 
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
@@ -59,7 +59,7 @@ export class ApyRange implements Strategy {
           rateToApy(utilizationToRate(upperUtilizationBound, marketData.rateAtTarget)) -
           rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
 
-        didExceedMinUtilizationDelta ||=
+        didExceedMinApyDelta ||=
           Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
           this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
       } else if (utilization < lowerUtilizationBound) {
@@ -69,7 +69,7 @@ export class ApyRange implements Strategy {
           rateToApy(utilizationToRate(lowerUtilizationBound, marketData.rateAtTarget)) -
           rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
 
-        didExceedMinUtilizationDelta ||=
+        didExceedMinApyDelta ||=
           Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
           this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
       }
@@ -96,7 +96,7 @@ export class ApyRange implements Strategy {
 
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
 
-    if (toReallocate === 0n || !didExceedMinUtilizationDelta) return;
+    if (toReallocate === 0n || !didExceedMinApyDelta) return;
 
     let remainingWithdrawal = toReallocate;
     let remainingDeposit = toReallocate;
