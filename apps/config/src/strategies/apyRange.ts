@@ -5,12 +5,18 @@ export type Range = {
   max: number;
 };
 
-export const DEFAULT_MIN_APY = {
+export const DEFAULT_APY_RANGE = {
   min: 3,
   max: 8,
 };
 
-export const vaultsDefaultMinApys: Record<number, Record<string, Range>> = {
+/**
+ * If set to true, the bot might reallocate liquidity into the idle market if it's necessary to reach the target apy ranges.
+ * If set to false, the bot will not reallocate liquidity into the idle market.
+ */
+export const ALLOW_IDLE_REALLOCATION = true;
+
+export const vaultsDefaultApyRanges: Record<number, Record<string, Range>> = {
   [mainnet.id]: {
     "0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB": {
       min: 4,
@@ -29,7 +35,7 @@ export const vaultsDefaultMinApys: Record<number, Record<string, Range>> = {
   },
 };
 
-export const marketsMinApys: Record<number, Record<string, Range>> = {
+export const marketsApyRanges: Record<number, Record<string, Range>> = {
   [mainnet.id]: {
     "0x3a85e619751152991742810df6ec69ce473daef99e28a64ab2340d7b7ccfee49": {
       min: 5.25,

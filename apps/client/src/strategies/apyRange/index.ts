@@ -13,11 +13,12 @@ import {
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 import {
-  DEFAULT_MIN_APY,
+  ALLOW_IDLE_REALLOCATION,
+  DEFAULT_APY_RANGE,
   DEFAULT_MIN_APY_DELTA_BIPS,
-  marketsMinApys,
+  marketsApyRanges,
   marketsMinApsDeltaBips,
-  vaultsDefaultMinApys,
+  vaultsDefaultApyRanges,
   vaultsDefaultMinApsDeltaBips,
 } from "@morpho-blue-reallocation-bot/config";
 
@@ -78,7 +79,7 @@ export class ApyRange implements Strategy {
     let idleWithdrawal = 0n;
     let idleDeposit = 0n;
 
-    if (idleMarket) {
+    if (idleMarket && ALLOW_IDLE_REALLOCATION) {
       if (totalWithdrawableAmount > totalDepositableAmount) {
         idleDeposit = min(
           totalWithdrawableAmount - totalDepositableAmount,
@@ -144,7 +145,7 @@ export class ApyRange implements Strategy {
       if (remainingWithdrawal === 0n && remainingDeposit === 0n) break;
     }
 
-    if (idleMarket) {
+    if (idleMarket && ALLOW_IDLE_REALLOCATION) {
       if (idleWithdrawal > 0n) {
         withdrawals.push({
           marketParams: idleMarket.params,
@@ -163,13 +164,13 @@ export class ApyRange implements Strategy {
   }
 
   protected getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let apyRange = DEFAULT_MIN_APY;
+    let apyRange = DEFAULT_APY_RANGE;
 
-    if (vaultsDefaultMinApys[chainId]?.[vaultAddress] !== undefined)
-      apyRange = vaultsDefaultMinApys[chainId][vaultAddress];
+    if (vaultsDefaultApyRanges[chainId]?.[vaultAddress] !== undefined)
+      apyRange = vaultsDefaultApyRanges[chainId][vaultAddress];
 
-    if (marketsMinApys[chainId]?.[marketId] !== undefined)
-      apyRange = marketsMinApys[chainId][marketId];
+    if (marketsApyRanges[chainId]?.[marketId] !== undefined)
+      apyRange = marketsApyRanges[chainId][marketId];
 
     return {
       min: percentToWad(apyRange.min),

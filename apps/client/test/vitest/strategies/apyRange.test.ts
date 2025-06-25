@@ -38,9 +38,11 @@ const testConfig = {
       [marketId2]: targetMarket2,
     },
   },
+  ALLOW_IDLE_REALLOCATION: true,
 };
 
 type TestConfig = {
+  ALLOW_IDLE_REALLOCATION: boolean;
   DEFAULT_APY_RANGE: Range;
   vaultsDefaultApyRanges: Record<number, Record<Address, Range>>;
   marketsDefaultApyRanges: Record<number, Record<Hex, Range>>;
