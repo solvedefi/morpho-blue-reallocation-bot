@@ -146,14 +146,14 @@ export class ApyRange implements Strategy {
     }
 
     if (idleMarket) {
-      if (idleWithdrawal > 0n && ALLOW_IDLE_REALLOCATION) {
+      if (idleWithdrawal > 0n) {
         withdrawals.push({
           marketParams: idleMarket.params,
           assets: idleWithdrawal,
         });
       }
 
-      if (idleDeposit > 0n) {
+      if (idleDeposit > 0n && ALLOW_IDLE_REALLOCATION) {
         deposits.push({
           marketParams: idleMarket.params,
           assets: maxUint256,
