@@ -28,7 +28,7 @@ async function run() {
   const configs = Object.keys(chainConfigs).map((config) => chainConfig(Number(config)));
 
   if (process.env.POSTGRES_DATABASE_URL === undefined) {
-    spawn("docker", ["compose", "up", "-d"]);
+    spawn("docker", ["compose", "up", "postgres", "-d"]);
     console.log("Waiting for postgres to be ready...");
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
