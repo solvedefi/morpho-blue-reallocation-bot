@@ -54,5 +54,12 @@ export function getSecrets(chainId: number, chain?: Chain) {
   };
 }
 
+import {
+  DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
+  vaultsMinUtilizationDeltaBips,
+} from "./strategies/equilizeUtilizations";
+
+export { DEFAULT_MIN_UTILIZATION_DELTA_BIPS, vaultsMinUtilizationDeltaBips };
+
 export { chainConfigs, type ChainConfig };
 export * from "./strategies";

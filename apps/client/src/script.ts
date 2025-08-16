@@ -1,5 +1,8 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import { spawn } from "node:child_process";
+
 import { chainConfigs, chainConfig } from "@morpho-blue-reallocation-bot/config";
+
 import { launchBot } from ".";
 
 const PONDER_API_CHECK = "http://localhost:42069/ready";
@@ -14,7 +17,9 @@ async function waitForIndexing() {
           clearInterval(interval);
           resolve();
         }
-      } catch {}
+      } catch {
+        // do nothing
+      }
     }, 1000);
   });
 }
@@ -40,7 +45,9 @@ async function run() {
     await waitForIndexing();
 
     // biome-ignore lint/complexity/noForEach: <explanation>
-    configs.forEach((config) => launchBot(config));
+    configs.forEach((config) => {
+      launchBot(config);
+    });
   } catch (err) {
     console.error(err);
     ponder.kill("SIGTERM");
