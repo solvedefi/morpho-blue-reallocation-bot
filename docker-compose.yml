@@ -5,12 +5,12 @@ services:
       dockerfile: Dockerfile
     container_name: morpho_blue_reallocation_bot
     restart: unless-stopped
+    network_mode: host
     depends_on:
       - postgres
     environment:
-      - POSTGRES_DATABASE_URL=postgres://ponder:ponder@postgres:5432/ponder
-      # - POSTGRES_DATABASE_URL=postgres://vladimir:re7vladimir@host.docker.internal:54332/exampledb
-    # network_mode: host
+      - POSTGRES_DATABASE_URL=postgres://vladimir:re7vladimir@host.docker.internal:54332/exampledb
+      # - POSTGRES_DATABASE_URL=postgres://ponder:ponder@postgres:5432/ponder
     # logging:
     #   driver: "awslogs"
     #   options:
