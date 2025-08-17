@@ -1,3 +1,4 @@
+/* eslint-disable import-x/order */
 import dotenv from "dotenv";
 import type { Address, Chain, Hex } from "viem";
 
@@ -56,10 +57,15 @@ export function getSecrets(chainId: number, chain?: Chain) {
 
 import {
   DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
+  DEFAULT_MIN_APR_DELTA_BIPS,
   vaultsMinUtilizationDeltaBips,
+  vaultsMinAprDeltaBips,
 } from "./strategies/equilizeUtilizations";
 
-export { DEFAULT_MIN_UTILIZATION_DELTA_BIPS, vaultsMinUtilizationDeltaBips };
-
+export {
+  DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
+  vaultsMinUtilizationDeltaBips,
+  DEFAULT_MIN_APR_DELTA_BIPS,
+  vaultsMinAprDeltaBips,
+};
 export { chainConfigs, type ChainConfig };
-export * from "./strategies";
