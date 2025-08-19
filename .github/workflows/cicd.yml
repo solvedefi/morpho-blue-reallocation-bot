@@ -1,4 +1,4 @@
-name: Margin Bot CI/CD
+name: Deploy reallocation bot
 
 on:
   push:
