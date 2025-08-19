@@ -21,12 +21,12 @@ The codebase uses a pattern-based approach for environment variables, organized 
 - `1` (Ethereum Mainnet)
 - `8453` (Base)
 - `130` (Unichain) 
-- `747474` (Custom chain)
+- `747474` (Katana)
 - `137` (Polygon)
 - `1135` (Lisk)
-- `98866` (Custom chain)
+- `98866` (Plume)
 - `1868` (Soneium)
-- `239` (Custom chain)
+- `239` (TAC)
 - `480` (Worldchain)
 - `42161` (Arbitrum)
 
@@ -73,7 +73,7 @@ The codebase uses a pattern-based approach for environment variables, organized 
       "VAULT_WHITELIST": "0x...,0x...",
       "EXECUTION_INTERVAL": "3600"
     }
-    // ... other chains (130, 747474, 137, 1135, 98866, 1868, 239, 480, 42161)
+    // ... other chains (130-Unichain, 747474-Katana, 137-Polygon, 1135-Lisk, 98866-Plume, 1868-Soneium, 239-TAC, 480-Worldchain, 42161-Arbitrum)
   }
 }
 ```
@@ -127,7 +127,7 @@ The codebase uses a pattern-based approach for environment variables, organized 
 
 3. **Testing Strategy**
    - Test each chain configuration independently
-   - Validate secret retrieval for all 11 chains
+   - Validate secret retrieval for all 11 chains (Ethereum, Base, Unichain, Katana, Polygon, Lisk, Plume, Soneium, TAC, Worldchain, Arbitrum)
    - Compare .env vs AWS Secrets Manager outputs
    - Load testing for multiple concurrent requests
 
