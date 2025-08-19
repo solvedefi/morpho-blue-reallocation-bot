@@ -1,14 +1,15 @@
+import { chainConfig, chainConfigs } from "@morpho-blue-reallocation-bot/config";
 import { createConfig, factory } from "ponder";
 import { type AbiEvent, getAbiItem, http } from "viem";
-
-import { chainConfig, chainConfigs } from "@morpho-blue-reallocation-bot/config";
 
 import { adaptiveCurveIrmAbi } from "./abis/AdaptiveCurveIrm";
 import { metaMorphoAbi } from "./abis/MetaMorpho";
 import { metaMorphoFactoryAbi } from "./abis/MetaMorphoFactory";
 import { morphoBlueAbi } from "./abis/MorphoBlue";
 
-const configs = Object.values(chainConfigs).map((config) => chainConfig(config.chain.id));
+const configs = await Promise.all(
+  Object.values(chainConfigs).map((config) => chainConfig(config.chain.id)),
+);
 
 const networks = Object.fromEntries(
   configs.map((config) => [
