@@ -1,0 +1,34 @@
+name: Margin Bot CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [ opened, synchronize, reopened, edited ]
+
+jobs:
+  deploy:
+#    needs: [publish]
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Set env
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_KEY" > ~/.ssh/deploy.key
+          chmod 600 ~/.ssh/deploy.key
+          cat >>~/.ssh/config <<END
+          Host morpho_reallocation_bot
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/deploy.key
+            StrictHostKeyChecking no
+          END
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+      - name: Run deploy script
+        run: ssh morpho_reallocation_bot 'cd $HOME/morpho-blue-reallocation-bot && docker compose up reallocation-bot'
