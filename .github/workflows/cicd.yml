@@ -33,20 +33,20 @@ jobs:
 
       - name: Deploy on server
         run: |
-          ssh morpho_reallocation_bot '
+          ssh morpho_reallocation_bot "
             set -e
-            cd $HOME/morpho-blue-reallocation-bot || git clone https://vpatsenko:${{ secrets.ACCESS_TOKEN }}@github.com/solvedefi/morpho-blue-reallocation-bot.git $HOME/morpho-blue-reallocation-bot
+            cd \$HOME/morpho-blue-reallocation-bot || git clone https://x-access-token:${ACCESS_TOKEN}@github.com/morpho-org/morpho-blue-reallocation-bot.git \$HOME/morpho-blue-reallocation-bot
 
-            cd $HOME/morpho-blue-reallocation-bot
+            cd \$HOME/morpho-blue-reallocation-bot
             git fetch origin main
             git reset --hard origin/main
 
-            echo "Building docker image for commit ${GITHUB_SHA}..."
-            docker build -t reallocation-bot:${GITHUB_SHA} .
+            echo 'Building docker image for commit $GITHUB_SHA...'
+            docker build -t reallocation-bot:$GITHUB_SHA .
 
-            echo "Updating service..."
+            echo 'Updating service...'
             docker compose up -d --build reallocation-bot
-          '
+          "
         env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
