@@ -56,21 +56,21 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 9316789,
     },
   },
-  [polygon.id]: {
-    chain: polygon,
-    morpho: {
-      address: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
-      startBlock: 66931042,
-    },
-    adaptiveCurveIrm: {
-      address: "0xe675A2161D4a6E2de2eeD70ac98EEBf257FBF0B0",
-      startBlock: 66931042,
-    },
-    metaMorphoFactories: {
-      addresses: ["0xa9c87daB340631C34BB738625C70499e29ddDC98"],
-      startBlock: 66931118,
-    },
-  },
+  // [polygon.id]: {
+  //   chain: polygon,
+  //   morpho: {
+  //     address: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
+  //     startBlock: 66931042,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0xe675A2161D4a6E2de2eeD70ac98EEBf257FBF0B0",
+  //     startBlock: 66931042,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0xa9c87daB340631C34BB738625C70499e29ddDC98"],
+  //     startBlock: 66931118,
+  //   },
+  // },
   [worldchain.id]: {
     chain: worldchain,
     morpho: {
@@ -86,36 +86,36 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 9025733,
     },
   },
-  [lisk.id]: {
-    chain: lisk,
-    morpho: {
-      address: "0x00cD58DEEbd7A2F1C55dAec715faF8aed5b27BF8",
-      startBlock: 15731231,
-    },
-    adaptiveCurveIrm: {
-      address: "0x5576629f21D528A8c3e06C338dDa907B94563902",
-      startBlock: 15731231,
-    },
-    metaMorphoFactories: {
-      addresses: ["0x01dD876130690469F685a65C2B295A90a81BaD91"],
-      startBlock: 15731333,
-    },
-  },
-  [plume.id]: {
-    chain: plume,
-    morpho: {
-      address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
-      startBlock: 765994,
-    },
-    adaptiveCurveIrm: {
-      address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
-      startBlock: 765994,
-    },
-    metaMorphoFactories: {
-      addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
-      startBlock: 766078,
-    },
-  },
+  // [lisk.id]: {
+  //   chain: lisk,
+  //   morpho: {
+  //     address: "0x00cD58DEEbd7A2F1C55dAec715faF8aed5b27BF8",
+  //     startBlock: 15731231,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0x5576629f21D528A8c3e06C338dDa907B94563902",
+  //     startBlock: 15731231,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0x01dD876130690469F685a65C2B295A90a81BaD91"],
+  //     startBlock: 15731333,
+  //   },
+  // },
+  // [plume.id]: {
+  //   chain: plume,
+  //   morpho: {
+  //     address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
+  //     startBlock: 765994,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
+  //     startBlock: 765994,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
+  //     startBlock: 766078,
+  //   },
+  // },
   [soneium.id]: {
     chain: soneium,
     morpho: {
