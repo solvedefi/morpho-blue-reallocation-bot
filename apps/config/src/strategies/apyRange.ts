@@ -47,13 +47,30 @@ export const marketsApyRanges: Record<number, Record<string, Range>> = {
   //   },
   // },
   [base.id]: {
-    // uXRP/USDC
-    "0xa426ca680bd5a7dc0f95942ba876a7df399cdf8149f798bcc4e94f03e35d08fa": {
-      min: 7,
-      max: 8,
-    },
-    // uSUI/USDC
-    "0x5d96564285fc3830f51fe495f88c29cc1232fbca61ca8b6edc25bff921efdef2": {
+    // // uXRP/USDC
+    // "0xa426ca680bd5a7dc0f95942ba876a7df399cdf8149f798bcc4e94f03e35d08fa": {
+    //   min: 7,
+    //   max: 8,
+    // },
+    // // uSUI/USDC
+    // "0x5d96564285fc3830f51fe495f88c29cc1232fbca61ca8b6edc25bff921efdef2": {
+    //   min: 6,
+    //   max: 7,
+    // },
+    // // cbBTC/USDC
+    // "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836": {
+    //   min: 6,
+    //   max: 7,
+    // },
+    // // uSOL/USDC
+    // "0xa60e9b888f343351dece4df8251abe5858fc5db96e8624d614a6500c3a3085ea": {
+    //   min: 6,
+    //   max: 7,
+    // },
+
+
+    // mBASIS/USDC
+    "0x45f3b5688e7ba25071f78d1ce51d1b893faa3c86897b12204cdff3af6b3611f8": {
       min: 6,
       max: 7,
     },
@@ -62,8 +79,13 @@ export const marketsApyRanges: Record<number, Record<string, Range>> = {
       min: 6,
       max: 7,
     },
-    // uSOL/USDC
-    "0xa60e9b888f343351dece4df8251abe5858fc5db96e8624d614a6500c3a3085ea": {
+    // wbCOIN/USDC
+    "0x34f676bd8db106d6cdc90d0fb44145cea2f393310a794812cb1c5a8726b60913": {
+      min: 6,
+      max: 7,
+    },
+    // LBTC/USDC
+    "0x52a2a376586d0775e3e80621facc464f6e96d81c8cb70fd461527dde195a079f": {
       min: 6,
       max: 7,
     },
