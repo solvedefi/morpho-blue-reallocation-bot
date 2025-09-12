@@ -1,28 +1,46 @@
-import { mainnet, base, unichain, polygon, worldchain, lisk, plume, soneium } from "viem/chains";
+import { defineChain } from "viem";
+import { mainnet, base, unichain, polygon, worldchain, lisk, soneium } from "viem/chains";
 
 import type { Config } from "./types";
 
-// TODO: add katana
-// TODO: add tac
-export const chainConfigs: Record<number, Config> = {
-  [mainnet.id]: {
-    chain: mainnet,
-    morpho: {
-      address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
-      startBlock: 18883124,
-    },
-    adaptiveCurveIrm: {
-      address: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC",
-      startBlock: 18883124,
-    },
-    metaMorphoFactories: {
-      addresses: [
-        "0x1897A8997241C1cD4bD0698647e4EB7213535c24",
-        "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
-      ],
-      startBlock: 18925584,
+const sourceId = 1; // ethereum
+
+const plume = defineChain({
+  id: 98_866,
+  name: "Plume Mainnet",
+  nativeCurrency: {
+    name: "Plume Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.plumenetwork.xyz"],
+      webSocket: ["wss://rpc.plumenetwork.xyz"],
     },
   },
+  blockExplorers: {
+    default: {
+      name: "Blockscout",
+      url: "https://explorer.plumenetwork.xyz",
+      apiUrl: "https://explorer.plumenetwork.xyz/api",
+    },
+  },
+  contracts: {
+    multicall3: {
+      address: "0xca11bde05977b3631167028862be2a173976ca11",
+      blockCreated: 48_577,
+    },
+  },
+  sourceId,
+});
+
+//TODO: configure the chains
+//TODO: configure the chains
+//TODO: configure the chains
+//TODO: configure the chains
+//TODO: configure the chains
+export const chainConfigs: Record<number, Config> = {
   [base.id]: {
     chain: base,
     morpho: {
@@ -41,6 +59,24 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 13978134,
     },
   },
+  [mainnet.id]: {
+    chain: mainnet,
+    morpho: {
+      address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
+      startBlock: 18883124,
+    },
+    adaptiveCurveIrm: {
+      address: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC",
+      startBlock: 18883124,
+    },
+    metaMorphoFactories: {
+      addresses: [
+        "0x1897A8997241C1cD4bD0698647e4EB7213535c24",
+        "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
+      ],
+      startBlock: 18925584,
+    },
+  },
   [unichain.id]: {
     chain: unichain,
     morpho: {
@@ -56,21 +92,21 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 9316789,
     },
   },
-  // [polygon.id]: {
-  //   chain: polygon,
-  //   morpho: {
-  //     address: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
-  //     startBlock: 66931042,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0xe675A2161D4a6E2de2eeD70ac98EEBf257FBF0B0",
-  //     startBlock: 66931042,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0xa9c87daB340631C34BB738625C70499e29ddDC98"],
-  //     startBlock: 66931118,
-  //   },
-  // },
+  [polygon.id]: {
+    chain: polygon,
+    morpho: {
+      address: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
+      startBlock: 66931042,
+    },
+    adaptiveCurveIrm: {
+      address: "0xe675A2161D4a6E2de2eeD70ac98EEBf257FBF0B0",
+      startBlock: 66931042,
+    },
+    metaMorphoFactories: {
+      addresses: ["0xa9c87daB340631C34BB738625C70499e29ddDC98"],
+      startBlock: 66931118,
+    },
+  },
   [worldchain.id]: {
     chain: worldchain,
     morpho: {
@@ -86,36 +122,37 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 9025733,
     },
   },
-  // [lisk.id]: {
-  //   chain: lisk,
-  //   morpho: {
-  //     address: "0x00cD58DEEbd7A2F1C55dAec715faF8aed5b27BF8",
-  //     startBlock: 15731231,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x5576629f21D528A8c3e06C338dDa907B94563902",
-  //     startBlock: 15731231,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x01dD876130690469F685a65C2B295A90a81BaD91"],
-  //     startBlock: 15731333,
-  //   },
-  // },
-  // [plume.id]: {
-  //   chain: plume,
-  //   morpho: {
-  //     address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
-  //     startBlock: 765994,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
-  //     startBlock: 765994,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
-  //     startBlock: 766078,
-  //   },
-  // },
+  [lisk.id]: {
+    chain: lisk,
+    morpho: {
+      address: "0x00cD58DEEbd7A2F1C55dAec715faF8aed5b27BF8",
+      startBlock: 15731231,
+    },
+    adaptiveCurveIrm: {
+      address: "0x5576629f21D528A8c3e06C338dDa907B94563902",
+      startBlock: 15731231,
+    },
+    metaMorphoFactories: {
+      addresses: ["0x01dD876130690469F685a65C2B295A90a81BaD91"],
+      startBlock: 15731333,
+    },
+  },
+  // 98866 is the correct id, 98865 is the one which is used by viem
+  [98866]: {
+    chain: plume,
+    morpho: {
+      address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
+      startBlock: 765994,
+    },
+    adaptiveCurveIrm: {
+      address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
+      startBlock: 765994,
+    },
+    metaMorphoFactories: {
+      addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
+      startBlock: 766078,
+    },
+  },
   [soneium.id]: {
     chain: soneium,
     morpho: {
@@ -132,7 +169,3 @@ export const chainConfigs: Record<number, Config> = {
     },
   },
 };
-
-// export const DEFAULT_MIN_UTILIZATION_DELTA_BIPS = 100; // 1%
-
-// export const vaultsMinUtilizationDeltaBips: Record<number, Record<string, number>> = {};

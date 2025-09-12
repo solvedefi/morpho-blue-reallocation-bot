@@ -1,11 +1,11 @@
 import { base, mainnet } from "viem/chains";
 
-export type Range = {
+export interface Range {
   min: number;
   max: number;
-};
+}
 
-export const DEFAULT_APY_RANGE = {
+export const DEFAULT_APY_RANGE: Range = {
   min: 3,
   max: 8,
 };

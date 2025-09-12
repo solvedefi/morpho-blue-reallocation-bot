@@ -1,4 +1,15 @@
+import {
+  ALLOW_IDLE_REALLOCATION,
+  DEFAULT_APY_RANGE,
+  DEFAULT_MIN_APY_DELTA_BIPS,
+  marketsApyRanges,
+  marketsMinApsDeltaBips,
+  vaultsDefaultApyRanges,
+  vaultsDefaultMinApsDeltaBips,
+} from "@morpho-blue-reallocation-bot/config";
 import { Address, Hex, maxUint256, zeroAddress } from "viem";
+
+import { Range } from "../../../../config/dist/strategies/apyRange";
 import {
   apyToRate,
   getDepositableAmount,
@@ -12,19 +23,8 @@ import {
 } from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
-import {
-  ALLOW_IDLE_REALLOCATION,
-  DEFAULT_APY_RANGE,
-  DEFAULT_MIN_APY_DELTA_BIPS,
-  marketsApyRanges,
-  marketsMinApsDeltaBips,
-  vaultsDefaultApyRanges,
-  vaultsDefaultMinApsDeltaBips,
-} from "@morpho-blue-reallocation-bot/config";
 
 export class ApyRange implements Strategy {
-  constructor() {}
-
   findReallocation(vaultData: VaultData) {
     const idleMarket = vaultData.marketsData.find(
       (marketData) => marketData.params.collateralToken === zeroAddress,
@@ -164,7 +164,7 @@ export class ApyRange implements Strategy {
   }
 
   protected getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let apyRange = DEFAULT_APY_RANGE;
+    let apyRange: Range = DEFAULT_APY_RANGE;
 
     if (vaultsDefaultApyRanges[chainId]?.[vaultAddress] !== undefined)
       apyRange = vaultsDefaultApyRanges[chainId][vaultAddress];

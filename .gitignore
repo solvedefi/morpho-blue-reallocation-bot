@@ -18,5 +18,7 @@ yarn-error.log*
 # Env files
 .env*.local
 .env
+.env.prod
+.env.prod.new
 
 .vscode

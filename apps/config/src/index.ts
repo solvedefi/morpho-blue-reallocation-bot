@@ -6,12 +6,29 @@ import type { Address, Chain, Hex } from "viem";
 import { chainConfigs } from "./config";
 import type { ChainConfig } from "./types";
 
+import {
+  DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
+  DEFAULT_MIN_APR_DELTA_BIPS,
+  vaultsMinUtilizationDeltaBips,
+  vaultsMinAprDeltaBips,
+} from "./strategies/equilizeUtilizations";
+import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import {
+  ALLOW_IDLE_REALLOCATION,
+  DEFAULT_APY_RANGE,
+  DEFAULT_MIN_APY_DELTA_BIPS,
+  marketsApyRanges,
+  marketsMinApsDeltaBips,
+  vaultsDefaultApyRanges,
+  vaultsDefaultMinApsDeltaBips,
+} from "./strategies/apyRange";
+
 dotenv.config();
 
 export async function chainConfig(chainId: number): Promise<ChainConfig> {
   const config = chainConfigs[chainId];
   if (!config) {
-    throw new Error(`No config found for chainId ${chainId}`);
+    throw new Error(`No config found for chainId ${String(chainId)}`);
   }
 
   const { rpcUrl, vaultWhitelist, reallocatorPrivateKey, executionInterval } = await getSecrets(
@@ -92,18 +109,18 @@ export async function getSecrets(chainId: number, chain?: Chain) {
   };
 }
 
-import {
-  DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
-  DEFAULT_MIN_APR_DELTA_BIPS,
-  vaultsMinUtilizationDeltaBips,
-  vaultsMinAprDeltaBips,
-} from "./strategies/equilizeUtilizations";
-import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-
 export {
   DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
   vaultsMinUtilizationDeltaBips,
   DEFAULT_MIN_APR_DELTA_BIPS,
   vaultsMinAprDeltaBips,
+  ALLOW_IDLE_REALLOCATION,
+  DEFAULT_APY_RANGE,
+  DEFAULT_MIN_APY_DELTA_BIPS,
+  marketsApyRanges,
+  marketsMinApsDeltaBips,
+  vaultsDefaultApyRanges,
+  vaultsDefaultMinApsDeltaBips,
 };
+
 export { chainConfigs, type ChainConfig };

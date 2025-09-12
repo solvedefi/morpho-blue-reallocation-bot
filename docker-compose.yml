@@ -1,23 +1,4 @@
 services:
-  reallocation-bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: morpho_blue_reallocation_bot
-    restart: unless-stopped
-    network_mode: host
-    depends_on:
-      - postgres
-    environment:
-      - POSTGRES_DATABASE_URL=postgres://vladimir:re7vladimir@host.docker.internal:54332/exampledb
-      - POSTGRES_DATABASE_URL=postgres://ponder:ponder@postgres:5432/ponder
-    logging:
-      driver: "awslogs"
-      options:
-        awslogs-region: "eu-west-2"
-        awslogs-group: "morpho-reallocation-bot"
-
-
   postgres:
     image: postgres:17
     container_name: morpho_blue_reallocation_bot_postgres
