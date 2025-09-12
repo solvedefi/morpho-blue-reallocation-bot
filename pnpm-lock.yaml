@@ -97,9 +97,6 @@ importers:
       '@morpho-blue-reallocation-bot/config':
         specifier: workspace:*
         version: link:../config
-      '@morpho-org/test':
-        specifier: ^2.1.1
-        version: 2.1.2(viem@2.23.2(typescript@5.8.3))(vitest@3.1.2(@types/node@22.14.1)(tsx@4.19.3)(yaml@2.7.1))
       '@ponder/client':
         specifier: ^0.9.27
         version: 0.9.28(@electric-sql/pglite@0.2.13)(@opentelemetry/api@1.9.0)(kysely@0.26.3)(pg@8.15.1)(typescript@5.8.3)
