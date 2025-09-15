@@ -1,4 +1,9 @@
+import {
+  DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
+  vaultsMinUtilizationDeltaBips,
+} from "@morpho-blue-reallocation-bot/config";
 import { Address, maxUint256, zeroAddress } from "viem";
+
 import {
   getDepositableAmount,
   getWithdrawableAmount,
@@ -8,10 +13,6 @@ import {
 } from "../../utils/maths";
 import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
-import {
-  DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
-  vaultsMinUtilizationDeltaBips,
-} from "@morpho-blue-reallocation-bot/config";
 
 export class EquilizeUtilizations implements Strategy {
   findReallocation(vaultData: VaultData) {
