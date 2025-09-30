@@ -54,39 +54,39 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 13978134,
     },
   },
-  // [mainnet.id]: {
-  //   chain: mainnet,
-  //   morpho: {
-  //     address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
-  //     startBlock: 18883124,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC",
-  //     startBlock: 18883124,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: [
-  //       "0x1897A8997241C1cD4bD0698647e4EB7213535c24",
-  //       "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
-  //     ],
-  //     startBlock: 18925584,
-  //   },
-  // },
-  // [unichain.id]: {
-  //   chain: unichain,
-  //   morpho: {
-  //     address: "0x8f5ae9CddB9f68de460C77730b018Ae7E04a140A",
-  //     startBlock: 9139027,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x9a6061d51743b31d2c3be75d83781fa423f53f0e",
-  //     startBlock: 9139027,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0xe9EdE3929F43a7062a007C3e8652e4ACa610Bdc0"],
-  //     startBlock: 9316789,
-  //   },
-  // },
+  [mainnet.id]: {
+    chain: mainnet,
+    morpho: {
+      address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
+      startBlock: 18883124,
+    },
+    adaptiveCurveIrm: {
+      address: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC",
+      startBlock: 18883124,
+    },
+    metaMorphoFactories: {
+      addresses: [
+        "0x1897A8997241C1cD4bD0698647e4EB7213535c24",
+        "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
+      ],
+      startBlock: 18925584,
+    },
+  },
+  [unichain.id]: {
+    chain: unichain,
+    morpho: {
+      address: "0x8f5ae9CddB9f68de460C77730b018Ae7E04a140A",
+      startBlock: 9139027,
+    },
+    adaptiveCurveIrm: {
+      address: "0x9a6061d51743b31d2c3be75d83781fa423f53f0e",
+      startBlock: 9139027,
+    },
+    metaMorphoFactories: {
+      addresses: ["0xe9EdE3929F43a7062a007C3e8652e4ACa610Bdc0"],
+      startBlock: 9316789,
+    },
+  },
   // [polygon.id]: {
   //   chain: polygon,
   //   morpho: {
@@ -102,21 +102,21 @@ export const chainConfigs: Record<number, Config> = {
   //     startBlock: 66931118,
   //   },
   // },
-  // [worldchain.id]: {
-  //   chain: worldchain,
-  //   morpho: {
-  //     address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
-  //     startBlock: 9025669,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
-  //     startBlock: 9025669,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
-  //     startBlock: 9025733,
-  //   },
-  // },
+  [worldchain.id]: {
+    chain: worldchain,
+    morpho: {
+      address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
+      startBlock: 9025669,
+    },
+    adaptiveCurveIrm: {
+      address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
+      startBlock: 9025669,
+    },
+    metaMorphoFactories: {
+      addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
+      startBlock: 9025733,
+    },
+  },
   // [lisk.id]: {
   //   chain: lisk,
   //   morpho: {
