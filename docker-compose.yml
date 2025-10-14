@@ -1,16 +1,13 @@
 services:
-  postgres:
-    image: postgres:17
-    container_name: morpho_blue_reallocation_bot_postgres
+  reallocation_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: ponder
-      POSTGRES_PASSWORD: ponder
-      POSTGRES_DB: ponder
-    ports:
-      - "5433:5432"
+      - USE_AWS_SECRETS=true
+      - AWS_REGION=eu-west-2
     volumes:
-      - morpho_blue_reallocation_bot_postgres:/var/lib/postgresql/data
-
-volumes:
-  morpho_blue_reallocation_bot_postgres:
+      - ~/.aws:/root/.aws:ro
