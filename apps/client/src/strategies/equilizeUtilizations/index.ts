@@ -16,6 +16,8 @@ import { Strategy } from "../strategy";
 
 export class EquilizeUtilizations implements Strategy {
   findReallocation(vaultData: VaultData) {
+    console.log("inside equilizeUtilizations");
+
     const marketsData = vaultData.marketsData.filter(
       (marketData) => marketData.params.collateralToken !== zeroAddress,
     );
@@ -33,7 +35,18 @@ export class EquilizeUtilizations implements Strategy {
     // let didExceedMinAprDelta = false; // (true if *at least one* market moves enough)
 
     for (const marketData of marketsData) {
+      console.log("marketData.state:");
+      console.log(marketData.state.totalBorrowAssets);
+      console.log(marketData.state.totalSupplyAssets);
+      console.log(marketData.state.totalBorrowShares);
+      console.log(marketData.state.totalSupplyShares);
+      console.log(marketData.state.lastUpdate);
+      console.log(marketData.state.fee);
+
+      console.log("targetUtilization:", targetUtilization);
+
       const utilization = getUtilization(marketData.state);
+      console.log("utilization:", utilization);
       if (utilization > targetUtilization) {
         totalDepositableAmount += getDepositableAmount(marketData, targetUtilization);
       } else {
@@ -43,9 +56,13 @@ export class EquilizeUtilizations implements Strategy {
       didExceedMinUtilizationDelta ||=
         Math.abs(Number((utilization - targetUtilization) / 1_000_000_000n) / 1e5) >
         this.getMinUtilizationDeltaBips(marketData.chainId, marketData.id);
+
+      console.log();
     }
 
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
+
+    console.log("toReallocate:", toReallocate);
 
     if (toReallocate === 0n || !didExceedMinUtilizationDelta) return;
 
@@ -80,9 +97,18 @@ export class EquilizeUtilizations implements Strategy {
       }
 
       if (remainingWithdrawal === 0n && remainingDeposit === 0n) break;
+
+      console.log("remainingWithdrawal:", remainingWithdrawal);
+      console.log("remainingDeposit:", remainingDeposit);
+      console.log();
     }
 
-    return [...withdrawals, ...deposits];
+    const reallocation = [...withdrawals, ...deposits];
+
+    console.log("reallocation:");
+    console.log(reallocation);
+
+    return reallocation;
   }
 
   private getMinUtilizationDeltaBips(chainId: number, vaultAddress: Address) {

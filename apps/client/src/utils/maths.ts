@@ -46,6 +46,7 @@ const wTaylorCompounded = (x: bigint, n: bigint): bigint => {
 };
 
 export const getUtilization = (marketState: MarketState) => {
+  if (marketState.totalSupplyAssets === 0n) return 0n;
   return wDivDown(marketState.totalBorrowAssets, marketState.totalSupplyAssets);
 };
 
