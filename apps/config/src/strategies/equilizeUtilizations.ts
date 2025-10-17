@@ -1,6 +1,6 @@
 import { base, mainnet } from "viem/chains";
 
-export const DEFAULT_MIN_UTILIZATION_DELTA_BIPS = 25;
+export const DEFAULT_MIN_UTILIZATION_DELTA_BIPS = 250;
 export const DEFAULT_MIN_APR_DELTA_BIPS = 0;
 
 export const vaultsMinUtilizationDeltaBips: Record<number, Record<string, number>> = {

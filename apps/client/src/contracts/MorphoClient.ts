@@ -22,7 +22,7 @@ export class MorphoClient {
     const withdrawQueueLength = await readContract(this.client, {
       address: vaultAddress,
       abi: metaMorphoAbi,
-      functionName: "withdrawQueueLength",
+      functionName: "supplyQueueLength",
       args: [],
     });
 
@@ -32,7 +32,7 @@ export class MorphoClient {
         readContract(this.client, {
           address: vaultAddress,
           abi: metaMorphoAbi,
-          functionName: "withdrawQueue",
+          functionName: "supplyQueue",
           args: [BigInt(i)],
         }),
       );
@@ -124,6 +124,26 @@ export class MorphoClient {
 
       result.marketsData.push(vaultMarketData);
     }
+
+    console.log();
+    console.log("logging the markets data");
+    for (const marketData of result.marketsData) {
+      console.log("chainId:", marketData.chainId);
+      console.log("id:", marketData.id);
+      console.log("params:");
+      console.log("loanToken:", marketData.params.loanToken);
+      console.log("collateralToken:", marketData.params.collateralToken);
+      console.log("oracle:", marketData.params.oracle);
+      console.log("irm:", marketData.params.irm);
+      console.log("lltv:", marketData.params.lltv);
+      console.log();
+    }
+    console.log();
+    console.log();
+
+    // result.marketsData = result.marketsData.filter(
+    //   (marketData) => marketData.params.oracle !== "0x3aCA98D8376A29082790A76D9baFBC75F913Cf48",
+    // );
 
     return result;
   }

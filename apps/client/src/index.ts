@@ -49,11 +49,11 @@ async function main() {
     // Run on startup.
     void bot.run();
 
-    const botTask = runBotInBackground(bot, config.executionInterval);
-    botTasks.push(botTask);
+    // const botTask = runBotInBackground(bot, config.executionInterval);
+    // botTasks.push(botTask);
   }
 
-  await Promise.all(botTasks);
+  // await Promise.all(botTasks);
 }
 
 main().catch(console.error);
