@@ -3,6 +3,27 @@
 A simple, fast, and easily deployable reallocation bot for the **Morpho Blue** protocol. This bot is entirely based on **RPC calls** and is designed to
 meet borrow demand within MetaMorpho vaults by equalizing utilization rates across markets.
 
+## Strategies
+
+### Equilize Utilizations
+
+The equalize utilization strategy reallocates assets from under‑utilized markets to over‑utilized ones so that each market’s utilization converges toward the vault’s weighted‑average utilization, only acting when a configurable minimum deviation threshold is exceeded.
+
+**Example:**
+
+- Setup: 3 markets each with 10k supplied; borrows are 9k, 5k, 2k → target utilization ≈ 16k / 30k = 53.3%.
+- Current utils: M1 = 90%, M2 = 50%, M3 = 20%.
+- Action: Withdraw from M3 (20%) and deposit into M1 (90%) until both are near ~53%, leaving M2 nearly unchanged.
+
+### APY Range
+
+The APY range strategy reallocates assets to keep each market's APY within predefined min/max bounds by converting APY targets to utilization bounds, withdrawing from markets below the minimum APY and depositing into markets above the maximum APY, optionally using an idle market as a buffer.
+
+**Example:**
+
+- Setup: 3 markets with APY ranges [4-6%], [5-7%], [6-8%]; current APYs are 2%, 8%, 9%.
+- Action: Withdraw from M1 (2% < 4% min) and M3 (9% > 8% max), deposit into M2 (8% > 7% max) to bring all within their target ranges.
+
 ## Features
 
 - Automatically rebalances assets within MetaMorpho vaults to maintain capital efficiency
@@ -10,12 +31,6 @@ meet borrow demand within MetaMorpho vaults by equalizing utilization rates acro
 - Multi-chain compatible (Ethereum, Base, and more)
 - Minimal setup and dependencies (RPC-only, no extra infra required)
 - Configurable minimum threshold for utilization changes (2.5% by default)
-
-### ⚠️ Disclaimer
-
-This bot is provided as-is, without any warranty. The **Morpho Association is not responsible** for any potential loss of funds resulting from the use of this bot, including (but not limited to) gas fees, failed transactions, or reallocations on malicious or misconfigured markets.
-
-Use at your own risk.
 
 ## Requirements
 
