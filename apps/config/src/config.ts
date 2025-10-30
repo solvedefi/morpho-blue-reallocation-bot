@@ -78,6 +78,21 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 11161176,
     },
   },
+  [worldchain.id]: {
+    chain: worldchain,
+    morpho: {
+      address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
+      startBlock: 9025669,
+    },
+    adaptiveCurveIrm: {
+      address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
+      startBlock: 9025669,
+    },
+    metaMorphoFactories: {
+      addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
+      startBlock: 9025733,
+    },
+  },
   // [mainnet.id]: {
   //   chain: mainnet,
   //   morpho: {
@@ -126,21 +141,6 @@ export const chainConfigs: Record<number, Config> = {
   // //     startBlock: 66931118,
   // //   },
   // // },
-  // [worldchain.id]: {
-  //   chain: worldchain,
-  //   morpho: {
-  //     address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
-  //     startBlock: 9025669,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
-  //     startBlock: 9025669,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
-  //     startBlock: 9025733,
-  //   },
-  // },
   // // [lisk.id]: {
   // //   chain: lisk,
   // //   morpho: {

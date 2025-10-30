@@ -5,6 +5,7 @@ import {
 import { Address, maxUint256, zeroAddress } from "viem";
 
 import {
+  WAD,
   getDepositableAmount,
   getWithdrawableAmount,
   getUtilization,
@@ -16,9 +17,9 @@ import { Strategy } from "../strategy";
 
 export class EquilizeUtilizations implements Strategy {
   findReallocation(vaultData: VaultData) {
-    const marketsData = vaultData.marketsData.filter(
-      (marketData) => marketData.params.collateralToken !== zeroAddress,
-    );
+    const marketsData = vaultData.marketsData.filter((marketData) => {
+      return marketData.params.collateralToken !== zeroAddress && marketData.vaultAssets !== 0n;
+    });
 
     const targetUtilization = wDivDown(
       marketsData.reduce((acc, marketData) => acc + marketData.state.totalBorrowAssets, 0n),
