@@ -45,39 +45,39 @@ const plume = defineChain({
 });
 
 export const chainConfigs: Record<number, Config> = {
-  [base.id]: {
-    chain: base,
-    morpho: {
-      address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
-      startBlock: 13977148,
-    },
-    adaptiveCurveIrm: {
-      address: "0x46415998764C29aB2a25CbeA6254146D50D22687",
-      startBlock: 13977152,
-    },
-    metaMorphoFactories: {
-      addresses: [
-        "0xFf62A7c278C62eD665133147129245053Bbf5918",
-        "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
-      ],
-      startBlock: 13978134,
-    },
-  },
-  [berachain.id]: {
-    chain: berachain,
-    morpho: {
-      address: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
-      startBlock: 11572788,
-    },
-    adaptiveCurveIrm: {
-      address: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
-      startBlock: 11160919,
-    },
-    metaMorphoFactories: {
-      addresses: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
-      startBlock: 11161176,
-    },
-  },
+  // [base.id]: {
+  //   chain: base,
+  //   morpho: {
+  //     address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
+  //     startBlock: 13977148,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0x46415998764C29aB2a25CbeA6254146D50D22687",
+  //     startBlock: 13977152,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: [
+  //       "0xFf62A7c278C62eD665133147129245053Bbf5918",
+  //       "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
+  //     ],
+  //     startBlock: 13978134,
+  //   },
+  // },
+  // [berachain.id]: {
+  //   chain: berachain,
+  //   morpho: {
+  //     address: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
+  //     startBlock: 11572788,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
+  //     startBlock: 11160919,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
+  //     startBlock: 11161176,
+  //   },
+  // },
   [worldchain.id]: {
     chain: worldchain,
     morpho: {

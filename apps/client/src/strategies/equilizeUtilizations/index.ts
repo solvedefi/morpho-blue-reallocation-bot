@@ -12,14 +12,33 @@ import {
   min,
   wDivDown,
 } from "../../utils/maths";
-import { MarketAllocation, VaultData } from "../../utils/types";
+import { MarketAllocation, VaultData, VaultMarketData } from "../../utils/types";
 import { Strategy } from "../strategy";
+
+const WSRUSD_TOKEN_ADDRESS = "0x4809010926aec940b550D34a46A52739f996D75D";
 
 export class EquilizeUtilizations implements Strategy {
   findReallocation(vaultData: VaultData) {
+    // filter out wsrUSD market
     const marketsData = vaultData.marketsData.filter((marketData) => {
-      return marketData.params.collateralToken !== zeroAddress && marketData.vaultAssets !== 0n;
+      return (
+        marketData.params.collateralToken !== zeroAddress &&
+        marketData.params.collateralToken !== WSRUSD_TOKEN_ADDRESS &&
+        marketData.vaultAssets !== 0n
+      );
     });
+
+    let wsrUSDMarketData: VaultMarketData | undefined;
+    let wsrUSDAssets = 0n;
+    for (const marketData of vaultData.marketsData) {
+      if (marketData.params.collateralToken === WSRUSD_TOKEN_ADDRESS) {
+        wsrUSDMarketData = marketData;
+
+        // keep util at 100% by withdrawing all available liquidity
+        wsrUSDAssets = marketData.state.totalBorrowAssets + 10n ** 6n;
+        break;
+      }
+    }
 
     const targetUtilization = wDivDown(
       marketsData.reduce((acc, marketData) => acc + marketData.state.totalBorrowAssets, 0n),
@@ -81,6 +100,13 @@ export class EquilizeUtilizations implements Strategy {
       }
 
       if (remainingWithdrawal === 0n && remainingDeposit === 0n) break;
+    }
+
+    if (wsrUSDMarketData) {
+      withdrawals.push({
+        marketParams: wsrUSDMarketData.params,
+        assets: wsrUSDAssets,
+      });
     }
 
     return [...withdrawals, ...deposits];
