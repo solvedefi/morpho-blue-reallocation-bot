@@ -72,8 +72,8 @@ export class EquilizeUtilizations implements Strategy {
     let remainingWithdrawal = toReallocate;
     let remainingDeposit = toReallocate;
 
-    const withdrawals: MarketAllocation[] = [];
-    const deposits: MarketAllocation[] = [];
+    let withdrawals: MarketAllocation[] = [];
+    let deposits: MarketAllocation[] = [];
 
     for (const marketData of marketsData) {
       const utilization = getUtilization(marketData.state);
@@ -102,11 +102,25 @@ export class EquilizeUtilizations implements Strategy {
       if (remainingWithdrawal === 0n && remainingDeposit === 0n) break;
     }
 
+    withdrawals = [];
     if (wsrUSDMarketData) {
       withdrawals.push({
         marketParams: wsrUSDMarketData.params,
         assets: wsrUSDAssets,
       });
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-non-null-assertion
+    deposits = [deposits![deposits.length - 1]!];
+
+    for (const withdrawalOrDeposit of [...withdrawals, ...deposits]) {
+      console.log("loan token", withdrawalOrDeposit.marketParams.loanToken);
+      console.log("collateral token", withdrawalOrDeposit.marketParams.collateralToken);
+      console.log("irm", withdrawalOrDeposit.marketParams.irm);
+      console.log("oracle", withdrawalOrDeposit.marketParams.oracle);
+      console.log("lltv", withdrawalOrDeposit.marketParams.lltv);
+      console.log("assets", withdrawalOrDeposit.assets);
+      console.log("--------------------------------");
     }
 
     return [...withdrawals, ...deposits];
