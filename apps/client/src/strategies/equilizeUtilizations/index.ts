@@ -35,7 +35,7 @@ export class EquilizeUtilizations implements Strategy {
         wsrUSDMarketData = marketData;
 
         // keep util at 100% by withdrawing all available liquidity
-        wsrUSDAssets = marketData.state.totalBorrowAssets + 10n ** 6n;
+        wsrUSDAssets = marketData.state.totalBorrowAssets + 10n * 10n ** 6n;
         break;
       }
     }
@@ -112,6 +112,14 @@ export class EquilizeUtilizations implements Strategy {
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion, @typescript-eslint/no-non-null-assertion
     deposits = [deposits![deposits.length - 1]!];
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    deposits[0]!.marketParams.collateralToken = zeroAddress;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    deposits[0]!.marketParams.irm = zeroAddress;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    deposits[0]!.marketParams.oracle = zeroAddress;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    deposits[0]!.marketParams.lltv = 0n;
 
     for (const withdrawalOrDeposit of [...withdrawals, ...deposits]) {
       console.log("loan token", withdrawalOrDeposit.marketParams.loanToken);
