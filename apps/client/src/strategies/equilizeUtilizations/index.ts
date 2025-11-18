@@ -25,7 +25,9 @@ export class EquilizeUtilizations implements Strategy {
         // markets with no allocations
         marketData.vaultAssets !== 0n &&
         // wsrUSD on plume
-        marketData.params.collateralToken !== "0x0BBcc2C1991d0aF8ec6A5eD922e6f5606923fE15"
+        marketData.params.collateralToken !== "0x0BBcc2C1991d0aF8ec6A5eD922e6f5606923fE15" &&
+        // wsrUSD on worldchain
+        marketData.params.collateralToken !== "0x4809010926aec940b550D34a46A52739f996D75D"
       );
     });
 
