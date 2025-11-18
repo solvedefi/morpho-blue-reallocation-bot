@@ -21,6 +21,7 @@ export class ReallocationBot {
   private strategy: Strategy;
   private morphoClient: MorphoClient;
   private config: Config;
+  private client: Client<Transport, Chain, Account>;
 
   constructor(
     chainId: number,
@@ -35,6 +36,7 @@ export class ReallocationBot {
     this.strategy = strategy;
     this.morphoClient = new MorphoClient(client, config);
     this.config = config;
+    this.client = client;
   }
 
   async run() {
@@ -59,6 +61,7 @@ export class ReallocationBot {
             }),
             value: 0n, // TODO: find a way to get encoder value
           };
+
           await estimateGas(this.client, populatedTx);
           // TX EXECUTION
           await writeContract(this.client, {
@@ -78,6 +81,7 @@ export class ReallocationBot {
               }[],
             ],
           });
+
           console.log(`Reallocated on ${vaultData.vaultAddress}`);
         } catch (error) {
           console.log(`Failed to reallocate on ${vaultData.vaultAddress}`);

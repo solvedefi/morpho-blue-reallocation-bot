@@ -2,7 +2,8 @@ import {
   DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
   vaultsMinUtilizationDeltaBips,
 } from "@morpho-blue-reallocation-bot/config";
-import { Address, maxUint256, zeroAddress } from "viem";
+import { Address, Client, erc20Abi, maxUint256, zeroAddress } from "viem";
+import { readContract } from "viem/actions";
 
 import {
   WAD,
@@ -18,7 +19,14 @@ import { Strategy } from "../strategy";
 export class EquilizeUtilizations implements Strategy {
   findReallocation(vaultData: VaultData) {
     const marketsData = vaultData.marketsData.filter((marketData) => {
-      return marketData.params.collateralToken !== zeroAddress && marketData.vaultAssets !== 0n;
+      return (
+        // idle market
+        marketData.params.collateralToken !== zeroAddress &&
+        // markets with no allocations
+        marketData.vaultAssets !== 0n &&
+        // wsrUSD on plume
+        marketData.params.collateralToken !== "0x0BBcc2C1991d0aF8ec6A5eD922e6f5606923fE15"
+      );
     });
 
     const targetUtilization = wDivDown(

@@ -78,6 +78,21 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 11161176,
     },
   },
+  [98866]: {
+    chain: plume,
+    morpho: {
+      address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
+      startBlock: 765994,
+    },
+    adaptiveCurveIrm: {
+      address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
+      startBlock: 765994,
+    },
+    metaMorphoFactories: {
+      addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
+      startBlock: 766078,
+    },
+  },
   // [worldchain.id]: {
   //   chain: worldchain,
   //   morpho: {
@@ -154,22 +169,6 @@ export const chainConfigs: Record<number, Config> = {
   // //   metaMorphoFactories: {
   // //     addresses: ["0x01dD876130690469F685a65C2B295A90a81BaD91"],
   // //     startBlock: 15731333,
-  // //   },
-  // // },
-  // // // 98866 is the correct id, 98865 is the one which is used by viem
-  // // [98866]: {
-  // //   chain: plume,
-  // //   morpho: {
-  // //     address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
-  // //     startBlock: 765994,
-  // //   },
-  // //   adaptiveCurveIrm: {
-  // //     address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
-  // //     startBlock: 765994,
-  // //   },
-  // //   metaMorphoFactories: {
-  // //     addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
-  // //     startBlock: 766078,
   // //   },
   // // },
   // // [soneium.id]: {
