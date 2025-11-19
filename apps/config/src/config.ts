@@ -63,36 +63,36 @@ export const chainConfigs: Record<number, Config> = {
   //     startBlock: 13978134,
   //   },
   // },
-  // [berachain.id]: {
-  //   chain: berachain,
-  //   morpho: {
-  //     address: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
-  //     startBlock: 11572788,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
-  //     startBlock: 11160919,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
-  //     startBlock: 11161176,
-  //   },
-  // },
-  [worldchain.id]: {
-    chain: worldchain,
+  [berachain.id]: {
+    chain: berachain,
     morpho: {
-      address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
-      startBlock: 9025669,
+      address: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
+      startBlock: 11572788,
     },
     adaptiveCurveIrm: {
-      address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
-      startBlock: 9025669,
+      address: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
+      startBlock: 11160919,
     },
     metaMorphoFactories: {
-      addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
-      startBlock: 9025733,
+      addresses: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
+      startBlock: 11161176,
     },
   },
+  // [worldchain.id]: {
+  //   chain: worldchain,
+  //   morpho: {
+  //     address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
+  //     startBlock: 9025669,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
+  //     startBlock: 9025669,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
+  //     startBlock: 9025733,
+  //   },
+  // },
   // [mainnet.id]: {
   //   chain: mainnet,
   //   morpho: {

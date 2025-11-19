@@ -15,7 +15,7 @@ import {
 import { MarketAllocation, VaultData, VaultMarketData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
-const WSRUSD_TOKEN_ADDRESS = "0x4809010926aec940b550D34a46A52739f996D75D";
+const WSRUSD_TOKEN_ADDRESS = "0x316cd39632Cac4F4CdfC21757c4500FE12f64514";
 
 export class EquilizeUtilizations implements Strategy {
   findReallocation(vaultData: VaultData) {
@@ -35,7 +35,7 @@ export class EquilizeUtilizations implements Strategy {
         wsrUSDMarketData = marketData;
 
         // keep util at 100% by withdrawing all available liquidity
-        wsrUSDAssets = marketData.state.totalBorrowAssets + 10n * 10n ** 6n;
+        wsrUSDAssets = marketData.state.totalBorrowAssets + 10n * 10n ** 18n;
         break;
       }
     }
