@@ -58,7 +58,10 @@ export class EquilizeUtilizations implements Strategy {
 
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
 
-    if (toReallocate === 0n || !didExceedMinUtilizationDelta) return;
+    if (toReallocate === 0n || !didExceedMinUtilizationDelta) {
+      console.log("no reallocations found for vault", vaultData.vaultAddress);
+      return;
+    }
 
     let remainingWithdrawal = toReallocate;
     let remainingDeposit = toReallocate;
