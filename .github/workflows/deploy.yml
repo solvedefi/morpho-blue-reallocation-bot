@@ -1,0 +1,130 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch: # Manual trigger only - click "Run workflow" button in GitHub Actions
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set deployment variables
+        id: vars
+        run: |
+          # Sanitize branch name (replace / with -, convert to uppercase for secret name)
+          BRANCH_SAFE=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          BRANCH_SECRET=$(echo "${{ github.ref_name }}" | sed 's/\//_/g' | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+          echo "branch_safe=${BRANCH_SAFE}" >> $GITHUB_OUTPUT
+          echo "branch_secret=ENV_${BRANCH_SECRET}" >> $GITHUB_OUTPUT
+          echo "deploy_path=${{ secrets.DEPLOY_BASE_PATH || '~' }}/morpho-reallocation-bot-${BRANCH_SAFE}" >> $GITHUB_OUTPUT
+          echo "container_name=morpho-reallocation-bot-${BRANCH_SAFE}" >> $GITHUB_OUTPUT
+
+      - name: Create .env file
+        id: create_env
+        run: |
+          # Check which branch-specific env secret to use
+          BRANCH_SECRET_NAME="${{ steps.vars.outputs.branch_secret }}"
+          echo "Looking for secret: $BRANCH_SECRET_NAME"
+
+          # Create env file content based on branch
+          if [ "${{ github.ref_name }}" = "main" ] || [ "${{ github.ref_name }}" = "master" ]; then
+            echo "${{ secrets.ENV_MAIN }}" > .env.deploy
+          elif [ -n "${{ secrets[steps.vars.outputs.branch_secret] }}" ]; then
+            echo "${{ secrets[steps.vars.outputs.branch_secret] }}" > .env.deploy
+          else
+            echo "No branch-specific secret found for $BRANCH_SECRET_NAME"
+            echo "Using default ENV_DEFAULT if available"
+            echo "${{ secrets.ENV_DEFAULT }}" > .env.deploy
+          fi
+
+          if [ ! -s .env.deploy ]; then
+            echo "Warning: No environment variables configured for this branch"
+            echo "env_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "env_exists=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        env:
+          ENV_CONTENT: ${{
+            github.ref_name == 'main' && secrets.ENV_MAIN ||
+            github.ref_name == 'master' && secrets.ENV_MAIN ||
+            secrets[steps.vars.outputs.branch_secret] ||
+            secrets.ENV_DEFAULT ||
+            ''
+          }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: ENV_CONTENT
+          script: |
+            set -e
+
+            DEPLOY_PATH="${{ steps.vars.outputs.deploy_path }}"
+            CONTAINER_NAME="${{ steps.vars.outputs.container_name }}"
+            BRANCH="${{ github.ref_name }}"
+
+            echo "Deploying branch: $BRANCH"
+            echo "Deployment path: $DEPLOY_PATH"
+            echo "Container name: $CONTAINER_NAME"
+
+            # Create directory if it doesn't exist
+            mkdir -p "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+
+            # Clone or pull repository
+            if [ ! -d ".git" ]; then
+              echo "Cloning repository..."
+              git clone -b "$BRANCH" ${{ github.server_url }}/${{ github.repository }} .
+            else
+              echo "Pulling latest changes..."
+              git fetch origin
+              git checkout "$BRANCH"
+              git pull origin "$BRANCH"
+            fi
+
+            # Write .env file from GitHub Secret
+            if [ -n "$ENV_CONTENT" ]; then
+              echo "Writing .env file from GitHub Secret..."
+              echo "$ENV_CONTENT" > .env
+              echo ".env file created successfully"
+            else
+              echo "Warning: No environment variables found in GitHub Secrets"
+              if [ ! -f ".env" ]; then
+                echo "Creating .env from example..."
+                cp env.example .env || true
+              fi
+            fi
+
+            # Stop existing containers for this branch
+            echo "Stopping existing containers..."
+            docker compose -p "$CONTAINER_NAME" down || true
+
+            # Build and start containers with unique project name
+            echo "Starting containers..."
+            docker compose -p "$CONTAINER_NAME" up -d --build
+
+            # Show status
+            echo "Deployment complete!"
+            docker compose -p "$CONTAINER_NAME" ps
+
+            # Show logs (last 10 lines)
+            echo "Recent logs:"
+            docker compose -p "$CONTAINER_NAME" logs --tail=10
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Secret Name**: ${{ steps.vars.outputs.branch_secret }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment Path**: ${{ steps.vars.outputs.deploy_path }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container Name**: ${{ steps.vars.outputs.container_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
