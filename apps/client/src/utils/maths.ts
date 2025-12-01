@@ -110,7 +110,7 @@ export const utilizationToRate = (utilization: bigint, rateAtTarget: bigint): bi
 
   if (utilization >= WAD) {
     rate = maxRate;
-  } else if (utilization >= rateAtTarget) {
+  } else if (utilization >= TARGET_UTILIZATION) {
     rate =
       rateAtTarget +
       mulDivDown(
@@ -118,7 +118,7 @@ export const utilizationToRate = (utilization: bigint, rateAtTarget: bigint): bi
         utilization - TARGET_UTILIZATION,
         WAD - TARGET_UTILIZATION,
       );
-  } else if (utilization > minRate) {
+  } else if (utilization > 0n) {
     rate = minRate + mulDivDown(rateAtTarget - minRate, utilization, TARGET_UTILIZATION);
   }
   return rate;
