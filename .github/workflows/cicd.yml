@@ -17,18 +17,23 @@ jobs:
           # Get the branch name from the ref
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
           # Create deployment directory name
           DEPLOY_DIR="morpho-blue-reallocation-bot_${BRANCH_NAME}"
           echo "deploy_dir=$DEPLOY_DIR" >> $GITHUB_OUTPUT
+
           echo "Deploying branch: $BRANCH_NAME to directory: $DEPLOY_DIR"
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.0
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: ENV_FILE_CONTENT
           script: |
             set -e
 
@@ -77,6 +82,17 @@ jobs:
               echo "ERROR: Dockerfile not found in $(pwd)"
               exit 1
             fi
+
+            # Create .env file from GitHub secret
+            echo "Creating .env file from GitHub secret..."
+            echo "$ENV_FILE_CONTENT" > .env
+
+            if [ ! -f ".env" ]; then
+              echo "ERROR: Failed to create .env file"
+              exit 1
+            fi
+
+            echo ".env file created successfully"
 
             # Stop existing containers
             echo "Stopping existing containers..."
