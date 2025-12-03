@@ -46,10 +46,16 @@ jobs:
             else
               cd "$HOME/$DEPLOY_DIR"
 
+              # Check if branch exists locally, if not, fetch it
+              if ! git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
+                echo "Branch $BRANCH_NAME doesn't exist locally, fetching from remote..."
+                git fetch origin "$BRANCH_NAME:$BRANCH_NAME"
+              fi
+
               # Pull latest changes for the specific branch
-              echo "Pulling latest changes for branch: $BRANCH_NAME..."
-              git fetch origin "$BRANCH_NAME"
-              git reset --hard "origin/$BRANCH_NAME"
+              echo "Checking out and pulling latest changes for branch: $BRANCH_NAME..."
+              git checkout "$BRANCH_NAME"
+              git pull origin "$BRANCH_NAME"
             fi
 
             cd "$HOME/$DEPLOY_DIR"
