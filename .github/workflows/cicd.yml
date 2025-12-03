@@ -43,6 +43,13 @@ jobs:
             if [ ! -d "$HOME/$DEPLOY_DIR" ]; then
               echo "Directory doesn't exist, cloning repository..."
               git clone --branch "$BRANCH_NAME" "$REPO_URL" "$HOME/$DEPLOY_DIR"
+
+              if [ $? -ne 0 ]; then
+                echo "ERROR: Git clone failed"
+                exit 1
+              fi
+
+              echo "Successfully cloned repository"
             else
               cd "$HOME/$DEPLOY_DIR"
 
@@ -59,6 +66,17 @@ jobs:
             fi
 
             cd "$HOME/$DEPLOY_DIR"
+
+            # Debug: Show current directory and files
+            echo "Current directory: $(pwd)"
+            echo "Files in directory:"
+            ls -la
+
+            # Check if Dockerfile exists
+            if [ ! -f "Dockerfile" ]; then
+              echo "ERROR: Dockerfile not found in $(pwd)"
+              exit 1
+            fi
 
             # Stop existing containers
             echo "Stopping existing containers..."
