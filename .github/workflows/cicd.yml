@@ -42,15 +42,17 @@ jobs:
             # Create or navigate to project directory
             if [ ! -d "$HOME/$DEPLOY_DIR" ]; then
               echo "Directory doesn't exist, cloning repository..."
-              git clone "$REPO_URL" "$HOME/$DEPLOY_DIR"
+              git clone --branch "$BRANCH_NAME" "$REPO_URL" "$HOME/$DEPLOY_DIR"
+            else
+              cd "$HOME/$DEPLOY_DIR"
+
+              # Pull latest changes for the specific branch
+              echo "Pulling latest changes for branch: $BRANCH_NAME..."
+              git fetch origin "$BRANCH_NAME"
+              git reset --hard "origin/$BRANCH_NAME"
             fi
 
             cd "$HOME/$DEPLOY_DIR"
-
-            # Pull latest changes for the specific branch
-            echo "Pulling latest changes for branch: $BRANCH_NAME..."
-            git fetch origin "$BRANCH_NAME"
-            git reset --hard "origin/$BRANCH_NAME"
 
             # Stop existing containers
             echo "Stopping existing containers..."
