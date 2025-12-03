@@ -1,52 +1,83 @@
 name: Deploy reallocation bot
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch: # Manual trigger only - click "Run workflow" button
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: reallocation-bot
     steps:
-      - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh/
-          echo "$SSH_KEY" > ~/.ssh/deploy.key
-          chmod 600 ~/.ssh/deploy.key
-          cat >>~/.ssh/config <<END
-          Host morpho_reallocation_bot
-            HostName $SSH_HOST
-            User $SSH_USER
-            IdentityFile ~/.ssh/deploy.key
-            StrictHostKeyChecking no
-          END
-        env:
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Deploy on server
+      - name: Extract branch name
+        id: extract_branch
         run: |
-          ssh morpho_reallocation_bot "
+          # Get the branch name from the ref
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          # Create deployment directory name
+          DEPLOY_DIR="morpho-blue-reallocation-bot_${BRANCH_NAME}"
+          echo "deploy_dir=$DEPLOY_DIR" >> $GITHUB_OUTPUT
+          echo "Deploying branch: $BRANCH_NAME to directory: $DEPLOY_DIR"
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
             set -e
-            cd \$HOME/morpho-blue-reallocation-bot || git clone https://x-access-token:${ACCESS_TOKEN}@github.com/morpho-org/morpho-blue-reallocation-bot.git \$HOME/morpho-blue-reallocation-bot
 
-            cd \$HOME/morpho-blue-reallocation-bot
-            git fetch origin main
-            git reset --hard origin/main
+            BRANCH_NAME="${{ steps.extract_branch.outputs.branch }}"
+            DEPLOY_DIR="${{ steps.extract_branch.outputs.deploy_dir }}"
+            REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/morpho-org/morpho-blue-reallocation-bot.git"
 
-            echo 'Building docker image for commit $GITHUB_SHA...'
-            docker build -t reallocation-bot:$GITHUB_SHA .
+            echo "Deploying reallocation bot for branch: $BRANCH_NAME"
+            echo "Deployment directory: $HOME/$DEPLOY_DIR"
 
-            echo 'Updating service...'
-            docker compose up -d --build reallocation-bot
-          "
-        env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          GITHUB_SHA: ${{ github.sha }}
+            # Create or navigate to project directory
+            if [ ! -d "$HOME/$DEPLOY_DIR" ]; then
+              echo "Directory doesn't exist, cloning repository..."
+              git clone "$REPO_URL" "$HOME/$DEPLOY_DIR"
+            fi
+
+            cd "$HOME/$DEPLOY_DIR"
+
+            # Pull latest changes for the specific branch
+            echo "Pulling latest changes for branch: $BRANCH_NAME..."
+            git fetch origin "$BRANCH_NAME"
+            git reset --hard "origin/$BRANCH_NAME"
+
+            # Stop existing containers
+            echo "Stopping existing containers..."
+            docker compose down || true
+
+            # Build and start containers
+            echo "Building Docker image for commit ${{ github.sha }}..."
+            docker build -t reallocation-bot:${{ github.sha }} .
+
+            echo "Starting containers..."
+            docker compose up -d --build
+
+            # Show status
+            echo "Deployment complete!"
+            docker compose ps
+
+            # Show logs (last 20 lines)
+            echo "Recent logs:"
+            docker compose logs --tail=20
+
+      - name: Deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful for branch: ${{ steps.extract_branch.outputs.branch }}"
+            echo "Deployed to: ${{ steps.extract_branch.outputs.deploy_dir }}"
+          else
+            echo "❌ Deployment failed for branch: ${{ steps.extract_branch.outputs.branch }}"
+            exit 1
+          fi
