@@ -34,7 +34,7 @@ jobs:
 
             BRANCH_NAME="${{ steps.extract_branch.outputs.branch }}"
             DEPLOY_DIR="${{ steps.extract_branch.outputs.deploy_dir }}"
-            REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/morpho-org/morpho-blue-reallocation-bot.git"
+            REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/solvedefi/morpho-blue-reallocation-bot.git"
 
             echo "Deploying reallocation bot for branch: $BRANCH_NAME"
             echo "Deployment directory: $HOME/$DEPLOY_DIR"
