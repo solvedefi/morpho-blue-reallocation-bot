@@ -11,15 +11,15 @@ on:
 
 jobs:
   stop:
-    name: Stop Container
+    name: Stop and Remove Deployment
     runs-on: ubuntu-latest
     environment: reallocation-bot
     steps:
       - name: Validate input
         run: |
-          echo "Stopping deployment for branch: ${{ inputs.branch_name }}"
+          echo "Stopping and removing deployment for branch: ${{ inputs.branch_name }}"
 
-      - name: Stop deployment via SSH
+      - name: Stop deployment and delete directory via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -32,7 +32,7 @@ jobs:
             BRANCH_NAME="${{ inputs.branch_name }}"
             DEPLOY_DIR="morpho-blue-reallocation-bot_${BRANCH_NAME}"
 
-            echo "Stopping deployment for branch: $BRANCH_NAME"
+            echo "Stopping and removing deployment for branch: $BRANCH_NAME"
             echo "Deployment directory: $HOME/$DEPLOY_DIR"
 
             # Check if directory exists
@@ -64,11 +64,25 @@ jobs:
             echo "Docker containers status:"
             docker ps -a | grep reallocation-bot || echo "No reallocation-bot containers running"
 
+            # Delete the deployment directory
+            echo "Deleting deployment directory: $HOME/$DEPLOY_DIR"
+            cd $HOME
+            rm -rf "$DEPLOY_DIR"
+
+            if [ ! -d "$HOME/$DEPLOY_DIR" ]; then
+              echo "Directory deleted successfully!"
+            else
+              echo "ERROR: Failed to delete directory"
+              exit 1
+            fi
+
       - name: Shutdown notification
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Successfully stopped deployment for branch: ${{ inputs.branch_name }}"
+            echo "✅ Successfully stopped and removed deployment for branch: ${{ inputs.branch_name }}"
+            echo "   - Containers stopped"
+            echo "   - Directory deleted"
           else
             echo "❌ Failed to stop deployment for branch: ${{ inputs.branch_name }}"
             exit 1
