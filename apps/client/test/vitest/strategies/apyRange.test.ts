@@ -734,6 +734,115 @@ describe("apyRange strategy - unit tests", () => {
       }
     });
 
+    it("should deposit excess liquidity to idle market when ALLOW_IDLE_REALLOCATION is true", () => {
+      const strategy = new TestableApyRange({
+        ...testConfigWithIdle,
+        DEFAULT_APY_RANGE: {
+          min: 3,
+          max: 6,
+        },
+        ALLOW_IDLE_REALLOCATION: true,
+      });
+
+      const rateAtTarget = parseUnits("0.05", 18) / (365n * 24n * 60n * 60n);
+
+      // Market 1: High utilization (above max APY) - needs deposit
+      const market1 = createMockMarketData(
+        marketId1 as Hex,
+        parseUnits("10000", 6),
+        parseUnits("9500", 6), // 95% utilization = very high APY
+        parseUnits("5000", 6),
+        parseUnits("20000", 6),
+        rateAtTarget,
+        defaultMarketParams, // USDC/WBTC
+      );
+
+      // Market 2: Low utilization (below min APY) - source of liquidity
+      const market2 = createMockMarketData(
+        marketId2 as Hex,
+        parseUnits("10000", 6),
+        parseUnits("1000", 6), // 10% utilization = low APY
+        parseUnits("5000", 6),
+        parseUnits("20000", 6),
+        rateAtTarget,
+        defaultMarketParams2, // USDC/WETH
+      );
+
+      // Idle market - should receive excess liquidity
+      const idleMarket = createMockMarketData(
+        idleMarketId as Hex,
+        parseUnits("1000", 6), // small existing supply
+        0n, // no borrows (idle)
+        parseUnits("100", 6), // small vault assets
+        maxUint184,
+        0n,
+        idleMarketParamsDefault,
+      );
+
+      const vaultData = createVaultData(vaultAddress, [market1, market2, idleMarket]);
+
+      console.log("\n========== WITH IDLE MARKET ==========");
+      for (const market of vaultData.marketsData) {
+        const isIdle = market.params.collateralToken === zeroAddress;
+        console.log(
+          isIdle
+            ? "\nIdle Market:"
+            : `\nMarket ${market.id.slice(0, 10)}... (${market.params.collateralToken.slice(0, 10)}...):`,
+        );
+        console.log("  Vault Assets:", Number(market.vaultAssets) / 1e6, "M");
+        console.log("  Total Supply:", Number(market.state.totalSupplyAssets) / 1e6, "M");
+        console.log("  Total Borrow:", Number(market.state.totalBorrowAssets) / 1e6, "M");
+      }
+
+      const result = strategy.findReallocation(vaultData);
+
+      console.log("\nReallocations:");
+      for (const reallocation of result!) {
+        const isIdle = reallocation.marketParams.collateralToken === zeroAddress;
+        const isMaxUint = reallocation.assets === maxUint256;
+        console.log(
+          isIdle
+            ? "  Idle Market:"
+            : `  ${reallocation.marketParams.collateralToken.slice(0, 10)}...:`,
+          isMaxUint ? "maxUint256 (all remaining)" : `${Number(reallocation.assets) / 1e6} M`,
+        );
+      }
+
+      expect(result).toBeDefined();
+      expect(result!.length).toBeGreaterThan(0);
+
+      // Should have withdrawals from market 2, deposits to market 1, and deposits to idle
+      const market2Allocation = result!.find(
+        (a) => a.marketParams.collateralToken === defaultMarketParams2.collateralToken,
+      );
+      const market1Allocation = result!.find(
+        (a) => a.marketParams.collateralToken === defaultMarketParams.collateralToken,
+      );
+      const idleAllocation = result!.find((a) => a.marketParams.collateralToken === zeroAddress);
+
+      // Market 2 should have reduced assets (withdrawal) - possibly to 0
+      expect(market2Allocation).toBeDefined();
+      expect(market2Allocation!.assets).toBeLessThanOrEqual(market2.vaultAssets);
+
+      // Market 1 should have increased assets (specific amount to reach target APY)
+      expect(market1Allocation).toBeDefined();
+      expect(market1Allocation!.assets).toBeGreaterThan(market1.vaultAssets);
+
+      // Idle market should receive excess liquidity
+      expect(idleAllocation).toBeDefined();
+      console.log("\n✅ Idle market receives excess liquidity!");
+      console.log(
+        `   Market 2 withdrew: ${Number(market2.vaultAssets - market2Allocation!.assets) / 1e6} M`,
+      );
+      console.log(
+        `   Market 1 received: ${Number(market1Allocation!.assets - market1.vaultAssets) / 1e6} M`,
+      );
+      console.log(
+        `   Idle receives remaining: ${Number(market2.vaultAssets - market2Allocation!.assets - (market1Allocation!.assets - market1.vaultAssets)) / 1e6} M`,
+      );
+      expect(idleAllocation!.assets).toBe(maxUint256);
+    });
+
     it("should use idle market as source when withdrawing and ALLOW_IDLE_REALLOCATION is false", () => {
       const strategy = new TestableApyRange({
         ...testConfigNoIdle,
