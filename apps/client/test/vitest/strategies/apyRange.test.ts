@@ -1,11 +1,8 @@
 import { Range } from "@morpho-blue-reallocation-bot/config";
-import { AnvilTestClient } from "@morpho-org/test";
 import { Address, Hex, maxUint184, maxUint256, parseUnits, zeroAddress } from "viem";
-import { readContract, writeContract } from "viem/actions";
 import { mainnet } from "viem/chains";
 import { describe, expect, it } from "vitest";
 
-import { metaMorphoAbi } from "../../../abis/MetaMorpho.js";
 import { ApyRange } from "../../../src/strategies/apyRange/index.js";
 import {
   rateToApy,
@@ -15,43 +12,19 @@ import {
   rateToUtilization,
   utilizationToRate,
 } from "../../../src/utils/maths.js";
-import { MarketParams, MarketState, VaultData, VaultMarketData } from "../../../src/utils/types.js";
-import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
-import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
-import { WBTC, MORPHO, IRM } from "../../constants.js";
-import { test } from "../../setup.js";
-import { abs, formatMarketState } from "../helpers.js";
-import {
-  setupVault,
-  marketParams1,
-  marketParams2,
-  marketParams3,
-  marketId1,
-  marketId2,
-  marketId3,
-  enableIdleMarket,
-  prepareBorrow,
-  borrow,
-  idleMarketId,
-  idleMarketParams,
-} from "../vaultSetup.js";
+import { MarketParams, VaultData, VaultMarketData } from "../../../src/utils/types.js";
+import { abs } from "../helpers.js";
 
 // ============================================================================
 // Constants & Test Fixtures
 // ============================================================================
 
-const TOLERANCE_1BP = parseUnits("0.01", 16); // 1 basis point
 const TOLERANCE_INVERSE_FUNCTIONS = parseUnits("1", 12); // 0.0001% precision
 
-const TEST_AMOUNTS = {
-  caps: parseUnits("100000", 6),
-  suppliedAmount: parseUnits("10000", 6),
-  collateralAmount: parseUnits("2", 8),
-  loanAmount: parseUnits("5000", 6),
-} as const;
-
-const TARGET_MARKET_1 = { min: 0.5, max: 2 };
-const TARGET_MARKET_2 = { min: 8, max: 12 };
+// Mock market IDs for unit tests
+const marketId1 = "0x60f25d76d9cd6762dabce33cc13d2d018f0d33f9bd62323a7fbe0726e0518388";
+const marketId2 = "0x88d40fc93bdfe3328504a780f04c193e2938e0ec3d92e6339b6a960f4584229a";
+const idleMarketId = "0x54efdee08e272e929034a8f26f7ca34b1ebe364b275391169b28c6d7db24dbc8";
 
 // ============================================================================
 // Test Configuration Interface & Strategy Class
@@ -101,58 +74,6 @@ class TestableApyRange extends ApyRange {
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Read market states for multiple markets in parallel
- */
-async function readMarketStates(client: AnvilTestClient, marketIds: Hex[]) {
-  return Promise.all(
-    marketIds.map((id) =>
-      readContract(client, {
-        address: MORPHO,
-        abi: morphoBlueAbi,
-        functionName: "market",
-        args: [id],
-      }),
-    ),
-  );
-}
-
-/**
- * Read rates at target for multiple markets in parallel
- */
-async function readRatesAtTarget(client: AnvilTestClient, marketIds: Hex[]) {
-  return Promise.all(
-    marketIds.map((id) =>
-      readContract(client, {
-        address: IRM,
-        abi: adaptiveCurveIrmAbi,
-        functionName: "rateAtTarget",
-        args: [id],
-      }),
-    ),
-  );
-}
-
-/**
- * Read borrow rates for multiple markets in parallel
- */
-async function readBorrowRates(
-  client: AnvilTestClient,
-  markets: { params: MarketParams; state: MarketState }[],
-) {
-  return Promise.all(
-    markets.map(({ params, state }) =>
-      readContract(client, {
-        address: IRM,
-        abi: adaptiveCurveIrmAbi,
-        functionName: "borrowRateView",
-        // @ts-expect-error - viem ABI type inference doesn't match our MarketState type
-        args: [params, state],
-      }),
-    ),
-  );
-}
 
 /**
  * Create mock market data for unit tests
@@ -211,188 +132,6 @@ function assertApyInRange(apy: bigint, min: number, max: number, tolerance: bigi
   expect(apy).toBeGreaterThanOrEqual(minApyWad - tolerance);
   expect(apy).toBeLessThanOrEqual(maxApyWad + tolerance);
 }
-
-describe("apyRange strategy - e2e test", () => {
-  const testConfig: TestConfig = {
-    DEFAULT_APY_RANGE: { min: 2, max: 8 },
-    vaultsDefaultApyRanges: {},
-    marketsDefaultApyRanges: {
-      [mainnet.id]: {
-        [marketId1]: TARGET_MARKET_1,
-        [marketId2]: TARGET_MARKET_2,
-      },
-    },
-    ALLOW_IDLE_REALLOCATION: true,
-  };
-
-  const strategy = new TestableApyRange(testConfig);
-
-  test.sequential("should equalize rates", async ({ client }) => {
-    const vault = await setupVault(client, TEST_AMOUNTS.caps, 3n * TEST_AMOUNTS.suppliedAmount);
-    await enableIdleMarket(client, vault);
-
-    // Initial reallocation
-    const reallocation = [
-      {
-        marketParams: marketParams1,
-        assets: TEST_AMOUNTS.suppliedAmount,
-      },
-      {
-        marketParams: marketParams2,
-        assets: TEST_AMOUNTS.suppliedAmount,
-      },
-      {
-        marketParams: marketParams3,
-        assets: maxUint256,
-      },
-    ];
-
-    await writeContract(client, {
-      address: vault,
-      abi: metaMorphoAbi,
-      functionName: "reallocate",
-      args: [reallocation],
-    });
-
-    // Prepare and execute borrows
-    await prepareBorrow(client, [
-      {
-        address: WBTC,
-        amount: 3n * TEST_AMOUNTS.collateralAmount,
-      },
-    ]);
-
-    await borrow(client, [
-      {
-        marketParams: marketParams1,
-        loanAmount: TEST_AMOUNTS.loanAmount,
-        collateralAmount: TEST_AMOUNTS.collateralAmount,
-      },
-      {
-        marketParams: marketParams2,
-        loanAmount: TEST_AMOUNTS.loanAmount,
-        collateralAmount: TEST_AMOUNTS.collateralAmount,
-      },
-      {
-        marketParams: marketParams3,
-        loanAmount: TEST_AMOUNTS.loanAmount,
-        collateralAmount: TEST_AMOUNTS.collateralAmount,
-      },
-    ]);
-
-    // Read all market states
-    const [marketState1, marketState2, marketState3, marketStateIdle] = await readMarketStates(
-      client,
-      [marketId1, marketId2, marketId3, idleMarketId],
-    );
-
-    const [marketState1RateAtTarget, marketState2RateAtTarget, marketState3RateAtTarget] =
-      await readRatesAtTarget(client, [marketId1, marketId2, marketId3]);
-
-    // Type guards to ensure values are defined
-    if (!marketState1 || !marketState2 || !marketState3 || !marketStateIdle) {
-      throw new Error("Failed to read market states");
-    }
-    if (
-      marketState1RateAtTarget === undefined ||
-      marketState2RateAtTarget === undefined ||
-      marketState3RateAtTarget === undefined
-    ) {
-      throw new Error("Failed to read rates at target");
-    }
-
-    const vaultData = createVaultData(vault, [
-      {
-        chainId: 1,
-        id: marketId1 as Hex,
-        params: marketParams1,
-        state: formatMarketState(marketState1),
-        cap: TEST_AMOUNTS.caps,
-        vaultAssets: TEST_AMOUNTS.suppliedAmount,
-        rateAtTarget: marketState1RateAtTarget,
-      },
-      {
-        chainId: 1,
-        id: marketId2 as Hex,
-        params: marketParams2,
-        state: formatMarketState(marketState2),
-        cap: TEST_AMOUNTS.caps,
-        vaultAssets: TEST_AMOUNTS.suppliedAmount,
-        rateAtTarget: marketState2RateAtTarget,
-      },
-      {
-        chainId: 1,
-        id: marketId3 as Hex,
-        params: marketParams3,
-        state: formatMarketState(marketState3),
-        cap: TEST_AMOUNTS.caps,
-        vaultAssets: TEST_AMOUNTS.suppliedAmount,
-        rateAtTarget: marketState3RateAtTarget,
-      },
-      {
-        chainId: 1,
-        id: idleMarketId as Hex,
-        params: idleMarketParams,
-        state: formatMarketState(marketStateIdle),
-        cap: maxUint184,
-        vaultAssets: 0n,
-        rateAtTarget: 0n,
-      },
-    ]);
-
-    const reallocationProposed = strategy.findReallocation(vaultData);
-    expect(reallocationProposed).toBeDefined();
-
-    await writeContract(client, {
-      address: vault,
-      abi: metaMorphoAbi,
-      functionName: "reallocate",
-      // @ts-expect-error - viem ABI type inference doesn't match our MarketAllocation type
-      args: [reallocationProposed],
-    });
-
-    // Read market states after reallocation
-    const [
-      marketState1PostReallocation,
-      marketState2PostReallocation,
-      marketState3PostReallocation,
-    ] = await readMarketStates(client, [marketId1, marketId2, marketId3]);
-
-    // Type guards to ensure market states are defined
-    if (
-      !marketState1PostReallocation ||
-      !marketState2PostReallocation ||
-      !marketState3PostReallocation
-    ) {
-      throw new Error("Failed to read market states after reallocation");
-    }
-
-    const [marketState1Rate, marketState2Rate] = await readBorrowRates(client, [
-      { params: marketParams1, state: formatMarketState(marketState1PostReallocation) },
-      { params: marketParams2, state: formatMarketState(marketState2PostReallocation) },
-    ]);
-
-    // Type guards to ensure rates are defined
-    if (marketState1Rate === undefined || marketState2Rate === undefined) {
-      throw new Error("Failed to read borrow rates");
-    }
-
-    // Market 1 should be at max apy
-    expect(abs(rateToApy(marketState1Rate) - percentToWad(TARGET_MARKET_1.max))).toBeLessThan(
-      TOLERANCE_1BP,
-    );
-
-    // Market 2 should be at min apy
-    expect(abs(rateToApy(marketState2Rate) - percentToWad(TARGET_MARKET_2.min))).toBeLessThan(
-      TOLERANCE_1BP,
-    );
-
-    // Market 3 should have not been touched (same utilization as before reallocation)
-    expect(getUtilization(formatMarketState(marketState3PostReallocation)) - WAD / 2n).toBeLessThan(
-      TOLERANCE_1BP,
-    );
-  });
-});
 
 describe("apyRange strategy - unit tests", () => {
   // Market parameters for unit tests

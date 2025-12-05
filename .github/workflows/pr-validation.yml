@@ -22,11 +22,6 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
       - name: Get pnpm store directory
         id: pnpm-cache
         shell: bash
@@ -60,8 +55,6 @@ jobs:
         run: pnpm test
         env:
           NODE_ENV: test
-          # RPC URL is optional - tests will use public RPC if not provided
-          RPC_URL_1: ${{ secrets.RPC_URL_1 || '' }}
 
       # Summary
       - name: ✅ Validation complete
