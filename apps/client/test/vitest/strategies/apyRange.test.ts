@@ -761,7 +761,7 @@ describe("apyRange strategy - unit tests", () => {
       const market2 = createMockMarketData(
         marketId2 as Hex,
         parseUnits("10000", 6),
-        parseUnits("1000", 6), // 10% utilization = low APY
+        parseUnits("2300", 6), // 23% utilization = low APY, but after full withdrawal will be ~46% → ~3% APY
         parseUnits("5000", 6),
         parseUnits("20000", 6),
         rateAtTarget,
@@ -841,6 +841,67 @@ describe("apyRange strategy - unit tests", () => {
         `   Idle receives remaining: ${Number(market2.vaultAssets - market2Allocation!.assets - (market1Allocation!.assets - market1.vaultAssets)) / 1e6} M`,
       );
       expect(idleAllocation!.assets).toBe(maxUint256);
+
+      // Calculate and log APY after reallocation
+      console.log("\n📊 APY Analysis:");
+
+      // Market 1 (high APY market - should be brought down to max)
+      const market1BeforeUtilization = getUtilization(market1.state);
+      const market1BeforeRate = utilizationToRate(market1BeforeUtilization, market1.rateAtTarget);
+      const market1BeforeApy = rateToApy(market1BeforeRate);
+
+      // Simulate after reallocation
+      const market1AssetsDelta =
+        (market1Allocation!.assets === maxUint256
+          ? market1.vaultAssets + (market2.vaultAssets - market2Allocation!.assets)
+          : market1Allocation!.assets) - market1.vaultAssets;
+      const market1AfterSupply = market1.state.totalSupplyAssets + market1AssetsDelta;
+      const market1AfterUtilization = getUtilization({
+        ...market1.state,
+        totalSupplyAssets: market1AfterSupply,
+      });
+      const market1AfterRate = utilizationToRate(market1AfterUtilization, market1.rateAtTarget);
+      const market1AfterApy = rateToApy(market1AfterRate);
+
+      console.log("\nMarket 1 (WBTC - high APY market):");
+      console.log(`  Before: ${(Number(market1BeforeApy) / 1e16).toFixed(2)}% APY`);
+      console.log(`  After:  ${(Number(market1AfterApy) / 1e16).toFixed(2)}% APY`);
+      console.log("  Target: 3-6% range");
+
+      // Market 2 (low APY market - should be brought up)
+      const market2BeforeUtilization = getUtilization(market2.state);
+      const market2BeforeRate = utilizationToRate(market2BeforeUtilization, market2.rateAtTarget);
+      const market2BeforeApy = rateToApy(market2BeforeRate);
+
+      // Simulate after reallocation
+      const market2AssetsDelta = market2Allocation!.assets - market2.vaultAssets;
+      const market2AfterSupply = market2.state.totalSupplyAssets + market2AssetsDelta;
+      const market2AfterUtilization = getUtilization({
+        ...market2.state,
+        totalSupplyAssets: market2AfterSupply,
+      });
+      const market2AfterRate = utilizationToRate(market2AfterUtilization, market2.rateAtTarget);
+      const market2AfterApy = rateToApy(market2AfterRate);
+
+      console.log("\nMarket 2 (WETH - low APY market):");
+      console.log(`  Before: ${(Number(market2BeforeApy) / 1e16).toFixed(2)}% APY`);
+      console.log(`  After:  ${(Number(market2AfterApy) / 1e16).toFixed(2)}% APY`);
+      console.log("  Target: 3-6% range");
+      if (market2Allocation!.assets === 0n) {
+        console.log("  Note: Fully withdrawn - APY should now be within target range!");
+      }
+
+      // Verify both markets are within or close to target range
+      const minApyWad = percentToWad(3);
+      const maxApyWad = percentToWad(6);
+      const tolerance = percentToWad(0.5); // 0.5% tolerance
+
+      expect(market1AfterApy).toBeGreaterThanOrEqual(minApyWad - tolerance);
+      expect(market1AfterApy).toBeLessThanOrEqual(maxApyWad + tolerance);
+
+      // Market 2 should be within or very close to target after full withdrawal
+      expect(market2AfterApy).toBeGreaterThanOrEqual(minApyWad - tolerance);
+      expect(market2AfterApy).toBeLessThanOrEqual(maxApyWad + tolerance);
     });
 
     it("should use idle market as source when withdrawing and ALLOW_IDLE_REALLOCATION is false", () => {
