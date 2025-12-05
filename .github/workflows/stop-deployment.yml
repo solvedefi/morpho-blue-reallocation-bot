@@ -1,0 +1,89 @@
+name: Stop Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch name to stop (e.g., main, develop)'
+        required: true
+        type: string
+        default: 'main'
+
+jobs:
+  stop:
+    name: Stop and Remove Deployment
+    runs-on: ubuntu-latest
+    environment: reallocation-bot
+    steps:
+      - name: Validate input
+        run: |
+          echo "Stopping and removing deployment for branch: ${{ inputs.branch_name }}"
+
+      - name: Stop deployment and delete directory via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+
+            BRANCH_NAME="${{ inputs.branch_name }}"
+            DEPLOY_DIR="morpho-blue-reallocation-bot_${BRANCH_NAME}"
+
+            echo "Stopping and removing deployment for branch: $BRANCH_NAME"
+            echo "Deployment directory: $HOME/$DEPLOY_DIR"
+
+            # Check if directory exists
+            if [ ! -d "$HOME/$DEPLOY_DIR" ]; then
+              echo "ERROR: Directory $HOME/$DEPLOY_DIR does not exist"
+              echo "Available directories:"
+              ls -la $HOME | grep morpho-blue-reallocation-bot || echo "No deployments found"
+              exit 1
+            fi
+
+            cd "$HOME/$DEPLOY_DIR"
+
+            echo "Current directory: $(pwd)"
+
+            # Check if docker-compose.yml exists
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "WARNING: docker-compose.yml not found in $(pwd)"
+              echo "Files in directory:"
+              ls -la
+            fi
+
+            # Stop and remove containers
+            echo "Stopping containers..."
+            docker compose down
+
+            echo "Containers stopped successfully!"
+
+            # Show remaining containers (if any)
+            echo "Docker containers status:"
+            docker ps -a | grep reallocation-bot || echo "No reallocation-bot containers running"
+
+            # Delete the deployment directory
+            echo "Deleting deployment directory: $HOME/$DEPLOY_DIR"
+            cd $HOME
+            rm -rf "$DEPLOY_DIR"
+
+            if [ ! -d "$HOME/$DEPLOY_DIR" ]; then
+              echo "Directory deleted successfully!"
+            else
+              echo "ERROR: Failed to delete directory"
+              exit 1
+            fi
+
+      - name: Shutdown notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Successfully stopped and removed deployment for branch: ${{ inputs.branch_name }}"
+            echo "   - Containers stopped"
+            echo "   - Directory deleted"
+          else
+            echo "❌ Failed to stop deployment for branch: ${{ inputs.branch_name }}"
+            exit 1
+          fi

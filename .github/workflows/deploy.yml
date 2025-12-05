@@ -17,24 +17,29 @@ jobs:
           # Get the branch name from the ref
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
           # Create deployment directory name
           DEPLOY_DIR="morpho-blue-reallocation-bot_${BRANCH_NAME}"
           echo "deploy_dir=$DEPLOY_DIR" >> $GITHUB_OUTPUT
+
           echo "Deploying branch: $BRANCH_NAME to directory: $DEPLOY_DIR"
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.0
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: ENV_FILE_CONTENT
           script: |
             set -e
 
             BRANCH_NAME="${{ steps.extract_branch.outputs.branch }}"
             DEPLOY_DIR="${{ steps.extract_branch.outputs.deploy_dir }}"
-            REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/morpho-org/morpho-blue-reallocation-bot.git"
+            REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/solvedefi/morpho-blue-reallocation-bot.git"
 
             echo "Deploying reallocation bot for branch: $BRANCH_NAME"
             echo "Deployment directory: $HOME/$DEPLOY_DIR"
@@ -42,15 +47,52 @@ jobs:
             # Create or navigate to project directory
             if [ ! -d "$HOME/$DEPLOY_DIR" ]; then
               echo "Directory doesn't exist, cloning repository..."
-              git clone "$REPO_URL" "$HOME/$DEPLOY_DIR"
+              git clone --branch "$BRANCH_NAME" "$REPO_URL" "$HOME/$DEPLOY_DIR"
+
+              if [ $? -ne 0 ]; then
+                echo "ERROR: Git clone failed"
+                exit 1
+              fi
+
+              echo "Successfully cloned repository"
+            else
+              cd "$HOME/$DEPLOY_DIR"
+
+              # Check if branch exists locally, if not, fetch it
+              if ! git rev-parse --verify "$BRANCH_NAME" >/dev/null 2>&1; then
+                echo "Branch $BRANCH_NAME doesn't exist locally, fetching from remote..."
+                git fetch origin "$BRANCH_NAME:$BRANCH_NAME"
+              fi
+
+              # Pull latest changes for the specific branch
+              echo "Checking out and pulling latest changes for branch: $BRANCH_NAME..."
+              git checkout "$BRANCH_NAME"
+              git pull origin "$BRANCH_NAME"
             fi
 
             cd "$HOME/$DEPLOY_DIR"
 
-            # Pull latest changes for the specific branch
-            echo "Pulling latest changes for branch: $BRANCH_NAME..."
-            git fetch origin "$BRANCH_NAME"
-            git reset --hard "origin/$BRANCH_NAME"
+            # Debug: Show current directory and files
+            echo "Current directory: $(pwd)"
+            echo "Files in directory:"
+            ls -la
+
+            # Check if Dockerfile exists
+            if [ ! -f "Dockerfile" ]; then
+              echo "ERROR: Dockerfile not found in $(pwd)"
+              exit 1
+            fi
+
+            # Create .env file from GitHub secret
+            echo "Creating .env file from GitHub secret..."
+            echo "$ENV_FILE_CONTENT" > .env
+
+            if [ ! -f ".env" ]; then
+              echo "ERROR: Failed to create .env file"
+              exit 1
+            fi
+
+            echo ".env file created successfully"
 
             # Stop existing containers
             echo "Stopping existing containers..."
