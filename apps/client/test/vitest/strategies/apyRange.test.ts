@@ -289,6 +289,18 @@ describe("apyRange strategy - e2e test", () => {
     const [marketState1RateAtTarget, marketState2RateAtTarget, marketState3RateAtTarget] =
       await readRatesAtTarget(client, [marketId1, marketId2, marketId3]);
 
+    // Type guards to ensure values are defined
+    if (!marketState1 || !marketState2 || !marketState3 || !marketStateIdle) {
+      throw new Error("Failed to read market states");
+    }
+    if (
+      marketState1RateAtTarget === undefined ||
+      marketState2RateAtTarget === undefined ||
+      marketState3RateAtTarget === undefined
+    ) {
+      throw new Error("Failed to read rates at target");
+    }
+
     const vaultData = createVaultData(vault, [
       {
         chainId: 1,
@@ -346,10 +358,24 @@ describe("apyRange strategy - e2e test", () => {
       marketState3PostReallocation,
     ] = await readMarketStates(client, [marketId1, marketId2, marketId3]);
 
+    // Type guards to ensure market states are defined
+    if (
+      !marketState1PostReallocation ||
+      !marketState2PostReallocation ||
+      !marketState3PostReallocation
+    ) {
+      throw new Error("Failed to read market states after reallocation");
+    }
+
     const [marketState1Rate, marketState2Rate] = await readBorrowRates(client, [
       { params: marketParams1, state: formatMarketState(marketState1PostReallocation) },
       { params: marketParams2, state: formatMarketState(marketState2PostReallocation) },
     ]);
+
+    // Type guards to ensure rates are defined
+    if (marketState1Rate === undefined || marketState2Rate === undefined) {
+      throw new Error("Failed to read borrow rates");
+    }
 
     // Market 1 should be at max apy
     expect(abs(rateToApy(marketState1Rate) - percentToWad(TARGET_MARKET_1.max))).toBeLessThan(
