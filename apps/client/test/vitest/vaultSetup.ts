@@ -104,7 +104,10 @@ export async function setupVault(client: AnvilTestClient, cap: bigint, suppliedA
   });
 
   const deploymentReceipt = await getTransactionReceipt(client, { hash });
-  const vault = deploymentReceipt.logs[0]?.address!;
+  const vault = deploymentReceipt.logs[0]?.address;
+  if (!vault) {
+    throw new Error("Failed to get vault address from deployment receipt");
+  }
 
   /// Submit caps
 
