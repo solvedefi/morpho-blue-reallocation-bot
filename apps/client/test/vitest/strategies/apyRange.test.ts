@@ -66,14 +66,17 @@ class MinRatesTest extends ApyRange {
   }
 
   getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let apyRange = this.config.DEFAULT_APY_RANGE;
+    let apyRange: Range = this.config.DEFAULT_APY_RANGE;
 
-    if (this.config.vaultsDefaultApyRanges[chainId]?.[vaultAddress] !== undefined) {
-      apyRange = this.config.vaultsDefaultApyRanges[chainId][vaultAddress];
+    const vaultRange: Range | undefined =
+      this.config.vaultsDefaultApyRanges[chainId]?.[vaultAddress];
+    if (vaultRange !== undefined) {
+      apyRange = vaultRange;
     }
 
-    if (this.config.marketsDefaultApyRanges[chainId]?.[marketId] !== undefined) {
-      apyRange = this.config.marketsDefaultApyRanges[chainId][marketId];
+    const marketRange: Range | undefined = this.config.marketsDefaultApyRanges[chainId]?.[marketId];
+    if (marketRange !== undefined) {
+      apyRange = marketRange;
     }
 
     return {
@@ -240,12 +243,14 @@ describe("apyRange strategy", () => {
       ],
     };
 
-    const reallocationProposed = strategy.findReallocation(vaultData)!;
+    const reallocationProposed = strategy.findReallocation(vaultData);
+    expect(reallocationProposed).toBeDefined();
 
     await writeContract(client, {
       address: vault,
       abi: metaMorphoAbi,
       functionName: "reallocate",
+      // @ts-expect-error - viem ABI type inference doesn't match our MarketAllocation type
       args: [reallocationProposed],
     });
 
@@ -279,12 +284,14 @@ describe("apyRange strategy", () => {
         address: IRM,
         abi: adaptiveCurveIrmAbi,
         functionName: "borrowRateView",
+        // @ts-expect-error - viem ABI type inference doesn't match our MarketState type
         args: [marketParams1, formatMarketState(marketState1PostReallocation)],
       }),
       readContract(client, {
         address: IRM,
         abi: adaptiveCurveIrmAbi,
         functionName: "borrowRateView",
+        // @ts-expect-error - viem ABI type inference doesn't match our MarketState type
         args: [marketParams2, formatMarketState(marketState2PostReallocation)],
       }),
     ]);
@@ -347,7 +354,7 @@ describe("apyRange strategy - unit tests", () => {
     rateAtTarget: bigint,
     params?: MarketParams,
   ): VaultMarketData => {
-    const marketParams = params || defaultMarketParams;
+    const marketParams = params ?? defaultMarketParams;
     const isIdle = marketParams.collateralToken === zeroAddress;
 
     return {
@@ -373,14 +380,14 @@ describe("apyRange strategy - unit tests", () => {
     marketsData,
   });
 
-  const testConfigNoIdle = {
+  const testConfigNoIdle: TestConfig = {
     DEFAULT_APY_RANGE: { min: 3, max: 8 },
     vaultsDefaultApyRanges: {},
     marketsDefaultApyRanges: {},
     ALLOW_IDLE_REALLOCATION: false,
   };
 
-  const testConfigWithIdle = {
+  const testConfigWithIdle: TestConfig = {
     DEFAULT_APY_RANGE: { min: 3, max: 8 },
     vaultsDefaultApyRanges: {},
     marketsDefaultApyRanges: {},
@@ -389,9 +396,9 @@ describe("apyRange strategy - unit tests", () => {
 
   // Custom test strategy with configurable idle reallocation
   class TestableApyRange extends ApyRange {
-    private readonly config: typeof testConfigNoIdle;
+    private readonly config: TestConfig;
 
-    constructor(config: typeof testConfigNoIdle) {
+    constructor(config: TestConfig) {
       super();
       this.config = config;
     }
@@ -399,12 +406,16 @@ describe("apyRange strategy - unit tests", () => {
     getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
       let apyRange = this.config.DEFAULT_APY_RANGE;
 
-      if (this.config.vaultsDefaultApyRanges[chainId]?.[vaultAddress] !== undefined) {
-        apyRange = this.config.vaultsDefaultApyRanges[chainId][vaultAddress];
+      const vaultRange: Range | undefined =
+        this.config.vaultsDefaultApyRanges[chainId]?.[vaultAddress];
+      if (vaultRange !== undefined) {
+        apyRange = vaultRange;
       }
 
-      if (this.config.marketsDefaultApyRanges[chainId]?.[marketId] !== undefined) {
-        apyRange = this.config.marketsDefaultApyRanges[chainId][marketId];
+      const marketRange: Range | undefined =
+        this.config.marketsDefaultApyRanges[chainId]?.[marketId];
+      if (marketRange !== undefined) {
+        apyRange = marketRange;
       }
 
       return {
@@ -413,7 +424,8 @@ describe("apyRange strategy - unit tests", () => {
       };
     }
 
-    getMinApyDeltaBips(_chainId: number, _vaultAddress: Address, _marketId: Hex) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getMinApyDeltaBips(chainId: number, vaultAddress: Address, marketId: Hex) {
       return 25; // 0.25% = 25 bips
     }
   }
@@ -607,24 +619,25 @@ describe("apyRange strategy - unit tests", () => {
 
       const result = strategy.findReallocation(vaultData);
 
+      expect(result).toBeDefined();
+      if (!result) return;
+
       console.log("reallocations:");
-      for (const reallocation of result!) {
+      for (const reallocation of result) {
         console.log("marketParams", reallocation.marketParams);
         console.log("assets", reallocation.assets);
         console.log();
       }
 
-      expect(result).toBeDefined();
-      expect(result!.length).toBeGreaterThan(0);
+      expect(result.length).toBeGreaterThan(0);
 
       // Verify that after reallocation, markets would be within target APY ranges
       // Calculate the actual asset movements from the reallocation
       let totalWithdrawn = 0n;
-      const totalDeposited = 0n;
 
       // First pass: calculate withdrawals
       for (const market of vaultData.marketsData) {
-        const allocation = result!.find(
+        const allocation = result.find(
           (a) => a.marketParams.collateralToken === market.params.collateralToken,
         );
         if (allocation && allocation.assets < market.vaultAssets) {
@@ -634,7 +647,7 @@ describe("apyRange strategy - unit tests", () => {
 
       // Apply the reallocation to simulate the new state
       const updatedMarkets = vaultData.marketsData.map((market) => {
-        const allocation = result!.find(
+        const allocation = result.find(
           (a) => a.marketParams.collateralToken === market.params.collateralToken,
         );
         if (!allocation) return market;
@@ -795,51 +808,57 @@ describe("apyRange strategy - unit tests", () => {
 
       const result = strategy.findReallocation(vaultData);
 
+      expect(result).toBeDefined();
+      if (!result) return;
+
       console.log("\nReallocations:");
-      for (const reallocation of result!) {
+      for (const reallocation of result) {
         const isIdle = reallocation.marketParams.collateralToken === zeroAddress;
         const isMaxUint = reallocation.assets === maxUint256;
         console.log(
           isIdle
             ? "  Idle Market:"
             : `  ${reallocation.marketParams.collateralToken.slice(0, 10)}...:`,
-          isMaxUint ? "maxUint256 (all remaining)" : `${Number(reallocation.assets) / 1e6} M`,
+          isMaxUint
+            ? "maxUint256 (all remaining)"
+            : `${String(Number(reallocation.assets) / 1e6)} M`,
         );
       }
 
-      expect(result).toBeDefined();
-      expect(result!.length).toBeGreaterThan(0);
+      expect(result.length).toBeGreaterThan(0);
 
       // Should have withdrawals from market 2, deposits to market 1, and deposits to idle
-      const market2Allocation = result!.find(
+      const market2Allocation = result.find(
         (a) => a.marketParams.collateralToken === defaultMarketParams2.collateralToken,
       );
-      const market1Allocation = result!.find(
+      const market1Allocation = result.find(
         (a) => a.marketParams.collateralToken === defaultMarketParams.collateralToken,
       );
-      const idleAllocation = result!.find((a) => a.marketParams.collateralToken === zeroAddress);
+      const idleAllocation = result.find((a) => a.marketParams.collateralToken === zeroAddress);
 
       // Market 2 should have reduced assets (withdrawal) - possibly to 0
       expect(market2Allocation).toBeDefined();
-      expect(market2Allocation!.assets).toBeLessThanOrEqual(market2.vaultAssets);
+      expect(market1Allocation).toBeDefined();
+      expect(idleAllocation).toBeDefined();
+      if (!market2Allocation || !market1Allocation || !idleAllocation) return;
+
+      expect(market2Allocation.assets).toBeLessThanOrEqual(market2.vaultAssets);
 
       // Market 1 should have increased assets (specific amount to reach target APY)
-      expect(market1Allocation).toBeDefined();
-      expect(market1Allocation!.assets).toBeGreaterThan(market1.vaultAssets);
+      expect(market1Allocation.assets).toBeGreaterThan(market1.vaultAssets);
 
       // Idle market should receive excess liquidity
-      expect(idleAllocation).toBeDefined();
       console.log("\n✅ Idle market receives excess liquidity!");
       console.log(
-        `   Market 2 withdrew: ${Number(market2.vaultAssets - market2Allocation!.assets) / 1e6} M`,
+        `   Market 2 withdrew: ${String(Number(market2.vaultAssets - market2Allocation.assets) / 1e6)} M`,
       );
       console.log(
-        `   Market 1 received: ${Number(market1Allocation!.assets - market1.vaultAssets) / 1e6} M`,
+        `   Market 1 received: ${String(Number(market1Allocation.assets - market1.vaultAssets) / 1e6)} M`,
       );
       console.log(
-        `   Idle receives remaining: ${Number(market2.vaultAssets - market2Allocation!.assets - (market1Allocation!.assets - market1.vaultAssets)) / 1e6} M`,
+        `   Idle receives remaining: ${String(Number(market2.vaultAssets - market2Allocation.assets - (market1Allocation.assets - market1.vaultAssets)) / 1e6)} M`,
       );
-      expect(idleAllocation!.assets).toBe(maxUint256);
+      expect(idleAllocation.assets).toBe(maxUint256);
 
       // Calculate and log APY after reallocation
       console.log("\n📊 APY Analysis:");
@@ -851,9 +870,9 @@ describe("apyRange strategy - unit tests", () => {
 
       // Simulate after reallocation
       const market1AssetsDelta =
-        (market1Allocation!.assets === maxUint256
-          ? market1.vaultAssets + (market2.vaultAssets - market2Allocation!.assets)
-          : market1Allocation!.assets) - market1.vaultAssets;
+        (market1Allocation.assets === maxUint256
+          ? market1.vaultAssets + (market2.vaultAssets - market2Allocation.assets)
+          : market1Allocation.assets) - market1.vaultAssets;
       const market1AfterSupply = market1.state.totalSupplyAssets + market1AssetsDelta;
       const market1AfterUtilization = getUtilization({
         ...market1.state,
@@ -873,7 +892,7 @@ describe("apyRange strategy - unit tests", () => {
       const market2BeforeApy = rateToApy(market2BeforeRate);
 
       // Simulate after reallocation
-      const market2AssetsDelta = market2Allocation!.assets - market2.vaultAssets;
+      const market2AssetsDelta = market2Allocation.assets - market2.vaultAssets;
       const market2AfterSupply = market2.state.totalSupplyAssets + market2AssetsDelta;
       const market2AfterUtilization = getUtilization({
         ...market2.state,
@@ -886,7 +905,7 @@ describe("apyRange strategy - unit tests", () => {
       console.log(`  Before: ${(Number(market2BeforeApy) / 1e16).toFixed(2)}% APY`);
       console.log(`  After:  ${(Number(market2AfterApy) / 1e16).toFixed(2)}% APY`);
       console.log("  Target: 3-6% range");
-      if (market2Allocation!.assets === 0n) {
+      if (market2Allocation.assets === 0n) {
         console.log("  Note: Fully withdrawn - APY should now be within target range!");
       }
 
