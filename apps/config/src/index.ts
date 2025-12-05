@@ -21,6 +21,7 @@ import {
   marketsMinApsDeltaBips,
   vaultsDefaultApyRanges,
   vaultsDefaultMinApsDeltaBips,
+  type Range,
 } from "./strategies/apyRange";
 
 dotenv.config();
@@ -121,6 +122,7 @@ export {
   marketsMinApsDeltaBips,
   vaultsDefaultApyRanges,
   vaultsDefaultMinApsDeltaBips,
+  type Range,
 };
 
 export { chainConfigs, type ChainConfig };

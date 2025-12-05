@@ -11,11 +11,10 @@ import {
   getUtilization,
   percentToWad,
   WAD,
-  apyToRate,
   rateToUtilization,
   utilizationToRate,
 } from "../../../src/utils/maths.js";
-import { MarketParams, MarketState, VaultData, VaultMarketData } from "../../../src/utils/types.js";
+import { MarketParams, VaultData, VaultMarketData } from "../../../src/utils/types.js";
 import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
 import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
 import { WBTC, MORPHO, IRM } from "../../constants.js";
