@@ -68,7 +68,6 @@ export const marketsApyRanges: Record<number, Record<string, Range>> = {
     //   max: 7,
     // },
 
-
     // mBASIS/USDC
     "0x45f3b5688e7ba25071f78d1ce51d1b893faa3c86897b12204cdff3af6b3611f8": {
       min: 6,
@@ -95,5 +94,4 @@ export const marketsApyRanges: Record<number, Record<string, Range>> = {
 export const DEFAULT_MIN_APY_DELTA_BIPS = 25;
 
 export const vaultsDefaultMinApsDeltaBips: Record<number, Record<string, number>> = {};
-
 export const marketsMinApsDeltaBips: Record<number, Record<string, number>> = {};

@@ -2,11 +2,9 @@ import {
   DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
   vaultsMinUtilizationDeltaBips,
 } from "@morpho-blue-reallocation-bot/config";
-import { Address, Client, erc20Abi, maxUint256, zeroAddress } from "viem";
-import { readContract } from "viem/actions";
+import { Address, maxUint256, zeroAddress } from "viem";
 
 import {
-  WAD,
   getDepositableAmount,
   getWithdrawableAmount,
   getUtilization,

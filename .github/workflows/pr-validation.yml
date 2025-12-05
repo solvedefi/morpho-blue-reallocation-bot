@@ -1,0 +1,72 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build config package
+        run: pnpm build:config
+
+      # Stage 1: Format Check
+      - name: 📝 Check formatting
+        run: pnpm exec prettier --check "**/*.{ts,tsx,js,jsx,json,md}"
+
+      # Stage 2: Lint
+      - name: 🔍 Run linting
+        run: pnpm lint
+
+      # Stage 3: Test
+      - name: 🧪 Run tests
+        run: pnpm test
+        env:
+          NODE_ENV: test
+
+      # Summary
+      - name: ✅ Validation complete
+        if: success()
+        run: |
+          echo "::notice::All validation checks passed successfully! ✨"
+          echo "- ✅ Formatting check passed"
+          echo "- ✅ Linting passed"
+          echo "- ✅ Tests passed"
+
+      - name: ❌ Validation failed
+        if: failure()
+        run: |
+          echo "::error::Validation checks failed. Please review the errors above."
+          exit 1

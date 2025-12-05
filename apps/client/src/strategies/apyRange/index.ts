@@ -80,6 +80,7 @@ export class ApyRange implements Strategy {
     let idleDeposit = 0n;
 
     if (idleMarket) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (totalWithdrawableAmount > totalDepositableAmount && ALLOW_IDLE_REALLOCATION) {
         idleDeposit = min(
           totalWithdrawableAmount - totalDepositableAmount,
@@ -153,6 +154,7 @@ export class ApyRange implements Strategy {
         });
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (idleDeposit > 0n && ALLOW_IDLE_REALLOCATION) {
         deposits.push({
           marketParams: idleMarket.params,

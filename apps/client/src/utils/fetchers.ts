@@ -3,7 +3,7 @@ import type { Address } from "viem";
 import type { VaultData, VaultMarketData } from "./types";
 
 export async function fetchVaultData(chainId: number, vaultAddress: Address): Promise<VaultData> {
-  const url = `http://localhost:42069/chain/${chainId}/vault/${vaultAddress}`;
+  const url = `http://localhost:42069/chain/${chainId.toString()}/vault/${vaultAddress}`;
 
   const response = await fetch(url);
 

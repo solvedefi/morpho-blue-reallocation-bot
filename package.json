@@ -4,17 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "vitest run",
+    "reallocate": "pnpm build:config && tsx apps/client/src/index.ts --env-file=.env",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
-    "prepare": "husky",
-    "test:helpers": "vitest helpers",
     "build:config": "pnpm --filter @morpho-blue-reallocation-bot/config build",
-    "test:strategies": "vitest strategies",
-    "test:execution": "vitest execution",
-    "reallocate": "pnpm build:config && tsx apps/client/src/index.ts --env-file=.env"
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.ts": [
-      "eslint --fix"
+      "prettier --write",
+      "eslint --fix --max-warnings=0"
     ]
   },
   "dependencies": {
