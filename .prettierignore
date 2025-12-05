@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+pnpm-lock.yaml
+
+# Build outputs
+dist
+build
+.next
+out
+
+# Cache
+.turbo
+.cache
+.parcel-cache
+
+# Generated files
+*.generated.ts
+*.generated.js
+
+# Coverage
+coverage
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Git
+.git

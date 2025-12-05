@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "prepare": "husky",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -19,6 +21,7 @@
   },
   "lint-staged": {
     "*.ts": [
+      "prettier --write",
       "eslint --fix"
     ]
   },
