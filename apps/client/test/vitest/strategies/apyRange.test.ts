@@ -86,7 +86,7 @@ class MinRatesTest extends ApyRange {
   }
 }
 
-describe("apyRange strategy", () => {
+describe("apyRange strategy - e2e test", () => {
   const strategy = new MinRatesTest(testConfig);
 
   const caps = parseUnits("100000", 6);
