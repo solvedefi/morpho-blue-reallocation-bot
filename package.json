@@ -4,20 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "prepare": "husky",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "test:helpers": "vitest helpers",
-    "test:helpers:run": "vitest helpers --run",
+    "reallocate": "pnpm build:config && tsx apps/client/src/index.ts --env-file=.env",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
     "build:config": "pnpm --filter @morpho-blue-reallocation-bot/config build",
-    "test:strategies": "vitest strategies",
-    "test:strategies:run": "vitest strategies --run",
-    "test:execution": "vitest execution",
-    "test:execution:run": "vitest execution --run",
-    "reallocate": "pnpm build:config && tsx apps/client/src/index.ts --env-file=.env"
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.ts": [
