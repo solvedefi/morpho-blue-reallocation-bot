@@ -1,14 +1,5 @@
 import { defineChain } from "viem";
-import {
-  mainnet,
-  base,
-  unichain,
-  polygon,
-  worldchain,
-  lisk,
-  soneium,
-  berachain,
-} from "viem/chains";
+import { mainnet, base, worldchain } from "viem/chains";
 
 import type { Config } from "./types";
 
@@ -63,21 +54,21 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 13978134,
     },
   },
-  [berachain.id]: {
-    chain: berachain,
-    morpho: {
-      address: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
-      startBlock: 11572788,
-    },
-    adaptiveCurveIrm: {
-      address: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
-      startBlock: 11160919,
-    },
-    metaMorphoFactories: {
-      addresses: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
-      startBlock: 11161176,
-    },
-  },
+  // [berachain.id]: {
+  //   chain: berachain,
+  //   morpho: {
+  //     address: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
+  //     startBlock: 11572788,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
+  //     startBlock: 11160919,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
+  //     startBlock: 11161176,
+  //   },
+  // },
   [98866]: {
     chain: plume,
     morpho: {
