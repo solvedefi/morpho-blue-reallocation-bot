@@ -30,9 +30,18 @@ export class ApyRange implements Strategy {
       (marketData) => marketData.params.collateralToken === zeroAddress,
     );
 
-    const marketsData = vaultData.marketsData.filter(
-      (marketData) => marketData.params.collateralToken !== zeroAddress,
-    );
+    const marketsData = vaultData.marketsData
+      .filter((marketData) => marketData.params.collateralToken !== zeroAddress)
+      .filter(
+        (marketData) =>
+          marketData.params.collateralToken !== "0x316cd39632Cac4F4CdfC21757c4500FE12f64514",
+      );
+
+    for (const marketData of marketsData) {
+      console.log("marketData.params.collateralToken", marketData.params.collateralToken);
+      console.log("marketData.params.loanToken", marketData.params.loanToken);
+      console.log("======");
+    }
 
     let totalWithdrawableAmount = 0n;
     let totalDepositableAmount = 0n;
