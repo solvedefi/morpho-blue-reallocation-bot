@@ -5,7 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { Config } from "../../config/dist/types";
 
 import { ReallocationBot } from "./bot";
-import { EquilizeUtilizations } from "./strategies";
+import { ApyRange } from "./strategies";
 
 async function runBotInBackground(bot: ReallocationBot, executionInterval: number): Promise<void> {
   setInterval(() => {
@@ -42,7 +42,7 @@ async function main() {
       config.chainId,
       client,
       config.vaultWhitelist,
-      new EquilizeUtilizations(),
+      new ApyRange(),
       conf,
     );
 
