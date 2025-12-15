@@ -2,6 +2,16 @@ name: Deploy reallocation bot
 
 on:
   workflow_dispatch: # Manual trigger only - click "Run workflow" button
+    inputs:
+      env_file_choice:
+        description: 'Environment configuration to use'
+        required: true
+        type: choice
+        options:
+          - ENV_FILE
+          - ENV_FILE_STAGING
+          - ENV_FILE_PRODUCTION
+        default: 'ENV_FILE'
 
 jobs:
   deploy:
@@ -24,10 +34,35 @@ jobs:
 
           echo "Deploying branch: $BRANCH_NAME to directory: $DEPLOY_DIR"
 
+      - name: Select environment file
+        id: select_env_file
+        run: |
+          case "${{ inputs.env_file_choice }}" in
+            "ENV_FILE")
+              echo "env_content<<EOF" >> $GITHUB_OUTPUT
+              echo "${{ secrets.ENV_FILE }}" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+              ;;
+            "ENV_FILE_STAGING")
+              echo "env_content<<EOF" >> $GITHUB_OUTPUT
+              echo "${{ secrets.ENV_FILE_STAGING }}" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+              ;;
+            "ENV_FILE_PRODUCTION")
+              echo "env_content<<EOF" >> $GITHUB_OUTPUT
+              echo "${{ secrets.ENV_FILE_PRODUCTION }}" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "ERROR: Invalid environment choice"
+              exit 1
+              ;;
+          esac
+
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.0
         env:
-          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE }}
+          ENV_FILE_CONTENT: ${{ steps.select_env_file.outputs.env_content }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -42,6 +77,7 @@ jobs:
             REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/solvedefi/morpho-blue-reallocation-bot.git"
 
             echo "Deploying reallocation bot for branch: $BRANCH_NAME"
+            echo "Using environment: ${{ inputs.env_file_choice }}"
             echo "Deployment directory: $HOME/$DEPLOY_DIR"
 
             # Create or navigate to project directory
@@ -118,6 +154,7 @@ jobs:
         run: |
           if [ "${{ job.status }}" == "success" ]; then
             echo "✅ Deployment successful for branch: ${{ steps.extract_branch.outputs.branch }}"
+            echo "Environment: ${{ inputs.env_file_choice }}"
             echo "Deployed to: ${{ steps.extract_branch.outputs.deploy_dir }}"
           else
             echo "❌ Deployment failed for branch: ${{ steps.extract_branch.outputs.branch }}"
