@@ -34,14 +34,20 @@ export class ApyRange implements Strategy {
       .filter((marketData) => marketData.params.collateralToken !== zeroAddress)
       .filter(
         (marketData) =>
-          marketData.params.collateralToken !== "0x316cd39632Cac4F4CdfC21757c4500FE12f64514",
-      );
-
-    for (const marketData of marketsData) {
-      console.log("marketData.params.collateralToken", marketData.params.collateralToken);
-      console.log("marketData.params.loanToken", marketData.params.loanToken);
-      console.log("======");
-    }
+          marketData.params.collateralToken !== "0x316cd39632Cac4F4CdfC21757c4500FE12f64514", // wsrUSD on berachain
+      )
+      .filter(
+        (marketData) =>
+          marketData.params.collateralToken !==
+          ("0x0BBcc2C1991d0aF8ec6A5eD922e6f5606923fE15" as Address), // wsrUSD on plume
+      )
+      .filter(
+        (marketData) =>
+          marketData.params.collateralToken !==
+          ("0x4809010926aec940b550D34a46A52739f996D75D" as Address), // wsrUSD on worldchain
+      )
+      .filter((marketData) => marketData.state.totalSupplyAssets !== 0n)
+      .filter((marketData) => marketData.state.totalBorrowAssets !== 0n);
 
     let totalWithdrawableAmount = 0n;
     let totalDepositableAmount = 0n;

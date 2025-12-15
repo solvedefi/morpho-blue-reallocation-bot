@@ -1,4 +1,6 @@
-import { base, berachain, mainnet } from "viem/chains";
+import { base, berachain, worldchain } from "viem/chains";
+
+import { plume } from "../config";
 
 export interface Range {
   min: number;
@@ -17,83 +19,81 @@ export const DEFAULT_APY_RANGE: Range = {
 export const ALLOW_IDLE_REALLOCATION = true;
 
 export const vaultsDefaultApyRanges: Record<number, Record<string, Range>> = {
-  // [mainnet.id]: {
-  //   "0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB": {
-  //     min: 4,
-  //     max: 6,
-  //   },
-  //   "0xBEeFFF209270748ddd194831b3fa287a5386f5bC": {
-  //     min: 5,
-  //     max: 7,
-  //   },
-  // },
-  // [base.id]: {
-  //   "0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A": {
-  //     min: 4.25,
-  //     max: 6.25,
-  //   },
-  // },
+  [worldchain.id]: {
+    "0xb1E80387EbE53Ff75a89736097D34dC8D9E9045B": {
+      min: 5.5,
+      max: 6.5,
+    },
+    "0xdaa79e066dee8c8c15ffb37b1157f7eb8e0d1b37": {
+      min: 3.5,
+      max: 4.5,
+    },
+  },
 };
 
 export const marketsApyRanges: Record<number, Record<string, Range>> = {
-  // [mainnet.id]: {
-  //   "0x3a85e619751152991742810df6ec69ce473daef99e28a64ab2340d7b7ccfee49": {
-  //     min: 5.25,
-  //     max: 6.25,
-  //   },
-  //   "0x64d65c9a2d91c36d56fbc42d69e979335320169b3df63bf92789e2c8883fcc64": {
-  //     min: 5.15,
-  //     max: 6.15,
-  //   },
-  // },
+  [plume.id]: {
+    // nbasis/pusd - 5%
+    "0x970b184db9382337bf6b693017cf30936a26001fb26bac24e238c77629a75046": {
+      min: 4.5,
+      max: 5.5,
+    },
+    //nalpha/pusd - 9%
+    "0x7a96549cae736c913d12c78ee4c155c2d2f874031fce5acdd07bdbf23d7644c7": {
+      min: 8.5,
+      max: 9.5,
+    },
+    //tbill/pusd - 3%
+    "0xcf3bb7b9935f60d79da7b7bc6405328e6f990b6894895f1df7acfb4c82bc4c5a": {
+      min: 2.5,
+      max: 3.5,
+    },
+    //WPlume/pusd - other pusd markets 7%
+    "0x4e5b50278bf256f0af3d2b696545cba3de02dacba6bea930bdd5cf83dd4304f4": {
+      min: 6.5,
+      max: 7.5,
+    },
+    //nAlpha/pusd - 9%
+    "0xe70dd0172a62a91b8e9d67bf4815a2f72120b7f92dacac5448c2f075cd6f1079": {
+      min: 8.5,
+      max: 9.5,
+    },
+    //nCredit/pusd - 9%
+    "0xa05b28928ab7aea096978928cfb3545333b30b36695bf1510922ac1d6a2c044a": {
+      min: 6.5,
+      max: 7.5,
+    },
+    //WETH/pusd - other pusd markets 7%
+    "0xa39e210a871820d48b6c96e441c0b0fd2dddde3cfcc0074ab7e716df0751b549": {
+      min: 6.5,
+      max: 7.5,
+    },
+    //nCredit/pusd - other pusd markets 7%
+    "0x8243ee11b8f23c49d7734907316031d0a5030cbc0a77d5e649422678708c9798": {
+      min: 6.5,
+      max: 7.5,
+    },
+  },
+  [base.id]: {
+    //mBasis/usdc - 8%
+    "0x45f3b5688e7ba25071f78d1ce51d1b893faa3c86897b12204cdff3af6b3611f8": {
+      min: 7.5,
+      max: 8.5,
+    },
+  },
+  [worldchain.id]: {
+    "0x45f3b5688e7ba25071f78d1ce51d1b893faa3c86897b12204cdff3af6b3611f8": {
+      min: 7.5,
+      max: 8.5,
+    },
+  },
   [berachain.id]: {
+    //susde/honey
     "0x1ba7904c73d337c39cb88b00180dffb215fc334a6ff47bbe829cd9ee2af00c97": {
       min: 2.5,
       max: 3.5,
     },
   },
-  // [base.id]: {
-  // // uXRP/USDC
-  // "0xa426ca680bd5a7dc0f95942ba876a7df399cdf8149f798bcc4e94f03e35d08fa": {
-  //   min: 7,
-  //   max: 8,
-  // },
-  // // uSUI/USDC
-  // "0x5d96564285fc3830f51fe495f88c29cc1232fbca61ca8b6edc25bff921efdef2": {
-  //   min: 6,
-  //   max: 7,
-  // },
-  // // cbBTC/USDC
-  // "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836": {
-  //   min: 6,
-  //   max: 7,
-  // },
-  // // uSOL/USDC
-  // "0xa60e9b888f343351dece4df8251abe5858fc5db96e8624d614a6500c3a3085ea": {
-  //   min: 6,
-  //   max: 7,
-  // },
-  // // mBASIS/USDC
-  // "0x45f3b5688e7ba25071f78d1ce51d1b893faa3c86897b12204cdff3af6b3611f8": {
-  //   min: 6,
-  //   max: 7,
-  // },
-  // // cbBTC/USDC
-  // "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836": {
-  //   min: 6,
-  //   max: 7,
-  // },
-  // // wbCOIN/USDC
-  // "0x34f676bd8db106d6cdc90d0fb44145cea2f393310a794812cb1c5a8726b60913": {
-  //   min: 6,
-  //   max: 7,
-  // },
-  // // LBTC/USDC
-  // "0x52a2a376586d0775e3e80621facc464f6e96d81c8cb70fd461527dde195a079f": {
-  //   min: 6,
-  //   max: 7,
-  // },
-  // },
 };
 
 export const DEFAULT_MIN_APY_DELTA_BIPS = 25;

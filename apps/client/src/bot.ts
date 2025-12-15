@@ -47,7 +47,12 @@ export class ReallocationBot {
       vaultsData.map(async (vaultData) => {
         const reallocation = await this.strategy.findReallocation(vaultData);
 
-        if (!reallocation) return;
+        if (!reallocation) {
+          console.log(
+            `No reallocation found on ${vaultData.vaultAddress} on chain ${this.chainId.toString()}`,
+          );
+          return;
+        }
 
         console.log(`Reallocating on ${vaultData.vaultAddress}`);
         // console.log(JSON.stringify(reallocation, null, 2));

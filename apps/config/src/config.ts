@@ -1,11 +1,11 @@
 import { defineChain } from "viem";
-import { mainnet, base, worldchain } from "viem/chains";
+import { base, berachain, worldchain } from "viem/chains";
 
 import type { Config } from "./types";
 
-const sourceId = 1; // ethereum
+export const sourceId = 1; // ethereum
 
-const plume = defineChain({
+export const plume = defineChain({
   id: 98_866,
   name: "Plume Mainnet",
   nativeCurrency: {
@@ -36,40 +36,6 @@ const plume = defineChain({
 });
 
 export const chainConfigs: Record<number, Config> = {
-<<<<<<< HEAD
-  [base.id]: {
-    chain: base,
-    morpho: {
-      address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
-      startBlock: 13977148,
-    },
-    adaptiveCurveIrm: {
-      address: "0x46415998764C29aB2a25CbeA6254146D50D22687",
-      startBlock: 13977152,
-    },
-    metaMorphoFactories: {
-      addresses: [
-        "0xFf62A7c278C62eD665133147129245053Bbf5918",
-        "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
-      ],
-      startBlock: 13978134,
-    },
-  },
-  // [berachain.id]: {
-  //   chain: berachain,
-  //   morpho: {
-  //     address: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
-  //     startBlock: 11572788,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
-  //     startBlock: 11160919,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
-  //     startBlock: 11161176,
-  //   },
-  // },
   [98866]: {
     chain: plume,
     morpho: {
@@ -100,43 +66,24 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 9025733,
     },
   },
-  [mainnet.id]: {
-    chain: mainnet,
+  [base.id]: {
+    chain: base,
     morpho: {
       address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
-      startBlock: 18883124,
+      startBlock: 13977148,
     },
     adaptiveCurveIrm: {
-      address: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC",
-      startBlock: 18883124,
+      address: "0x46415998764C29aB2a25CbeA6254146D50D22687",
+      startBlock: 13977152,
     },
     metaMorphoFactories: {
       addresses: [
-        "0x1897A8997241C1cD4bD0698647e4EB7213535c24",
+        "0xFf62A7c278C62eD665133147129245053Bbf5918",
         "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
       ],
-      startBlock: 18925584,
+      startBlock: 13978134,
     },
   },
-=======
-  // [base.id]: {
-  //   chain: base,
-  //   morpho: {
-  //     address: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
-  //     startBlock: 13977148,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x46415998764C29aB2a25CbeA6254146D50D22687",
-  //     startBlock: 13977152,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: [
-  //       "0xFf62A7c278C62eD665133147129245053Bbf5918",
-  //       "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
-  //     ],
-  //     startBlock: 13978134,
-  //   },
-  // },
   [berachain.id]: {
     chain: berachain,
     morpho: {
@@ -152,36 +99,6 @@ export const chainConfigs: Record<number, Config> = {
       startBlock: 11161176,
     },
   },
-  // [98866]: {
-  //   chain: plume,
-  //   morpho: {
-  //     address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
-  //     startBlock: 765994,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
-  //     startBlock: 765994,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
-  //     startBlock: 766078,
-  //   },
-  // },
-  // [worldchain.id]: {
-  //   chain: worldchain,
-  //   morpho: {
-  //     address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
-  //     startBlock: 9025669,
-  //   },
-  //   adaptiveCurveIrm: {
-  //     address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
-  //     startBlock: 9025669,
-  //   },
-  //   metaMorphoFactories: {
-  //     addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
-  //     startBlock: 9025733,
-  //   },
-  // },
   // [mainnet.id]: {
   //   chain: mainnet,
   //   morpho: {
@@ -200,7 +117,6 @@ export const chainConfigs: Record<number, Config> = {
   //     startBlock: 18925584,
   //   },
   // },
->>>>>>> main-berachain-apyRange-strategy
   // [unichain.id]: {
   //   chain: unichain,
   //   morpho: {
@@ -262,3 +178,7 @@ export const chainConfigs: Record<number, Config> = {
   // //   },
   // // },
 };
+
+// centrifuge.io
+// upshift.finance
+// ipor.io
