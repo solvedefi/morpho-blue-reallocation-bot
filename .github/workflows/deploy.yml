@@ -2,11 +2,17 @@ name: Deploy reallocation bot
 
 on:
   workflow_dispatch: # Manual trigger only - click "Run workflow" button
+    inputs:
+      environment:
+        description: 'Environment name (determines which ENV_FILE secret to use)'
+        required: true
+        type: string
+        default: 'reallocation-bot'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: reallocation-bot
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,6 +48,7 @@ jobs:
             REPO_URL="https://x-access-token:${{ secrets.ACCESS_TOKEN }}@github.com/solvedefi/morpho-blue-reallocation-bot.git"
 
             echo "Deploying reallocation bot for branch: $BRANCH_NAME"
+            echo "Using environment: ${{ inputs.environment }}"
             echo "Deployment directory: $HOME/$DEPLOY_DIR"
 
             # Create or navigate to project directory
@@ -118,6 +125,7 @@ jobs:
         run: |
           if [ "${{ job.status }}" == "success" ]; then
             echo "✅ Deployment successful for branch: ${{ steps.extract_branch.outputs.branch }}"
+            echo "Environment: ${{ inputs.environment }}"
             echo "Deployed to: ${{ steps.extract_branch.outputs.deploy_dir }}"
           else
             echo "❌ Deployment failed for branch: ${{ steps.extract_branch.outputs.branch }}"
