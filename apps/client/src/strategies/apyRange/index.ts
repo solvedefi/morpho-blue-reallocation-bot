@@ -47,7 +47,8 @@ export class ApyRange implements Strategy {
           ("0x4809010926aec940b550D34a46A52739f996D75D" as Address), // wsrUSD on worldchain
       )
       .filter((marketData) => marketData.state.totalSupplyAssets !== 0n)
-      .filter((marketData) => marketData.state.totalBorrowAssets !== 0n);
+      .filter((marketData) => marketData.state.totalBorrowAssets !== 0n)
+      .filter((marketData) => marketData.vaultAssets !== 0n);
 
     let totalWithdrawableAmount = 0n;
     let totalDepositableAmount = 0n;

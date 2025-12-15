@@ -53,23 +53,8 @@ export class ReallocationBot {
           );
           return;
         }
-
         console.log(`Reallocating on ${vaultData.vaultAddress}`);
-        // console.log(JSON.stringify(reallocation, null, 2));
 
-        for (const reallocationItem of reallocation) {
-          console.log("marketParams.loanToken", reallocationItem.marketParams.loanToken);
-          console.log(
-            "marketParams.collateralToken",
-            reallocationItem.marketParams.collateralToken,
-          );
-          console.log("marketParams.oracle", reallocationItem.marketParams.oracle);
-          console.log("marketParams.irm", reallocationItem.marketParams.irm);
-          console.log("marketParams.lltv", reallocationItem.marketParams.lltv);
-          console.log("assets", reallocationItem.assets.toString());
-
-          console.log();
-        }
         try {
           /// TX SIMULATION
           const populatedTx = {
