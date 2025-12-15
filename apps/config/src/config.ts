@@ -1,39 +1,37 @@
-import { defineChain } from "viem";
-import { mainnet, base, worldchain } from "viem/chains";
+import { mainnet, base } from "viem/chains";
 
 import type { Config } from "./types";
 
-const sourceId = 1; // ethereum
-
-const plume = defineChain({
-  id: 98_866,
-  name: "Plume Mainnet",
-  nativeCurrency: {
-    name: "Plume Ether",
-    symbol: "ETH",
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://rpc.plumenetwork.xyz"],
-      webSocket: ["wss://rpc.plumenetwork.xyz"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Blockscout",
-      url: "https://explorer.plumenetwork.xyz",
-      apiUrl: "https://explorer.plumenetwork.xyz/api",
-    },
-  },
-  contracts: {
-    multicall3: {
-      address: "0xca11bde05977b3631167028862be2a173976ca11",
-      blockCreated: 48_577,
-    },
-  },
-  sourceId,
-});
+// const sourceId = 1; // ethereum
+// const plume = defineChain({
+//   id: 98_866,
+//   name: "Plume Mainnet",
+//   nativeCurrency: {
+//     name: "Plume Ether",
+//     symbol: "ETH",
+//     decimals: 18,
+//   },
+//   rpcUrls: {
+//     default: {
+//       http: ["https://rpc.plumenetwork.xyz"],
+//       webSocket: ["wss://rpc.plumenetwork.xyz"],
+//     },
+//   },
+//   blockExplorers: {
+//     default: {
+//       name: "Blockscout",
+//       url: "https://explorer.plumenetwork.xyz",
+//       apiUrl: "https://explorer.plumenetwork.xyz/api",
+//     },
+//   },
+//   contracts: {
+//     multicall3: {
+//       address: "0xca11bde05977b3631167028862be2a173976ca11",
+//       blockCreated: 48_577,
+//     },
+//   },
+//   sourceId,
+// });
 
 export const chainConfigs: Record<number, Config> = {
   [base.id]: {
@@ -69,36 +67,36 @@ export const chainConfigs: Record<number, Config> = {
   //     startBlock: 11161176,
   //   },
   // },
-  [98866]: {
-    chain: plume,
-    morpho: {
-      address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
-      startBlock: 765994,
-    },
-    adaptiveCurveIrm: {
-      address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
-      startBlock: 765994,
-    },
-    metaMorphoFactories: {
-      addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
-      startBlock: 766078,
-    },
-  },
-  [worldchain.id]: {
-    chain: worldchain,
-    morpho: {
-      address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
-      startBlock: 9025669,
-    },
-    adaptiveCurveIrm: {
-      address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
-      startBlock: 9025669,
-    },
-    metaMorphoFactories: {
-      addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
-      startBlock: 9025733,
-    },
-  },
+  // [98866]: {
+  //   chain: plume,
+  //   morpho: {
+  //     address: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
+  //     startBlock: 765994,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
+  //     startBlock: 765994,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
+  //     startBlock: 766078,
+  //   },
+  // },
+  // [worldchain.id]: {
+  //   chain: worldchain,
+  //   morpho: {
+  //     address: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
+  //     startBlock: 9025669,
+  //   },
+  //   adaptiveCurveIrm: {
+  //     address: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
+  //     startBlock: 9025669,
+  //   },
+  //   metaMorphoFactories: {
+  //     addresses: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
+  //     startBlock: 9025733,
+  //   },
+  // },
   [mainnet.id]: {
     chain: mainnet,
     morpho: {
