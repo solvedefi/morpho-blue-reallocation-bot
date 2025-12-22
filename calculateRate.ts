@@ -37,6 +37,23 @@ function calculateSupplyAPY(borrowAPY: number, utilization: number, fee: bigint)
   return borrowAPY * utilization * (1 - feeRate);
 }
 
+const WAD = 10n ** 18n;
+
+function mulDivDown(x: bigint, y: bigint, d: bigint): bigint {
+  return (x * y) / d;
+}
+
+function wMulDown(x: bigint, y: bigint): bigint {
+  return mulDivDown(x, y, WAD);
+}
+
+function wTaylorCompounded(x: bigint, n: bigint): bigint {
+  const firstTerm = x * n;
+  const secondTerm = mulDivDown(firstTerm, firstTerm, 2n * WAD);
+  const thirdTerm = mulDivDown(secondTerm, firstTerm, 3n * WAD);
+  return firstTerm + secondTerm + thirdTerm;
+}
+
 import { defineChain, Hex, http, createPublicClient, createWalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
@@ -110,12 +127,12 @@ async function main() {
   console.log("Morpho Blue Address:", morphoBlueAddress);
 
   // Get market parameters from Morpho Blue
-  const marketParams = await client.readContract({
+  const marketParams = (await client.readContract({
     address: morphoBlueAddress,
     abi: morphoBlueAbi,
     functionName: "idToMarketParams",
     args: [marketId],
-  });
+  })) as [Hex, Hex, Hex, Hex, bigint];
 
   console.log("\n=== Market Parameters ===\n");
   console.log("Loan Token:", marketParams[0]);
@@ -125,12 +142,12 @@ async function main() {
   console.log("LLTV (Liquidation Loan-to-Value):", marketParams[4].toString());
 
   // Get market state from Morpho Blue
-  const marketState = await client.readContract({
+  const marketState = (await client.readContract({
     address: morphoBlueAddress,
     abi: morphoBlueAbi,
     functionName: "market",
     args: [marketId],
-  });
+  })) as [bigint, bigint, bigint, bigint, bigint, bigint];
 
   console.log("\n=== Market State ===\n");
   console.log("Total Supply Assets:", marketState[0].toString());
@@ -200,18 +217,61 @@ async function main() {
   const currentBorrow = marketState[2];
 
   // To get close to 100% utilization, we need supply ≈ borrow
-  // Adding 10 tokens as a buffer to ensure we don't run into liquidity issues
-  const bufferTokens = 10n * 10n ** 18n; // 10 tokens with 18 decimals
-  const targetAllocation = currentBorrow + bufferTokens;
-  const amountToWithdraw = currentSupply - targetAllocation;
+  // Using the expectedMarketBalances logic to calculate the target allocation
+  const block = await client.getBlock();
+  const timestamp = BigInt((block as any).timestamp);
+  const elapsed = timestamp - marketState[4];
+
+  let expectedBorrowAssets = marketState[2];
+  let expectedSupplyAssets = marketState[0];
+
+  if (
+    elapsed > 0n &&
+    marketState[2] > 0n &&
+    marketParams[3] !== "0x0000000000000000000000000000000000000000"
+  ) {
+    const borrowRate = await client.readContract({
+      address: marketParams[3],
+      abi: irmAbi,
+      functionName: "borrowRateView",
+      args: [
+        {
+          loanToken: marketParams[0],
+          collateralToken: marketParams[1],
+          oracle: marketParams[2],
+          irm: marketParams[3],
+          lltv: marketParams[4],
+        },
+        {
+          totalSupplyAssets: marketState[0],
+          totalSupplyShares: marketState[1],
+          totalBorrowAssets: marketState[2],
+          totalBorrowShares: marketState[3],
+          lastUpdate: marketState[4],
+          fee: marketState[5],
+        },
+      ],
+    });
+
+    const interest = wMulDown(marketState[2], wTaylorCompounded(borrowRate, elapsed));
+    expectedBorrowAssets += interest;
+    expectedSupplyAssets += interest;
+
+    console.log("Elapsed seconds since last update:", elapsed.toString());
+    console.log("Interest accrued:", interest.toString());
+  }
+
+  const targetAllocation = expectedBorrowAssets;
+  const amountToWithdraw = expectedSupplyAssets - targetAllocation;
 
   console.log("Current Total Supply:", currentSupply.toString());
   console.log("Current Total Borrow:", currentBorrow.toString());
-  console.log("Buffer (10 tokens):", bufferTokens.toString());
+  console.log("Expected Total Supply (after accrual):", expectedSupplyAssets.toString());
+  console.log("Expected Total Borrow (after accrual):", expectedBorrowAssets.toString());
   console.log("Target Allocation:", targetAllocation.toString());
   console.log("Amount to Withdraw:", amountToWithdraw.toString());
 
-  const targetUtilization = Number(currentBorrow) / Number(targetAllocation);
+  const targetUtilization = Number(expectedBorrowAssets) / Number(targetAllocation);
   console.log(
     `This will set utilization from ${(utilization * 100).toFixed(2)}% to ~${(targetUtilization * 100).toFixed(2)}%`,
   );
@@ -236,15 +296,15 @@ async function main() {
     {
       marketParams: {
         loanToken: marketParams[0], // Same loan token
-        collateralToken: "0x0000000000000000000000000000000000000000", // Zero address for idle
-        oracle: "0x0000000000000000000000000000000000000000",
-        irm: "0x0000000000000000000000000000000000000000",
+        collateralToken: "0x0000000000000000000000000000000000000000" as const, // Zero address for idle
+        oracle: "0x0000000000000000000000000000000000000000" as const,
+        irm: "0x0000000000000000000000000000000000000000" as const,
         lltv: 0n,
       },
       // Max uint256 means allocate all available idle liquidity to this market
       assets: 115792089237316195423570985008687907853269984665640564039457584007913129639935n,
     },
-  ];
+  ] as const;
 
   console.log("\n=== Reallocation Transaction Data ===\n");
   console.log("Target allocation for market:", targetAllocation.toString());

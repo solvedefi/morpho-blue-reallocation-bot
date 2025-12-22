@@ -128,4 +128,20 @@ export class MorphoClient {
 
     return result;
   }
+
+  private async fetchRate(vaultMarketData: VaultMarketData): Promise<bigint> {
+    const rateAtTarget = await readContract(this.client, {
+      address: vaultMarketData.params.irm,
+      abi: adaptiveCurveIrmAbi,
+      functionName: "rateAtTarget",
+      args: [vaultMarketData.id],
+    });
+
+    return rateAtTarget;
+  }
+
+  async calculateRate(vaultMarketData: VaultMarketData): Promise<bigint> {
+    console.log("not implemented");
+    return 0n;
+  }
 }
