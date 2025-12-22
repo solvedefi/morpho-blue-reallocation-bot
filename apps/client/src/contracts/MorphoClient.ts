@@ -2,9 +2,11 @@ import { Address, type Account, type Chain, type Client, type Transport } from "
 import { readContract } from "viem/actions";
 
 import { Config } from "../../../config/dist/types";
+import { irmAbi } from "../../abis/IRM";
 import { metaMorphoAbi } from "../../abis/MetaMorpho";
 import { adaptiveCurveIrmAbi } from "../../test/abis/AdaptiveCurveIrm";
 import { morphoBlueAbi } from "../../test/abis/MorphoBlue";
+import { rateToApy } from "../utils/maths";
 import { MarketParams, MarketState, VaultData, VaultMarketData } from "../utils/types";
 
 import { accrueInterest, toAssetsDown } from "./helpers";
@@ -121,8 +123,10 @@ export class MorphoClient {
         cap: BigInt(supplyCap),
         vaultAssets,
         rateAtTarget: accuredRateAtTarget,
+        rate: 0,
       };
 
+      vaultMarketData.rate = await this.calculateRate(vaultMarketData);
       result.marketsData.set(marketId as `0x${string}`, vaultMarketData);
     }
 
@@ -130,18 +134,41 @@ export class MorphoClient {
   }
 
   private async fetchRate(vaultMarketData: VaultMarketData): Promise<bigint> {
-    const rateAtTarget = await readContract(this.client, {
+    if (vaultMarketData.params.irm === "0x0000000000000000000000000000000000000000") {
+      return 0n;
+    }
+
+    const borrowRate = await readContract(this.client, {
       address: vaultMarketData.params.irm,
-      abi: adaptiveCurveIrmAbi,
-      functionName: "rateAtTarget",
-      args: [vaultMarketData.id],
+      abi: irmAbi,
+      functionName: "borrowRateView",
+      args: [
+        {
+          loanToken: vaultMarketData.params.loanToken,
+          collateralToken: vaultMarketData.params.collateralToken,
+          oracle: vaultMarketData.params.oracle,
+          irm: vaultMarketData.params.irm,
+          lltv: vaultMarketData.params.lltv,
+        },
+        {
+          totalSupplyAssets: vaultMarketData.state.totalSupplyAssets,
+          totalSupplyShares: vaultMarketData.state.totalSupplyShares,
+          totalBorrowAssets: vaultMarketData.state.totalBorrowAssets,
+          totalBorrowShares: vaultMarketData.state.totalBorrowShares,
+          lastUpdate: vaultMarketData.state.lastUpdate,
+          fee: vaultMarketData.state.fee,
+        },
+      ],
     });
 
-    return rateAtTarget;
+    return borrowRate;
   }
 
-  async calculateRate(vaultMarketData: VaultMarketData): Promise<bigint> {
-    console.log("not implemented");
-    return 0n;
+  // returns borrow apy decimal (e.g. 0.05 for 5%)
+  async calculateRate(vaultMarketData: VaultMarketData): Promise<number> {
+    const borrowRate = await this.fetchRate(vaultMarketData);
+    const borrowApy = rateToApy(borrowRate);
+
+    return (Number(borrowApy) / 1e18) * 100;
   }
 }

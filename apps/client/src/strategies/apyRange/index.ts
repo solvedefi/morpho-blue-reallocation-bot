@@ -194,8 +194,7 @@ export class ApyRange implements Strategy {
     for (const reallocation of reallocations) {
       const marketId = this.calculateMarketId(reallocation.marketParams);
       const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
-
-      console.log("cap:", cap);
+      const rate = vaultData.marketsData.get(marketId)?.rate ?? 0n;
 
       console.log("reallocation.marketId:", marketId);
       console.log(
@@ -208,7 +207,9 @@ export class ApyRange implements Strategy {
       console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
       console.log("reallocation.assets:", reallocation.assets);
       console.log("cap:", cap);
+      console.log("rate:", rate);
       console.log("cap is more than assets:", cap > reallocation.assets);
+
       console.log();
     }
 

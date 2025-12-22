@@ -32,6 +32,7 @@ export interface VaultMarketData {
   cap: bigint;
   vaultAssets: bigint;
   rateAtTarget: bigint;
+  rate: number;
 }
 
 export interface VaultData {
