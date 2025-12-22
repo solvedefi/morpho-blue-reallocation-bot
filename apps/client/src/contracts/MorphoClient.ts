@@ -124,9 +124,13 @@ export class MorphoClient {
         vaultAssets,
         rateAtTarget: accuredRateAtTarget,
         rate: 0,
+        rateAt100Utilization: 0,
       };
 
       vaultMarketData.rate = await this.calculateRate(vaultMarketData);
+      vaultMarketData.rateAt100Utilization =
+        await this.calculateRateAt100Utilization(vaultMarketData);
+
       result.marketsData.set(marketId as `0x${string}`, vaultMarketData);
     }
 
@@ -170,5 +174,46 @@ export class MorphoClient {
     const borrowApy = rateToApy(borrowRate);
 
     return (Number(borrowApy) / 1e18) * 100;
+  }
+
+  // returns borrow apy decimal (e.g. 0.05 for 5%)
+  async calculateRateAt100Utilization(vaultMarketData: VaultMarketData): Promise<number> {
+    // we want to remove all excess supply assets, so that utilization is 100%
+
+    const vaultMarketDataCopy = structuredClone(vaultMarketData);
+    vaultMarketDataCopy.state.totalSupplyAssets = vaultMarketDataCopy.state.totalBorrowAssets;
+    vaultMarketDataCopy.state.totalSupplyShares = vaultMarketDataCopy.state.totalBorrowShares;
+
+    console.log("======");
+    console.log(
+      "vaultMarketData.state.totalSupplyAssets:",
+      vaultMarketDataCopy.state.totalSupplyAssets,
+    );
+    console.log(
+      "vaultMarketData.state.totalSupplyShares:",
+      vaultMarketDataCopy.state.totalSupplyShares,
+    );
+    console.log(
+      "vaultMarketData.state.totalBorrowAssets:",
+      vaultMarketDataCopy.state.totalBorrowAssets,
+    );
+    console.log(
+      "vaultMarketData.state.totalBorrowShares:",
+      vaultMarketDataCopy.state.totalBorrowShares,
+    );
+    console.log("vaultMarketData.state.lastUpdate:", vaultMarketDataCopy.state.lastUpdate);
+    console.log("vaultMarketData.state.fee:", vaultMarketDataCopy.state.fee);
+    console.log("vaultMarketData.params.irm:", vaultMarketDataCopy.params.irm);
+    console.log("vaultMarketData.params.loanToken:", vaultMarketDataCopy.params.loanToken);
+    console.log(
+      "vaultMarketData.params.collateralToken:",
+      vaultMarketDataCopy.params.collateralToken,
+    );
+    console.log("vaultMarketData.params.oracle:", vaultMarketDataCopy.params.oracle);
+    console.log("vaultMarketData.params.lltv:", vaultMarketDataCopy.params.lltv);
+    console.log("vaultMarketData.id:", vaultMarketDataCopy.id);
+    console.log("rateAt100Utilization:", await this.calculateRate(vaultMarketDataCopy));
+    console.log("======");
+    return await this.calculateRate(vaultMarketDataCopy);
   }
 }

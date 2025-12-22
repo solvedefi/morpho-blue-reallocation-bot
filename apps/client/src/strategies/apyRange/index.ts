@@ -56,6 +56,10 @@ export class ApyRange implements Strategy {
     let totalDepositableAmount = 0n;
 
     let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
+    console.log("marketsData.length:", marketsData.length);
+    console.log("marketsData.length:", marketsData.length);
+    console.log("marketsData.length:", marketsData.length);
+    console.log("marketsData.length:", marketsData.length);
 
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
@@ -121,8 +125,12 @@ export class ApyRange implements Strategy {
       }
     }
 
+    console.log("totalWithdrawableAmount:", totalWithdrawableAmount);
+    console.log("totalDepositableAmount:", totalDepositableAmount);
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
 
+    console.log("toReallocate:", toReallocate);
+    console.log("didExceedMinApyDelta:", didExceedMinApyDelta);
     if (toReallocate === 0n || !didExceedMinApyDelta) return;
 
     let remainingWithdrawal = toReallocate;
@@ -190,11 +198,14 @@ export class ApyRange implements Strategy {
 
     const reallocations = [...withdrawals, ...deposits];
 
+    console.log("reallocations.length:", reallocations.length);
+
     console.log();
     for (const reallocation of reallocations) {
       const marketId = this.calculateMarketId(reallocation.marketParams);
       const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
       const rate = vaultData.marketsData.get(marketId)?.rate ?? 0n;
+      const rateAt100Utilization = vaultData.marketsData.get(marketId)?.rateAt100Utilization ?? 0n;
 
       console.log("reallocation.marketId:", marketId);
       console.log(
@@ -208,6 +219,7 @@ export class ApyRange implements Strategy {
       console.log("reallocation.assets:", reallocation.assets);
       console.log("cap:", cap);
       console.log("rate:", rate);
+      console.log("rateAt100Utilization:", rateAt100Utilization);
       console.log("cap is more than assets:", cap > reallocation.assets);
 
       console.log();
@@ -216,7 +228,8 @@ export class ApyRange implements Strategy {
     const reallocationFilteredByCap = reallocations.filter((reallocation) => {
       const marketId = this.calculateMarketId(reallocation.marketParams);
       const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
-      return cap > reallocation.assets;
+      // maxUint256 is a special value meaning "deposit all remaining", so exempt it from cap check
+      return reallocation.assets === maxUint256 || cap > reallocation.assets;
     });
 
     return reallocationFilteredByCap;
