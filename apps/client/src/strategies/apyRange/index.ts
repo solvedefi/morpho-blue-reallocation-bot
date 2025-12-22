@@ -7,7 +7,7 @@ import {
   vaultsDefaultApyRanges,
   vaultsDefaultMinApsDeltaBips,
 } from "@morpho-blue-reallocation-bot/config";
-import { Address, Hex, maxUint256, zeroAddress } from "viem";
+import { Address, Hex, encodeAbiParameters, keccak256, maxUint256, zeroAddress } from "viem";
 
 import { Range } from "../../../../config/dist/strategies/apyRange";
 import {
@@ -21,16 +21,18 @@ import {
   rateToUtilization,
   utilizationToRate,
 } from "../../utils/maths";
-import { MarketAllocation, VaultData } from "../../utils/types";
+import { MarketAllocation, MarketParams, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
 export class ApyRange implements Strategy {
   findReallocation(vaultData: VaultData) {
-    const idleMarket = vaultData.marketsData.find(
+    const marketsDataArray = Array.from(vaultData.marketsData.values());
+
+    const idleMarket = marketsDataArray.find(
       (marketData) => marketData.params.collateralToken === zeroAddress,
     );
 
-    const marketsData = vaultData.marketsData
+    const marketsData = marketsDataArray
       .filter((marketData) => marketData.params.collateralToken !== zeroAddress)
       .filter(
         (marketData) =>
@@ -190,6 +192,12 @@ export class ApyRange implements Strategy {
 
     console.log();
     for (const reallocation of reallocations) {
+      const marketId = this.calculateMarketId(reallocation.marketParams);
+      const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+
+      console.log("cap:", cap);
+
+      console.log("reallocation.marketId:", marketId);
       console.log(
         "reallocation.marketParams.collateralToken:",
         reallocation.marketParams.collateralToken,
@@ -199,10 +207,18 @@ export class ApyRange implements Strategy {
       console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
       console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
       console.log("reallocation.assets:", reallocation.assets);
+      console.log("cap:", cap);
+      console.log("cap is more than assets:", cap > reallocation.assets);
       console.log();
     }
 
-    return [...withdrawals, ...deposits];
+    const reallocationFilteredByCap = reallocations.filter((reallocation) => {
+      const marketId = this.calculateMarketId(reallocation.marketParams);
+      const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+      return cap > reallocation.assets;
+    });
+
+    return reallocationFilteredByCap;
   }
 
   protected getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
@@ -230,5 +246,33 @@ export class ApyRange implements Strategy {
       minApyDeltaBips = marketsMinApsDeltaBips[chainId][marketId];
 
     return minApyDeltaBips;
+  }
+
+  private calculateMarketId(marketParams: MarketParams): Hex {
+    return keccak256(
+      encodeAbiParameters(
+        [
+          {
+            type: "tuple",
+            components: [
+              { name: "loanToken", type: "address" },
+              { name: "collateralToken", type: "address" },
+              { name: "oracle", type: "address" },
+              { name: "irm", type: "address" },
+              { name: "lltv", type: "uint256" },
+            ],
+          },
+        ],
+        [
+          {
+            loanToken: marketParams.loanToken,
+            collateralToken: marketParams.collateralToken,
+            oracle: marketParams.oracle,
+            irm: marketParams.irm,
+            lltv: marketParams.lltv,
+          },
+        ],
+      ),
+    );
   }
 }

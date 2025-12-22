@@ -41,7 +41,7 @@ export class MorphoClient {
     const marketIdsFromWithdrawQueue = await Promise.all(withdrawQueueCalls);
     const result: VaultData = {
       vaultAddress,
-      marketsData: [],
+      marketsData: new Map<`0x${string}`, VaultMarketData>(),
     };
 
     for (const marketId of marketIdsFromWithdrawQueue) {
@@ -89,7 +89,8 @@ export class MorphoClient {
         functionName: "config",
         args: [marketId as `0x${string}`],
       });
-      const cap = config[0];
+
+      const supplyCap = config[0];
 
       const position = await readContract(this.client, {
         address: this.config.morpho.address,
@@ -117,12 +118,12 @@ export class MorphoClient {
         id: marketId as `0x${string}`,
         params: marketParamsStruct,
         state: accuredState,
-        cap: BigInt(cap),
+        cap: BigInt(supplyCap),
         vaultAssets,
         rateAtTarget: accuredRateAtTarget,
       };
 
-      result.marketsData.push(vaultMarketData);
+      result.marketsData.set(marketId as `0x${string}`, vaultMarketData);
     }
 
     return result;
