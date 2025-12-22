@@ -95,6 +95,13 @@ export class ApyRange implements Strategy {
     let idleWithdrawal = 0n;
     let idleDeposit = 0n;
 
+    console.log("idleMarket.params:", idleMarket?.params);
+    console.log("idleMarket.vaultAssets:", idleMarket?.vaultAssets);
+    console.log("idleMarket.cap:", idleMarket?.cap);
+    console.log("totalWithdrawableAmount:", totalWithdrawableAmount);
+    console.log("totalDepositableAmount:", totalDepositableAmount);
+    console.log("ALLOW_IDLE_REALLOCATION:", ALLOW_IDLE_REALLOCATION);
+
     if (idleMarket) {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (totalWithdrawableAmount > totalDepositableAmount && ALLOW_IDLE_REALLOCATION) {
@@ -178,6 +185,23 @@ export class ApyRange implements Strategy {
         });
       }
     }
+
+    const reallocations = [...withdrawals, ...deposits];
+
+    console.log();
+    for (const reallocation of reallocations) {
+      console.log(
+        "reallocation.marketParams.collateralToken:",
+        reallocation.marketParams.collateralToken,
+      );
+      console.log("reallocation.marketParams.loanToken:", reallocation.marketParams.loanToken);
+      console.log("reallocation.marketParams.oracle:", reallocation.marketParams.oracle);
+      console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
+      console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
+      console.log("reallocation.assets:", reallocation.assets);
+      console.log();
+    }
+
     return [...withdrawals, ...deposits];
   }
 
