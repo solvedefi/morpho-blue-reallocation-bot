@@ -42,7 +42,8 @@ async function main() {
       config.chainId,
       client,
       config.vaultWhitelist,
-      new ApyRange(client),
+      new ApyRange(),
+      // new ApyRange(client),
       conf,
     );
 

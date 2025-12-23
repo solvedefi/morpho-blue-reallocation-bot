@@ -7,18 +7,7 @@ import {
   vaultsDefaultApyRanges,
   vaultsDefaultMinApsDeltaBips,
 } from "@morpho-blue-reallocation-bot/config";
-import {
-  Address,
-  Hex,
-  encodeAbiParameters,
-  keccak256,
-  maxUint256,
-  zeroAddress,
-  type Client,
-  type Transport,
-  type Chain,
-} from "viem";
-import { readContract } from "viem/actions";
+import { Address, Hex, encodeAbiParameters, keccak256, maxUint256, zeroAddress } from "viem";
 
 import { Range } from "../../../../config/dist/strategies/apyRange";
 import {
@@ -35,48 +24,8 @@ import {
 import { MarketAllocation, MarketParams, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
-// Minimal ERC20 ABI for name function
-const erc20Abi = [
-  {
-    constant: true,
-    inputs: [],
-    name: "name",
-    outputs: [{ name: "", type: "string" }],
-    type: "function",
-  },
-] as const;
-
 export class ApyRange implements Strategy {
-  private client?: Client<Transport, Chain>;
-
-  constructor(client?: Client<Transport, Chain>) {
-    this.client = client;
-  }
-
-  private async getTokenName(tokenAddress: Address): Promise<string> {
-    try {
-      if (tokenAddress === zeroAddress) {
-        return "Idle";
-      }
-
-      if (!this.client) {
-        return "N/A (no client)";
-      }
-
-      const name = await readContract(this.client, {
-        address: tokenAddress,
-        abi: erc20Abi,
-        functionName: "name",
-      });
-
-      return name as string;
-    } catch (error) {
-      console.error(`Failed to fetch token name for ${tokenAddress}:`, error);
-      return "Unknown";
-    }
-  }
-
-  async findReallocation(vaultData: VaultData) {
+  findReallocation(vaultData: VaultData) {
     const marketsDataArray = Array.from(vaultData.marketsData.values());
 
     const idleMarket = marketsDataArray.find(
@@ -109,7 +58,6 @@ export class ApyRange implements Strategy {
     let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
 
     for (const marketData of marketsData) {
-      console.log("-----");
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
 
       const upperUtilizationBound = rateToUtilization(
@@ -121,19 +69,11 @@ export class ApyRange implements Strategy {
         marketData.rateAtTarget,
       );
 
-      console.log("upperUtilizationBound:", upperUtilizationBound);
-      console.log("lowerUtilizationBound:", lowerUtilizationBound);
-      console.log("ApyRange.max:", apyRange.max);
-      console.log("ApyRange.min:", apyRange.min);
-      console.log("rateAt100Utilization:", marketData.rateAt100Utilization);
-
       // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
       if (
         marketData.rateAt100Utilization &&
         rateToApy(marketData.rateAt100Utilization) < apyRange.max
       ) {
-        console.log("max value for range exceeds rateAt100Utilization");
-
         const amountToWithdraw =
           marketData.state.totalSupplyAssets - marketData.state.totalBorrowAssets;
         totalDepositableAmount += amountToWithdraw;
@@ -164,8 +104,6 @@ export class ApyRange implements Strategy {
             this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
         }
       }
-
-      console.log("-----");
     }
 
     let idleWithdrawal = 0n;
@@ -187,11 +125,6 @@ export class ApyRange implements Strategy {
       }
     }
 
-    console.log("======");
-    console.log("totalWithdrawableAmount:", totalWithdrawableAmount);
-    console.log("totalDepositableAmount:", totalDepositableAmount);
-    console.log("======");
-
     const withdrawals: MarketAllocation[] = [];
     const deposits: MarketAllocation[] = [];
 
@@ -199,24 +132,11 @@ export class ApyRange implements Strategy {
     // so we need to push util to 100% for all markets
     // reallocation will have only withdrawals, no deposits
     if (totalDepositableAmount > 0 && totalWithdrawableAmount === 0n) {
-      console.log("");
-      console.log("==============");
-      console.log("");
-      for (const marketData of marketsData) {
-        const collateralTokenName = await this.getTokenName(marketData.params.collateralToken);
-        console.log("collateralToken name:", collateralTokenName);
-        console.log("marketData.params.loanToken:", marketData.params.loanToken);
-        console.log("marketData.params.oracle:", marketData.params.oracle);
-        console.log("marketData.params.irm:", marketData.params.irm);
-        console.log("marketData.params.lltv:", marketData.params.lltv);
-        console.log("marketData.state.totalSupplyAssets:", marketData.state.totalSupplyAssets);
-        console.log("marketData.state.totalBorrowAssets:", marketData.state.totalBorrowAssets);
-        console.log("marketData.state.totalSupplyShares:", marketData.state.totalSupplyShares);
-        console.log("marketData.state.totalBorrowShares:", marketData.state.totalBorrowShares);
-        console.log("marketData.state.lastUpdate:", marketData.state.lastUpdate);
-        console.log("marketData.state.fee:", marketData.state.fee);
-        console.log();
+      console.log("test");
+      console.log("test");
+      console.log("test");
 
+      for (const marketData of marketsData) {
         // TODO: maybe need to return buffer
         // const buffer = 10n * 10n ** 18n;
         withdrawals.push({
@@ -225,36 +145,12 @@ export class ApyRange implements Strategy {
           // assets: marketData.state.totalBorrowAssets + buffer,
         });
       }
-      console.log("");
-      console.log("==============");
-      console.log("");
 
       if (idleMarket) {
         withdrawals.push({
           marketParams: idleMarket.params,
           assets: maxUint256,
         });
-      }
-
-      console.log("ONLY WITHDRAWALS:");
-      for (const reallocation of withdrawals) {
-        const collateralTokenName = await this.getTokenName(
-          reallocation.marketParams.collateralToken,
-        );
-        console.log("reallocation.marketId:", this.calculateMarketId(reallocation.marketParams));
-        console.log(
-          "reallocation.marketParams.collateralToken:",
-          reallocation.marketParams.collateralToken,
-        );
-        console.log("collateralToken name:", collateralTokenName);
-        console.log("reallocation.marketParams.loanToken:", reallocation.marketParams.loanToken);
-        console.log("reallocation.marketParams.oracle:", reallocation.marketParams.oracle);
-        console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
-        console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
-        console.log("reallocation.assets:", reallocation.assets);
-        console.log("assets tokens:", reallocation.assets / 10n ** 18n);
-
-        console.log();
       }
 
       return withdrawals;
@@ -342,30 +238,30 @@ export class ApyRange implements Strategy {
 
     const reallocations = [...withdrawals, ...deposits];
 
-    console.log();
-    for (const reallocation of reallocations) {
-      const marketId = this.calculateMarketId(reallocation.marketParams);
-      const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
-      const rate = vaultData.marketsData.get(marketId)?.rate ?? 0n;
-      const rateAt100Utilization = vaultData.marketsData.get(marketId)?.rateAt100Utilization ?? 0n;
+    // console.log();
+    // for (const reallocation of reallocations) {
+    //   const marketId = this.calculateMarketId(reallocation.marketParams);
+    //   const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+    //   const rate = vaultData.marketsData.get(marketId)?.rate ?? 0n;
+    //   const rateAt100Utilization = vaultData.marketsData.get(marketId)?.rateAt100Utilization ?? 0n;
 
-      console.log("reallocation.marketId:", marketId);
-      console.log(
-        "reallocation.marketParams.collateralToken:",
-        reallocation.marketParams.collateralToken,
-      );
-      console.log("reallocation.marketParams.loanToken:", reallocation.marketParams.loanToken);
-      console.log("reallocation.marketParams.oracle:", reallocation.marketParams.oracle);
-      console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
-      console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
-      console.log("reallocation.assets:", reallocation.assets);
-      console.log("cap:", cap);
-      console.log("rate:", rate);
-      console.log("rateAt100Utilization:", rateAt100Utilization);
-      console.log("cap is more than assets:", cap > reallocation.assets);
+    //   console.log("reallocation.marketId:", marketId);
+    //   console.log(
+    //     "reallocation.marketParams.collateralToken:",
+    //     reallocation.marketParams.collateralToken,
+    //   );
+    //   console.log("reallocation.marketParams.loanToken:", reallocation.marketParams.loanToken);
+    //   console.log("reallocation.marketParams.oracle:", reallocation.marketParams.oracle);
+    //   console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
+    //   console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
+    //   console.log("reallocation.assets:", reallocation.assets);
+    //   console.log("cap:", cap);
+    //   console.log("rate:", rate);
+    //   console.log("rateAt100Utilization:", rateAt100Utilization);
+    //   console.log("cap is more than assets:", cap > reallocation.assets);
 
-      console.log();
-    }
+    //   console.log();
+    // }
 
     const reallocationFilteredByCap = reallocations.filter((reallocation) => {
       const marketId = this.calculateMarketId(reallocation.marketParams);
