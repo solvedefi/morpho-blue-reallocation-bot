@@ -7,7 +7,18 @@ import {
   vaultsDefaultApyRanges,
   vaultsDefaultMinApsDeltaBips,
 } from "@morpho-blue-reallocation-bot/config";
-import { Address, Hex, encodeAbiParameters, keccak256, maxUint256, zeroAddress } from "viem";
+import {
+  Address,
+  Hex,
+  encodeAbiParameters,
+  keccak256,
+  maxUint256,
+  zeroAddress,
+  type Client,
+  type Transport,
+  type Chain,
+} from "viem";
+import { readContract } from "viem/actions";
 
 import { Range } from "../../../../config/dist/strategies/apyRange";
 import {
@@ -24,8 +35,48 @@ import {
 import { MarketAllocation, MarketParams, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
+// Minimal ERC20 ABI for name function
+const erc20Abi = [
+  {
+    constant: true,
+    inputs: [],
+    name: "name",
+    outputs: [{ name: "", type: "string" }],
+    type: "function",
+  },
+] as const;
+
 export class ApyRange implements Strategy {
-  findReallocation(vaultData: VaultData) {
+  private client?: Client<Transport, Chain>;
+
+  constructor(client?: Client<Transport, Chain>) {
+    this.client = client;
+  }
+
+  private async getTokenName(tokenAddress: Address): Promise<string> {
+    try {
+      if (tokenAddress === zeroAddress) {
+        return "Idle";
+      }
+
+      if (!this.client) {
+        return "N/A (no client)";
+      }
+
+      const name = await readContract(this.client, {
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: "name",
+      });
+
+      return name as string;
+    } catch (error) {
+      console.error(`Failed to fetch token name for ${tokenAddress}:`, error);
+      return "Unknown";
+    }
+  }
+
+  async findReallocation(vaultData: VaultData) {
     const marketsDataArray = Array.from(vaultData.marketsData.values());
 
     const idleMarket = marketsDataArray.find(
@@ -58,6 +109,7 @@ export class ApyRange implements Strategy {
     let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
 
     for (const marketData of marketsData) {
+      console.log("-----");
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
 
       const upperUtilizationBound = rateToUtilization(
@@ -69,29 +121,48 @@ export class ApyRange implements Strategy {
         marketData.rateAtTarget,
       );
 
-      const utilization = getUtilization(marketData.state);
+      console.log("upperUtilizationBound:", upperUtilizationBound);
+      console.log("lowerUtilizationBound:", lowerUtilizationBound);
+      console.log("ApyRange.max:", apyRange.max);
+      console.log("ApyRange.min:", apyRange.min);
+      console.log("rateAt100Utilization:", marketData.rateAt100Utilization);
 
-      if (utilization > upperUtilizationBound) {
-        totalDepositableAmount += getDepositableAmount(marketData, upperUtilizationBound);
+      if (marketData.rateAt100Utilization && marketData.rateAt100Utilization < apyRange.max) {
+        // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
+        console.log("max value for range exceeds rateAt100Utilization");
 
-        const apyDelta =
-          rateToApy(utilizationToRate(upperUtilizationBound, marketData.rateAtTarget)) -
-          rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
+        const amountToWithdraw =
+          marketData.state.totalSupplyAssets - marketData.state.totalBorrowAssets;
+        totalDepositableAmount += amountToWithdraw;
+        continue;
+      } else {
+        // normal calculations if a market can have rates from the config
+        const utilization = getUtilization(marketData.state);
 
-        didExceedMinApyDelta ||=
-          Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
-          this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
-      } else if (utilization < lowerUtilizationBound) {
-        totalWithdrawableAmount += getWithdrawableAmount(marketData, lowerUtilizationBound);
+        if (utilization > upperUtilizationBound) {
+          totalDepositableAmount += getDepositableAmount(marketData, upperUtilizationBound);
 
-        const apyDelta =
-          rateToApy(utilizationToRate(lowerUtilizationBound, marketData.rateAtTarget)) -
-          rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
+          const apyDelta =
+            rateToApy(utilizationToRate(upperUtilizationBound, marketData.rateAtTarget)) -
+            rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
 
-        didExceedMinApyDelta ||=
-          Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
-          this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
+          didExceedMinApyDelta ||=
+            Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
+            this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
+        } else if (utilization < lowerUtilizationBound) {
+          totalWithdrawableAmount += getWithdrawableAmount(marketData, lowerUtilizationBound);
+
+          const apyDelta =
+            rateToApy(utilizationToRate(lowerUtilizationBound, marketData.rateAtTarget)) -
+            rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
+
+          didExceedMinApyDelta ||=
+            Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
+            this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
+        }
       }
+
+      console.log("-----");
     }
 
     let idleWithdrawal = 0n;
@@ -113,14 +184,83 @@ export class ApyRange implements Strategy {
       }
     }
 
+    console.log("======");
+    console.log("totalWithdrawableAmount:", totalWithdrawableAmount);
+    console.log("totalDepositableAmount:", totalDepositableAmount);
+    console.log("======");
+
+    const withdrawals: MarketAllocation[] = [];
+    const deposits: MarketAllocation[] = [];
+
+    // no withdrawable amount but have depositable amount,
+    // so we need to push util to 100% for all markets
+    // reallocation will have only withdrawals, no deposits
+    if (totalDepositableAmount > 0 && totalWithdrawableAmount === 0n) {
+      const buffer = 10n * 10n ** 18n;
+
+      console.log("");
+      console.log("==============");
+      console.log("");
+      for (const marketData of marketsData) {
+        const collateralTokenName = await this.getTokenName(marketData.params.collateralToken);
+        console.log("collateralToken name:", collateralTokenName);
+        console.log("marketData.params.loanToken:", marketData.params.loanToken);
+        console.log("marketData.params.oracle:", marketData.params.oracle);
+        console.log("marketData.params.irm:", marketData.params.irm);
+        console.log("marketData.params.lltv:", marketData.params.lltv);
+        console.log("marketData.state.totalSupplyAssets:", marketData.state.totalSupplyAssets);
+        console.log("marketData.state.totalBorrowAssets:", marketData.state.totalBorrowAssets);
+        console.log("marketData.state.totalSupplyShares:", marketData.state.totalSupplyShares);
+        console.log("marketData.state.totalBorrowShares:", marketData.state.totalBorrowShares);
+        console.log("marketData.state.lastUpdate:", marketData.state.lastUpdate);
+        console.log("marketData.state.fee:", marketData.state.fee);
+        console.log();
+
+        withdrawals.push({
+          marketParams: marketData.params,
+          assets: marketData.state.totalBorrowAssets + buffer,
+        });
+      }
+      console.log("");
+      console.log("==============");
+      console.log("");
+
+      if (idleMarket) {
+        withdrawals.push({
+          marketParams: idleMarket.params,
+          assets: maxUint256,
+        });
+      }
+
+      console.log("ONLY WITHDRAWALS:");
+      for (const reallocation of withdrawals) {
+        const collateralTokenName = await this.getTokenName(
+          reallocation.marketParams.collateralToken,
+        );
+        console.log("reallocation.marketId:", this.calculateMarketId(reallocation.marketParams));
+        console.log(
+          "reallocation.marketParams.collateralToken:",
+          reallocation.marketParams.collateralToken,
+        );
+        console.log("collateralToken name:", collateralTokenName);
+        console.log("reallocation.marketParams.loanToken:", reallocation.marketParams.loanToken);
+        console.log("reallocation.marketParams.oracle:", reallocation.marketParams.oracle);
+        console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
+        console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
+        console.log("reallocation.assets:", reallocation.assets);
+        console.log("assets tokens:", reallocation.assets / 10n ** 18n);
+
+        console.log();
+      }
+
+      return withdrawals;
+    }
+
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
     if (toReallocate === 0n || !didExceedMinApyDelta) return;
 
     let remainingWithdrawal = toReallocate;
     let remainingDeposit = toReallocate;
-
-    const withdrawals: MarketAllocation[] = [];
-    const deposits: MarketAllocation[] = [];
 
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
@@ -135,28 +275,42 @@ export class ApyRange implements Strategy {
       );
       const utilization = getUtilization(marketData.state);
 
-      if (utilization > upperUtilizationBound) {
-        const deposit = min(
-          getDepositableAmount(marketData, upperUtilizationBound),
-          remainingDeposit,
-        );
-        remainingDeposit -= deposit;
-
-        deposits.push({
-          marketParams: marketData.params,
-          assets: remainingDeposit === 0n ? maxUint256 : marketData.vaultAssets + deposit,
-        });
-      } else if (utilization < lowerUtilizationBound) {
-        const withdrawal = min(
-          getWithdrawableAmount(marketData, lowerUtilizationBound),
-          remainingWithdrawal,
-        );
-        remainingWithdrawal -= withdrawal;
+      // TODO: double check
+      // TODO: double check
+      // TODO: double check
+      // TODO: double check
+      if (marketData.rateAt100Utilization && marketData.rateAt100Utilization < apyRange.max) {
+        // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
+        console.log("2nd iteration: max value for range exceeds rateAt100Utilization");
 
         withdrawals.push({
           marketParams: marketData.params,
-          assets: marketData.vaultAssets - withdrawal,
+          assets: marketData.state.totalSupplyAssets,
         });
+      } else {
+        if (utilization > upperUtilizationBound) {
+          const deposit = min(
+            getDepositableAmount(marketData, upperUtilizationBound),
+            remainingDeposit,
+          );
+          remainingDeposit -= deposit;
+
+          deposits.push({
+            marketParams: marketData.params,
+            assets: remainingDeposit === 0n ? maxUint256 : marketData.vaultAssets + deposit,
+          });
+        } else if (utilization < lowerUtilizationBound) {
+          const withdrawal = min(
+            getWithdrawableAmount(marketData, lowerUtilizationBound),
+            remainingWithdrawal,
+          );
+          remainingWithdrawal -= withdrawal;
+
+          withdrawals.push({
+            marketParams: marketData.params,
+            assets: marketData.vaultAssets - withdrawal,
+          });
+        }
       }
 
       if (remainingWithdrawal === 0n && remainingDeposit === 0n) break;
