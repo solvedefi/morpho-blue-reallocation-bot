@@ -127,8 +127,8 @@ export class ApyRange implements Strategy {
       console.log("ApyRange.min:", apyRange.min);
       console.log("rateAt100Utilization:", marketData.rateAt100Utilization);
 
+      // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
       if (marketData.rateAt100Utilization && marketData.rateAt100Utilization < apyRange.max) {
-        // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
         console.log("max value for range exceeds rateAt100Utilization");
 
         const amountToWithdraw =
@@ -196,8 +196,6 @@ export class ApyRange implements Strategy {
     // so we need to push util to 100% for all markets
     // reallocation will have only withdrawals, no deposits
     if (totalDepositableAmount > 0 && totalWithdrawableAmount === 0n) {
-      const buffer = 10n * 10n ** 18n;
-
       console.log("");
       console.log("==============");
       console.log("");
@@ -216,9 +214,12 @@ export class ApyRange implements Strategy {
         console.log("marketData.state.fee:", marketData.state.fee);
         console.log();
 
+        // TODO: maybe need to return buffer
+        // const buffer = 10n * 10n ** 18n;
         withdrawals.push({
           marketParams: marketData.params,
-          assets: marketData.state.totalBorrowAssets + buffer,
+          assets: marketData.state.totalBorrowAssets,
+          // assets: marketData.state.totalBorrowAssets + buffer,
         });
       }
       console.log("");
