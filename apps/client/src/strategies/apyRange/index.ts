@@ -128,7 +128,10 @@ export class ApyRange implements Strategy {
       console.log("rateAt100Utilization:", marketData.rateAt100Utilization);
 
       // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
-      if (marketData.rateAt100Utilization && marketData.rateAt100Utilization < apyRange.max) {
+      if (
+        marketData.rateAt100Utilization &&
+        rateToApy(marketData.rateAt100Utilization) < apyRange.max
+      ) {
         console.log("max value for range exceeds rateAt100Utilization");
 
         const amountToWithdraw =
@@ -280,7 +283,10 @@ export class ApyRange implements Strategy {
       // TODO: double check
       // TODO: double check
       // TODO: double check
-      if (marketData.rateAt100Utilization && marketData.rateAt100Utilization < apyRange.max) {
+      if (
+        marketData.rateAt100Utilization &&
+        rateToApy(marketData.rateAt100Utilization) < apyRange.max
+      ) {
         // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
         console.log("2nd iteration: max value for range exceeds rateAt100Utilization");
 
