@@ -10,6 +10,7 @@ import {
   percentToWad,
   getUtilization,
   calculateBorrowRate,
+  utilizationToRate,
 } from "../../../src/utils/maths.js";
 import { MarketParams, VaultData, VaultMarketData } from "../../../src/utils/types.js";
 
@@ -737,7 +738,8 @@ describe("apyRange strategy - unit tests", () => {
     it("should keep one market at 100% utilization and withdraw from the other market", () => {
       const strategy = new StrategyMock({
         ...TEST_CONFIG_NO_IDLE,
-        DEFAULT_APY_RANGE: { min: 3, max: 8 },
+        // DEFAULT_APY_RANGE: { min: 3, max: 8 },
+        DEFAULT_APY_RANGE: { min: 8, max: 10 },
       });
 
       const targetApyAt100 = percentToWad(7);
@@ -866,14 +868,25 @@ describe("apyRange strategy - unit tests", () => {
         BSDETH_EUSD_utilizationAfterReallocation,
       );
 
-      const borrowRateAfterReallocation_BSDETH_EUSD = calculateBorrowRate(
+      const { newRateAtTarget: newRateAtTarget_BSDETH_EUSD } = calculateBorrowRate(
         vaultMarketData_BSDETH_EUSD_afterReallocation.state,
         lowRateAtTarget,
         BigInt(Math.floor(Date.now() / 1000)),
       );
       console.log(
-        "borrowRateAfterReallocation_BSDETH_EUSD:",
-        borrowRateAfterReallocation_BSDETH_EUSD,
+        "newRateAtTarget for BSDETH_EUSD after reallocation:",
+        newRateAtTarget_BSDETH_EUSD,
+      );
+
+      // Calculate actual rate at current utilization, then convert to APY
+      const actualRate_BSDETH_EUSD = utilizationToRate(
+        BSDETH_EUSD_utilizationAfterReallocation,
+        newRateAtTarget_BSDETH_EUSD,
+      );
+      const apy_BSDETH_EUSD_afterReallocation = rateToApy(actualRate_BSDETH_EUSD);
+      console.log(
+        "apy for BSDETH_EUSD after reallocation (at current utilization):",
+        (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toString(),
       );
 
       const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
@@ -882,9 +895,9 @@ describe("apyRange strategy - unit tests", () => {
         parseUnits("5000", 18),
         result[1].assets,
         parseUnits("20000", 18),
-        lowRateAtTarget,
+        highRateAtTargetWSTETH_EUSD,
         MARKET_PARAMS_BSDETH_EUSD,
-        lowRateAt100Util,
+        highRateAt100UtilWSTETH_EUSD,
       );
 
       const WSTETH_EUSD_utilizationAfterReallocation = getUtilization(
@@ -893,6 +906,27 @@ describe("apyRange strategy - unit tests", () => {
       console.log(
         "WSTETH_EUSD_utilizationAfterReallocation:",
         WSTETH_EUSD_utilizationAfterReallocation,
+      );
+
+      const { newRateAtTarget: newRateAtTarget_WSTETH_EUSD } = calculateBorrowRate(
+        vaultMarketData_WSTETH_EUSD_afterReallocation.state,
+        highRateAtTargetWSTETH_EUSD,
+        BigInt(Math.floor(Date.now() / 1000)),
+      );
+      console.log(
+        "newRateAtTarget for WSTETH_EUSD after reallocation:",
+        newRateAtTarget_WSTETH_EUSD,
+      );
+
+      // Calculate actual rate at current utilization, then convert to APY
+      const actualRate_WSTETH_EUSD = utilizationToRate(
+        WSTETH_EUSD_utilizationAfterReallocation,
+        newRateAtTarget_WSTETH_EUSD,
+      );
+      const apy_WSTETH_EUSD_afterReallocation = rateToApy(actualRate_WSTETH_EUSD);
+      console.log(
+        "apy for WSTETH_EUSD after reallocation (at current utilization):",
+        (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toString(),
       );
     });
 
