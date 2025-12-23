@@ -56,10 +56,6 @@ export class ApyRange implements Strategy {
     let totalDepositableAmount = 0n;
 
     let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
-    console.log("marketsData.length:", marketsData.length);
-    console.log("marketsData.length:", marketsData.length);
-    console.log("marketsData.length:", marketsData.length);
-    console.log("marketsData.length:", marketsData.length);
 
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
@@ -100,14 +96,6 @@ export class ApyRange implements Strategy {
 
     let idleWithdrawal = 0n;
     let idleDeposit = 0n;
-
-    console.log("idleMarket.params:", idleMarket?.params);
-    console.log("idleMarket.vaultAssets:", idleMarket?.vaultAssets);
-    console.log("idleMarket.cap:", idleMarket?.cap);
-    console.log("totalWithdrawableAmount:", totalWithdrawableAmount);
-    console.log("totalDepositableAmount:", totalDepositableAmount);
-    console.log("ALLOW_IDLE_REALLOCATION:", ALLOW_IDLE_REALLOCATION);
-
     if (idleMarket) {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (totalWithdrawableAmount > totalDepositableAmount && ALLOW_IDLE_REALLOCATION) {
@@ -125,12 +113,7 @@ export class ApyRange implements Strategy {
       }
     }
 
-    console.log("totalWithdrawableAmount:", totalWithdrawableAmount);
-    console.log("totalDepositableAmount:", totalDepositableAmount);
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
-
-    console.log("toReallocate:", toReallocate);
-    console.log("didExceedMinApyDelta:", didExceedMinApyDelta);
     if (toReallocate === 0n || !didExceedMinApyDelta) return;
 
     let remainingWithdrawal = toReallocate;
@@ -197,8 +180,6 @@ export class ApyRange implements Strategy {
     }
 
     const reallocations = [...withdrawals, ...deposits];
-
-    console.log("reallocations.length:", reallocations.length);
 
     console.log();
     for (const reallocation of reallocations) {
