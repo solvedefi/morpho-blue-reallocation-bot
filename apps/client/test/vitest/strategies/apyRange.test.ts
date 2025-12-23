@@ -739,7 +739,8 @@ describe("apyRange strategy - unit tests", () => {
       const strategy = new StrategyMock({
         ...TEST_CONFIG_NO_IDLE,
         // DEFAULT_APY_RANGE: { min: 3, max: 8 },
-        DEFAULT_APY_RANGE: { min: 8, max: 10 },
+        // DEFAULT_APY_RANGE: { min: 16, max: 20 }, // doesn't work
+        DEFAULT_APY_RANGE: { min: 12, max: 14 }, // doesn't work
       });
 
       const targetApyAt100 = percentToWad(7);
@@ -892,7 +893,7 @@ describe("apyRange strategy - unit tests", () => {
       const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
         MARKET_ID_BSDETH_EUSD as Hex,
         result[1].assets,
-        parseUnits("5000", 18),
+        parseUnits("9500", 18), // WSTETH originally had 9500 borrow, doesn't change with reallocation
         result[1].assets,
         parseUnits("20000", 18),
         highRateAtTargetWSTETH_EUSD,
