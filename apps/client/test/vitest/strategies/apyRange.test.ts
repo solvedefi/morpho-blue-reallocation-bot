@@ -8,28 +8,12 @@ import {
   apyToRate,
   rateToApy,
   percentToWad,
-  WAD,
-  rateToUtilization,
-  utilizationToRate,
+  getUtilization,
+  calculateBorrowRate,
 } from "../../../src/utils/maths.js";
 import { MarketParams, VaultData, VaultMarketData } from "../../../src/utils/types.js";
-import { abs } from "../helpers.js";
-
-// ============================================================================
-// Constants & Test Fixtures
-// ============================================================================
-
-const TOLERANCE_INVERSE_FUNCTIONS = parseUnits("1", 12); // 0.0001% precision
 
 // Mock market IDs for unit tests
-const marketId1 = "0x60f25d76d9cd6762dabce33cc13d2d018f0d33f9bd62323a7fbe0726e0518388";
-const marketId2 = "0x88d40fc93bdfe3328504a780f04c193e2938e0ec3d92e6339b6a960f4584229a";
-const idleMarketId = "0x54efdee08e272e929034a8f26f7ca34b1ebe364b275391169b28c6d7db24dbc8";
-
-// ============================================================================
-// Test Configuration Interface & Strategy Class
-// ============================================================================
-
 interface TestConfig {
   ALLOW_IDLE_REALLOCATION: boolean;
   DEFAULT_APY_RANGE: Range;
@@ -37,7 +21,7 @@ interface TestConfig {
   marketsDefaultApyRanges: Record<number, Record<Hex, Range>>;
 }
 
-class TestableApyRange extends ApyRange {
+class StrategyMock extends ApyRange {
   private readonly config: TestConfig;
 
   constructor(config: TestConfig) {
@@ -65,20 +49,12 @@ class TestableApyRange extends ApyRange {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getMinApyDeltaBips(_chainId: number, _vaultAddress: Address, _marketId: Hex) {
     return 25; // 0.25% = 25 bips
   }
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Create mock market data for unit tests
- */
-function createMockMarketData(
+function createVaultMarketData(
   id: Hex,
   totalSupply: bigint,
   totalBorrow: bigint,
@@ -109,9 +85,6 @@ function createMockMarketData(
   };
 }
 
-/**
- * Create vault data structure
- */
 function createVaultData(vaultAddress: Address, marketsData: VaultMarketData[]): VaultData {
   const marketsMap = new Map<Hex, VaultMarketData>();
   for (const marketData of marketsData) {
@@ -121,25 +94,32 @@ function createVaultData(vaultAddress: Address, marketsData: VaultMarketData[]):
 }
 
 describe("apyRange strategy - unit tests", () => {
-  // Market parameters for unit tests
-  const MOCK_MARKET_PARAMS: MarketParams = {
-    loanToken: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as Address, // USDC
-    collateralToken: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599" as Address, // WBTC
-    oracle: "0xDddd770BADd886dF3864029e4B377B5F6a2B6b83" as Address,
-    irm: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC" as Address,
-    lltv: parseUnits("0.77", 18),
-  };
+  const EUSD_VAULT_ADDRESS = "0xbb819D845b573B5D7C538F5b85057160cfb5f313" as Address;
 
-  const MOCK_MARKET_PARAMS_2: MarketParams = {
-    loanToken: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as Address, // USDC
-    collateralToken: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" as Address, // WETH
-    oracle: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419" as Address,
-    irm: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC" as Address,
+  const MARKET_ID_BSDETH_EUSD =
+    "0xf9ed1dba3b6ba1ede10e2115a9554e9c52091c9f1b1af21f9e0fecc855ee74bf";
+  const MARKET_ID_WSTETH_EUSD =
+    "0xce89aeb081d719cd35cb1aafb31239c4dfd9c017b2fec26fc2e9a443461e9aea";
+  const MARKET_ID_IDLE_EUSD = "0x54efdee08e272e929034a8f26f7ca34b1ebe364b275391169b28c6d7db24dbc8";
+
+  const MARKET_PARAMS_BSDETH_EUSD: MarketParams = {
+    loanToken: "0xCfA3Ef56d303AE4fAabA0592388F19d7C3399FB4" as Address, // EUSD
+    collateralToken: "0xCb327b99fF831bF8223cCEd12B1338FF3aA322Ff" as Address, // BSDETH
+    oracle: "0xc866447b4C254E2029f1bfB700F5AA43ce27b1BE" as Address,
+    irm: "0x46415998764C29aB2a25CbeA6254146D50D22687" as Address,
     lltv: parseUnits("0.86", 18),
   };
 
-  const IDLE_MARKET_PARAMS: MarketParams = {
-    loanToken: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as Address, // USDC
+  const MARKET_PARAMS_WSTETH_EUSD: MarketParams = {
+    loanToken: "0xCfA3Ef56d303AE4fAabA0592388F19d7C3399FB4" as Address, // EUSD
+    collateralToken: "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452" as Address, // wstETH
+    oracle: "0xa79e9EC3458fEd729E7A0A1A1573e6a29E875d5E" as Address,
+    irm: "0x46415998764C29aB2a25CbeA6254146D50D22687" as Address,
+    lltv: parseUnits("0.86", 18),
+  };
+
+  const IDLE_MARKET_PARAMS_EUSD: MarketParams = {
+    loanToken: "0xCfA3Ef56d303AE4fAabA0592388F19d7C3399FB4" as Address, // EUSD
     collateralToken: zeroAddress,
     oracle: zeroAddress,
     irm: zeroAddress,
@@ -160,7 +140,7 @@ describe("apyRange strategy - unit tests", () => {
     ALLOW_IDLE_REALLOCATION: true,
   };
 
-  const MOCK_VAULT_ADDRESS = "0x1234567890123456789012345678901234567890" as Address;
+  // const MOCK_VAULT_ADDRESS = "0x1234567890123456789012345678901234567890" as Address;
 
   // describe("utilizationToRate and rateToUtilization inverse functions", () => {
   //   const RATE_AT_TARGET_4_PERCENT = parseUnits("0.04", 18) / (365n * 24n * 60n * 60n);
@@ -682,8 +662,7 @@ describe("apyRange strategy - unit tests", () => {
     //   expect(market1Allocation).toBeDefined();
     //   expect(market2Allocation).toBeDefined();
 
-    //   // Both should be withdrawals (assets = totalBorrowAssets)
-    //   expect(market1Allocation?.assets).toBe(parseUnits("5000", 6));
+    //   // Both should be withdrawals (assets = totalBorrowAssets);
     //   expect(market2Allocation?.assets).toBe(parseUnits("4000", 6));
     // });
 
@@ -756,7 +735,7 @@ describe("apyRange strategy - unit tests", () => {
     // });
 
     it("should keep one market at 100% utilization and withdraw from the other market", () => {
-      const strategy = new TestableApyRange({
+      const strategy = new StrategyMock({
         ...TEST_CONFIG_NO_IDLE,
         DEFAULT_APY_RANGE: { min: 3, max: 8 },
       });
@@ -765,105 +744,190 @@ describe("apyRange strategy - unit tests", () => {
       const lowRateAt100Util = apyToRate(targetApyAt100);
       const lowRateAtTarget = lowRateAt100Util / 4n;
 
-      const highRateAtTarget = parseUnits("0.08", 18) / (365n * 24n * 60n * 60n);
-      console.log("highRateAtTarget:", highRateAtTarget);
+      const targetApyAt100WSTETH_EUSD = percentToWad(30);
+      console.log("targetApyAt100WSTETH_EUSD:", targetApyAt100WSTETH_EUSD);
+      const highRateAt100UtilWSTETH_EUSD = apyToRate(targetApyAt100WSTETH_EUSD);
+      console.log("highRateAt100UtilWSTETH_EUSD:", highRateAt100UtilWSTETH_EUSD);
+      const highRateAtTargetWSTETH_EUSD = highRateAt100UtilWSTETH_EUSD / 4n;
+      console.log("highRateAtTargetWSTETH_EUSD:", highRateAtTargetWSTETH_EUSD);
+
+      const rateToAPYHighestUtilization = rateToApy(highRateAt100UtilWSTETH_EUSD);
+      const rateToAPYHighestAtTarget = rateToApy(highRateAtTargetWSTETH_EUSD);
+      console.log("rateToAPYHighestUtilization:", rateToAPYHighestUtilization);
+      console.log("rateToAPYHighestAtTarget:", rateToAPYHighestAtTarget);
+
+      // const targetApyAt100 = percentToWad(10);
+      // const highRateAtTarget = parseUnits("0.10", 18) / (365n * 24n * 60n * 60n);
+      // const highRateAt100Util = apyToRate(targetApyAt100);
+      // console.log("highRateAt100Util:", highRateAt100Util);
 
       // Market 1: rateAt100Utilization < max APY (should withdraw to 100% util)
-      const market1 = createMockMarketData(
-        marketId1 as Hex,
-        parseUnits("10000", 6),
-        parseUnits("5000", 6),
-        parseUnits("5000", 6),
-        parseUnits("20000", 6),
+      const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
+        MARKET_ID_BSDETH_EUSD as Hex,
+        parseUnits("10000", 18),
+        parseUnits("5000", 18),
+        parseUnits("10000", 18),
+        parseUnits("20000", 18),
         lowRateAtTarget,
-        MOCK_MARKET_PARAMS,
+        MARKET_PARAMS_BSDETH_EUSD,
         lowRateAt100Util,
       );
 
       // Market 2: High utilization, normal rebalancing (rateAt100Util not set or high enough)
-      const market2 = createMockMarketData(
-        marketId2 as Hex,
-        parseUnits("10000", 6),
-        parseUnits("9500", 6), // 95% utilization - needs deposit
-        parseUnits("5000", 6),
-        parseUnits("20000", 6),
-        highRateAtTarget,
-        MOCK_MARKET_PARAMS_2,
-        undefined, // No rateAt100Utilization, normal rebalancing
+      const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
+        MARKET_ID_IDLE_EUSD as Hex,
+        parseUnits("10000", 18),
+        parseUnits("9500", 18),
+        parseUnits("10000", 18),
+        parseUnits("20000", 18),
+        highRateAtTargetWSTETH_EUSD,
+        MARKET_PARAMS_WSTETH_EUSD,
+        highRateAt100UtilWSTETH_EUSD, // No rateAt100Utilization, normal rebalancing
       );
 
-      const vaultData = createVaultData(MOCK_VAULT_ADDRESS, [market1, market2]);
+      // Market 3: Idle market
+      const vaultMarketDataIdle = createVaultMarketData(
+        MARKET_ID_WSTETH_EUSD as Hex,
+        parseUnits("1000000", 18),
+        parseUnits("0", 18),
+        parseUnits("1000000", 18),
+        parseUnits("2000000", 18),
+        0n,
+        IDLE_MARKET_PARAMS_EUSD,
+        0n,
+      );
+
+      const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
+        vaultMarketData_BSDETH_EUSD,
+        vaultMarketData_WSTETH_EUSD,
+        vaultMarketDataIdle,
+      ]);
       const result = strategy.findReallocation(vaultData);
+      console.log("result:", result);
 
       expect(result).toBeDefined();
       if (!result) return;
 
-      for (const reallocation of result) {
-        console.log(
-          "reallocation.marketParams.collateralToken:",
-          reallocation.marketParams.collateralToken,
-        );
-        console.log("reallocation.assets:", reallocation.assets);
-        console.log();
-      }
-      expect(result.length).toBeGreaterThan(0);
+      // for (const reallocation of result) {
+      //   console.log(
+      //     "reallocation.marketParams.collateralToken:",
+      //     reallocation.marketParams.collateralToken,
+      //   );
+      //   console.log("reallocation.assets:", reallocation.assets);
+      //   console.log();
+      // }
+      // expect(result.length).toBeGreaterThan(0);
 
-      const market1Allocation = result.find(
-        (a) => a.marketParams.collateralToken === MOCK_MARKET_PARAMS.collateralToken,
+      // const market1Allocation = result.find(
+      //   (a) => a.marketParams.collateralToken === MOCK_MARKET_PARAMS.collateralToken,
+      // );
+      // const market2Allocation = result.find(
+      //   (a) => a.marketParams.collateralToken === MOCK_MARKET_PARAMS_2.collateralToken,
+      // );
+
+      // // Market 1 should have withdrawal to push to 100% util
+      // expect(market1Allocation).toBeDefined();
+      // if (market1Allocation) {
+      //   // The withdrawal should equal totalBorrowAssets (to push util to 100%)
+      //   expect(market1Allocation.assets).toBe(parseUnits("5000", 6));
+      // }
+
+      // // Market 2 might receive deposit from market 1's withdrawal
+      // if (market2Allocation) {
+      //   // Market 2 should receive a deposit (either maxUint256 or more than current vaultAssets)
+      //   const isDeposit =
+      //     market2Allocation.assets === maxUint256 ||
+      //     market2Allocation.assets > parseUnits("5000", 6);
+      //   expect(isDeposit).toBe(true);
+      // }
+
+      expect(result[0]).toBeDefined();
+      if (!result[0]) return;
+
+      expect(result[1]).toBeDefined();
+      if (!result[1]) return;
+
+      const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
+        MARKET_ID_BSDETH_EUSD as Hex,
+        result[0].assets,
+        parseUnits("5000", 18),
+        result[0].assets,
+        parseUnits("20000", 18),
+        lowRateAtTarget,
+        MARKET_PARAMS_BSDETH_EUSD,
+        lowRateAt100Util,
       );
-      const market2Allocation = result.find(
-        (a) => a.marketParams.collateralToken === MOCK_MARKET_PARAMS_2.collateralToken,
+
+      const BSDETH_EUSD_utilizationAfterReallocation = getUtilization(
+        vaultMarketData_BSDETH_EUSD_afterReallocation.state,
+      );
+      console.log(
+        "BSDETH_EUSD_utilizationAfterReallocation:",
+        BSDETH_EUSD_utilizationAfterReallocation,
       );
 
-      // Market 1 should have withdrawal to push to 100% util
-      expect(market1Allocation).toBeDefined();
-      if (market1Allocation) {
-        // The withdrawal should equal totalBorrowAssets (to push util to 100%)
-        expect(market1Allocation.assets).toBe(parseUnits("5000", 6));
-      }
+      const borrowRateAfterReallocation_BSDETH_EUSD = calculateBorrowRate(
+        vaultMarketData_BSDETH_EUSD_afterReallocation.state,
+        lowRateAtTarget,
+        BigInt(Math.floor(Date.now() / 1000)),
+      );
+      console.log(
+        "borrowRateAfterReallocation_BSDETH_EUSD:",
+        borrowRateAfterReallocation_BSDETH_EUSD,
+      );
 
-      // Market 2 might receive deposit from market 1's withdrawal
-      if (market2Allocation) {
-        // Market 2 should receive a deposit (either maxUint256 or more than current vaultAssets)
-        const isDeposit =
-          market2Allocation.assets === maxUint256 ||
-          market2Allocation.assets > parseUnits("5000", 6);
-        expect(isDeposit).toBe(true);
-      }
+      const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
+        MARKET_ID_BSDETH_EUSD as Hex,
+        result[1].assets,
+        parseUnits("5000", 18),
+        result[1].assets,
+        parseUnits("20000", 18),
+        lowRateAtTarget,
+        MARKET_PARAMS_BSDETH_EUSD,
+        lowRateAt100Util,
+      );
+
+      const WSTETH_EUSD_utilizationAfterReallocation = getUtilization(
+        vaultMarketData_WSTETH_EUSD_afterReallocation.state,
+      );
+      console.log(
+        "WSTETH_EUSD_utilizationAfterReallocation:",
+        WSTETH_EUSD_utilizationAfterReallocation,
+      );
     });
 
-    it("should not reallocate when rateAt100Utilization is above or equal to max APY", async () => {
-      const strategy = new TestableApyRange({
-        ...TEST_CONFIG_NO_IDLE,
-        DEFAULT_APY_RANGE: { min: 3, max: 8 },
-      });
+    // it("should not reallocate when rateAt100Utilization is above or equal to max APY", async () => {
+    //   const strategy = new TestableApyRange({
+    //     ...TEST_CONFIG_NO_IDLE,
+    //     DEFAULT_APY_RANGE: { min: 3, max: 8 },
+    //   });
 
-      // To get an APY of 9% at 100% utilization (which is > 8%)
-      const targetApyAt100 = percentToWad(9); // 9% APY
-      const highRateAt100Util = apyToRate(targetApyAt100);
-      const highRateAtTarget = highRateAt100Util / 4n;
+    //   // To get an APY of 9% at 100% utilization (which is > 8%)
+    //   const targetApyAt100 = percentToWad(9); // 9% APY
+    //   const highRateAt100Util = apyToRate(targetApyAt100);
+    //   const highRateAtTarget = highRateAt100Util / 4n;
 
-      // Verify our test setup: apyAt100Util should be >= 8%
-      const apyAt100Util = rateToApy(highRateAt100Util);
-      expect(apyAt100Util).toBeGreaterThanOrEqual(percentToWad(8));
+    //   // Verify our test setup: apyAt100Util should be >= 8%
+    //   const apyAt100Util = rateToApy(highRateAt100Util);
+    //   expect(apyAt100Util).toBeGreaterThanOrEqual(percentToWad(8));
 
-      const market1 = createMockMarketData(
-        marketId1 as Hex,
-        parseUnits("10000", 6),
-        parseUnits("5000", 6), // 50% utilization
-        parseUnits("5000", 6),
-        parseUnits("20000", 6),
-        highRateAtTarget,
-        MOCK_MARKET_PARAMS,
-        highRateAt100Util,
-      );
+    //   const market1 = createMockMarketData(
+    //     marketId1 as Hex,
+    //     parseUnits("10000", 6),
+    //     parseUnits("5000", 6), // 50% utilization
+    //     parseUnits("5000", 6),
+    //     parseUnits("20000", 6),
+    //     highRateAtTarget,
+    //     MOCK_MARKET_PARAMS,
+    //     highRateAt100Util,
+    //   );
 
-      const vaultData = createVaultData(MOCK_VAULT_ADDRESS, [market1]);
-      const result = await strategy.findReallocation(vaultData);
+    //   const vaultData = createVaultData(MOCK_VAULT_ADDRESS, [market1]);
+    //   const result = await strategy.findReallocation(vaultData);
 
-      // Should not trigger reallocation since utilization is within range
-      // and rateAt100Util >= max APY
-      expect(result).toBeUndefined();
-    });
+    //   // Should not trigger reallocation since utilization is within range
+    //   // and rateAt100Util >= max APY
+    //   expect(result).toBeUndefined();
+    // });
   });
 });

@@ -161,8 +161,8 @@ export class ApyRange implements Strategy {
         marketData.rateAt100Utilization &&
         rateToApy(marketData.rateAt100Utilization) < apyRange.max
       ) {
-        // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
-        console.log("2nd iteration: max value for range exceeds rateAt100Utilization");
+        // // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
+        // console.log("2nd iteration: max value for range exceeds rateAt100Utilization");
 
         withdrawals.push({
           marketParams: marketData.params,
@@ -216,12 +216,44 @@ export class ApyRange implements Strategy {
 
     const reallocations = [...withdrawals, ...deposits];
 
+    // console.log();
+    // for (const reallocation of reallocations) {
+    //   const marketId = this.calculateMarketId(reallocation.marketParams);
+    //   const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+    //   const rate = vaultData.marketsData.get(marketId)?.rate ?? 0n;
+    //   const rateAt100Utilization = vaultData.marketsData.get(marketId)?.rateAt100Utilization ?? 0n;
+
+    //   console.log("reallocation.marketId:", marketId);
+    //   console.log(
+    //     "reallocation.marketParams.collateralToken:",
+    //     reallocation.marketParams.collateralToken,
+    //   );
+    //   console.log("reallocation.marketParams.loanToken:", reallocation.marketParams.loanToken);
+    //   console.log("reallocation.marketParams.oracle:", reallocation.marketParams.oracle);
+    //   console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
+    //   console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
+    //   console.log("reallocation.assets:", reallocation.assets);
+    //   console.log("cap:", cap);
+    //   console.log("rate:", rate);
+    //   console.log("rateAt100Utilization:", rateAt100Utilization);
+    //   console.log("cap is more than assets:", cap > reallocation.assets);
+
+    //   console.log();
+    // }
+
+    // console.log();
+    // console.log("reallocation.length:", reallocations.length);
+
     const reallocationFilteredByCap = reallocations.filter((reallocation) => {
       const marketId = this.calculateMarketId(reallocation.marketParams);
       const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+
       // maxUint256 is a special value meaning "deposit all remaining", so exempt it from cap check
       return reallocation.assets === maxUint256 || cap > reallocation.assets;
     });
+
+    // console.log("reallocationFilteredByCap.length:", reallocationFilteredByCap.length);
+    // console.log();
 
     return reallocationFilteredByCap;
   }
