@@ -21,7 +21,7 @@ import {
   rateToUtilization,
   utilizationToRate,
 } from "../../utils/maths";
-import { MarketAllocation, MarketParams, VaultData } from "../../utils/types";
+import { MarketAllocation, MarketParams, VaultData, VaultMarketData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
 export class ApyRange implements Strategy {
@@ -56,6 +56,8 @@ export class ApyRange implements Strategy {
     let totalDepositableAmount = 0n;
 
     let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
+    // let counterFor100UtilReallocations = 0;
+    const util100ReallocationsMap = new Map<Hex, VaultMarketData>();
 
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
@@ -77,6 +79,10 @@ export class ApyRange implements Strategy {
         const amountToWithdraw =
           marketData.state.totalSupplyAssets - marketData.state.totalBorrowAssets;
         totalDepositableAmount += amountToWithdraw;
+
+        // counterFor100UtilReallocations++;
+        util100ReallocationsMap.set(marketData.id, marketData);
+
         continue;
       } else {
         // normal calculations if a market can have rates from the config
@@ -128,34 +134,6 @@ export class ApyRange implements Strategy {
     const withdrawals: MarketAllocation[] = [];
     const deposits: MarketAllocation[] = [];
 
-    // no withdrawable amount but have depositable amount,
-    // so we need to push util to 100% for all markets
-    // reallocation will have only withdrawals, no deposits
-    if (totalDepositableAmount > 0 && totalWithdrawableAmount === 0n) {
-      console.log("test");
-      console.log("test");
-      console.log("test");
-
-      for (const marketData of marketsData) {
-        // TODO: maybe need to return buffer
-        // const buffer = 10n * 10n ** 18n;
-        withdrawals.push({
-          marketParams: marketData.params,
-          assets: marketData.state.totalBorrowAssets,
-          // assets: marketData.state.totalBorrowAssets + buffer,
-        });
-      }
-
-      if (idleMarket) {
-        withdrawals.push({
-          marketParams: idleMarket.params,
-          assets: maxUint256,
-        });
-      }
-
-      return withdrawals;
-    }
-
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
     if (toReallocate === 0n || !didExceedMinApyDelta) return;
 
@@ -188,7 +166,7 @@ export class ApyRange implements Strategy {
 
         withdrawals.push({
           marketParams: marketData.params,
-          assets: marketData.state.totalSupplyAssets,
+          assets: marketData.state.totalBorrowAssets,
         });
       } else {
         if (utilization > upperUtilizationBound) {
@@ -237,31 +215,6 @@ export class ApyRange implements Strategy {
     }
 
     const reallocations = [...withdrawals, ...deposits];
-
-    // console.log();
-    // for (const reallocation of reallocations) {
-    //   const marketId = this.calculateMarketId(reallocation.marketParams);
-    //   const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
-    //   const rate = vaultData.marketsData.get(marketId)?.rate ?? 0n;
-    //   const rateAt100Utilization = vaultData.marketsData.get(marketId)?.rateAt100Utilization ?? 0n;
-
-    //   console.log("reallocation.marketId:", marketId);
-    //   console.log(
-    //     "reallocation.marketParams.collateralToken:",
-    //     reallocation.marketParams.collateralToken,
-    //   );
-    //   console.log("reallocation.marketParams.loanToken:", reallocation.marketParams.loanToken);
-    //   console.log("reallocation.marketParams.oracle:", reallocation.marketParams.oracle);
-    //   console.log("reallocation.marketParams.irm:", reallocation.marketParams.irm);
-    //   console.log("reallocation.marketParams.lltv:", reallocation.marketParams.lltv);
-    //   console.log("reallocation.assets:", reallocation.assets);
-    //   console.log("cap:", cap);
-    //   console.log("rate:", rate);
-    //   console.log("rateAt100Utilization:", rateAt100Utilization);
-    //   console.log("cap is more than assets:", cap > reallocation.assets);
-
-    //   console.log();
-    // }
 
     const reallocationFilteredByCap = reallocations.filter((reallocation) => {
       const marketId = this.calculateMarketId(reallocation.marketParams);
