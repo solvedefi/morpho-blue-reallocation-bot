@@ -24,6 +24,19 @@ import {
 import { MarketAllocation, MarketParams, VaultData, VaultMarketData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
+/**
+ * ApyRange Strategy
+ *
+ * This strategy maintains the APY of each market within a target range.
+ * - If APY > max: Suggests depositing more assets to lower utilization and APY.
+ * - If APY < min: Suggests withdrawing assets to increase utilization and APY.
+ *
+ * Adaptive IRM Handling:
+ * If a market's maximum possible rate (at 100% utilization) is still below the target range's maximum,
+ * the strategy pushes the market to 100% utilization. This encourages the Morpho Adaptive Curve IRM
+ * to shift the entire rate curve upwards over time, eventually allowing the market to reach the
+ * desired higher APY levels.
+ */
 export class ApyRange implements Strategy {
   findReallocation(vaultData: VaultData) {
     const marketsDataArray = Array.from(vaultData.marketsData.values());
@@ -56,7 +69,6 @@ export class ApyRange implements Strategy {
     let totalDepositableAmount = 0n;
 
     let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
-    // let counterFor100UtilReallocations = 0;
     const util100ReallocationsMap = new Map<Hex, VaultMarketData>();
 
     for (const marketData of marketsData) {
@@ -71,7 +83,8 @@ export class ApyRange implements Strategy {
         marketData.rateAtTarget,
       );
 
-      // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
+      // Check if we need to push to 100% utilization to trigger Adaptive IRM curve shift.
+      // This happens when even at 100% utilization, the current APY would be below our target range.
       if (
         marketData.rateAt100Utilization &&
         rateToApy(marketData.rateAt100Utilization) < apyRange.max
@@ -80,7 +93,6 @@ export class ApyRange implements Strategy {
           marketData.state.totalSupplyAssets - marketData.state.totalBorrowAssets;
         totalDepositableAmount += amountToWithdraw;
 
-        // counterFor100UtilReallocations++;
         util100ReallocationsMap.set(marketData.id, marketData);
         didExceedMinApyDelta = true;
 
@@ -154,17 +166,12 @@ export class ApyRange implements Strategy {
       );
       const utilization = getUtilization(marketData.state);
 
-      // TODO: double check
-      // TODO: double check
-      // TODO: double check
-      // TODO: double check
       if (
         marketData.rateAt100Utilization &&
         rateToApy(marketData.rateAt100Utilization) < apyRange.max
       ) {
-        // // we're pushing util to 100% so that the irm curve can shift up and introduce new rates
-        // console.log("2nd iteration: max value for range exceeds rateAt100Utilization");
-
+        // We push utilization to 100% so that the Adaptive IRM curve can shift up and introduce higher rates.
+        // This is done by withdrawing everything except what is needed to cover current borrows.
         withdrawals.push({
           marketParams: marketData.params,
           assets: marketData.state.totalBorrowAssets,
