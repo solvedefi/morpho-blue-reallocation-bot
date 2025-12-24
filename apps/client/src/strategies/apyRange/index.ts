@@ -21,7 +21,7 @@ import {
   rateToUtilization,
   utilizationToRate,
 } from "../../utils/maths";
-import { MarketAllocation, MarketParams, VaultData, VaultMarketData } from "../../utils/types";
+import { MarketAllocation, MarketParams, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
 /**
