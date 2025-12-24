@@ -153,6 +153,7 @@ describe("apyRange strategy - unit tests", () => {
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
       DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
     });
 
     const targetApyAt100 = percentToWad(7);
@@ -263,6 +264,7 @@ describe("apyRange strategy - unit tests", () => {
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
       DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
     });
 
     const targetApyAt100 = percentToWad(7);
@@ -388,6 +390,7 @@ describe("apyRange strategy - unit tests", () => {
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
       DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
     });
 
     // Market with APY around 5% (within 3-8% range)
@@ -485,7 +488,8 @@ describe("apyRange strategy - unit tests", () => {
 
     expect(idleAllocation).toBeDefined();
     expect(bsdethAllocation).toBeDefined();
-    if (!idleAllocation || !bsdethAllocation) return;
+    if (!idleAllocation) throw new Error("Idle allocation not found");
+    if (!bsdethAllocation) throw new Error("BSDETH allocation not found");
 
     // Idle should have withdrawal (assets < original)
     expect(idleAllocation.assets).toBeLessThan(vaultMarketData_IDLE.vaultAssets);
@@ -517,9 +521,6 @@ describe("apyRange strategy - unit tests", () => {
       (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    console.log("apy_BSDETH_EUSD after reallocation:", apy_BSDETH_EUSD);
-
-    // After deposit, utilization should decrease, APY should be within range
     expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
     expect(apy_BSDETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
   });
