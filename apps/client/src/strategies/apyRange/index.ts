@@ -82,6 +82,7 @@ export class ApyRange implements Strategy {
 
         // counterFor100UtilReallocations++;
         util100ReallocationsMap.set(marketData.id, marketData);
+        didExceedMinApyDelta = true;
 
         continue;
       } else {
