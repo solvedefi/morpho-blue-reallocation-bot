@@ -168,7 +168,6 @@ export class MorphoClient {
     return borrowRate;
   }
 
-  // returns borrow apy decimal (e.g. 0.05 for 5%)
   async calculateRate(vaultMarketData: VaultMarketData): Promise<bigint> {
     const borrowRate = await this.fetchRate(vaultMarketData);
     const borrowApy = rateToApy(borrowRate);
@@ -176,7 +175,6 @@ export class MorphoClient {
     return borrowApy;
   }
 
-  // returns borrow apy decimal (e.g. 0.05 for 5%)
   async calculateRateAt100Utilization(vaultMarketData: VaultMarketData): Promise<bigint> {
     // we want to remove all excess supply assets, so that utilization is 100%
     const vaultMarketDataCopy = structuredClone(vaultMarketData);

@@ -41,6 +41,25 @@ export class ApyRange implements Strategy {
   findReallocation(vaultData: VaultData) {
     const marketsDataArray = Array.from(vaultData.marketsData.values());
 
+    // console.log(
+    //   "marketsDataArray: ",
+    //   marketsDataArray.map((marketData, idx) => {
+    //     return {
+    //       index: idx,
+    //       ...Object.fromEntries(
+    //         Object.entries(marketData).map(([key, value]) => {
+    //           // Try to log bigints and objects properly
+    //           if (typeof value === "bigint") {
+    //             return [key, value.toString()];
+    //           }
+    //           // Avoid logging huge buffers or circular
+    //           return [key, value];
+    //         }),
+    //       ),
+    //     };
+    //   }),
+    // );
+
     const idleMarket = marketsDataArray.find(
       (marketData) => marketData.params.collateralToken === zeroAddress,
     );
@@ -60,6 +79,11 @@ export class ApyRange implements Strategy {
         (marketData) =>
           marketData.params.collateralToken !==
           ("0x4809010926aec940b550D34a46A52739f996D75D" as Address), // wsrUSD on worldchain
+      )
+      .filter(
+        (marketData) =>
+          marketData.params.collateralToken !==
+          ("0xCc7FF230365bD730eE4B352cC2492CEdAC49383e" as Address), // hyUSD on base eusd
       )
       .filter((marketData) => marketData.state.totalSupplyAssets !== 0n)
       .filter((marketData) => marketData.state.totalBorrowAssets !== 0n)
@@ -166,15 +190,20 @@ export class ApyRange implements Strategy {
       );
       const utilization = getUtilization(marketData.state);
 
-      if (
-        marketData.rateAt100Utilization &&
-        rateToApy(marketData.rateAt100Utilization) < apyRange.max
-      ) {
+      const apyAt100Utilization = marketData.rateAt100Utilization;
+      const apyRangeMax = apyRange.max;
+
+      if (apyAt100Utilization && apyAt100Utilization < apyRangeMax) {
         // We push utilization to 100% so that the Adaptive IRM curve can shift up and introduce higher rates.
         // This is done by withdrawing everything except what is needed to cover current borrows.
+
+        const buffer = (marketData.state.totalBorrowAssets * 2n) / 100n; // 5% buffer
+        const assets = marketData.state.totalBorrowAssets + buffer;
+        // const assets = marketData.state.totalBorrowAssets;
+
         withdrawals.push({
           marketParams: marketData.params,
-          assets: marketData.state.totalBorrowAssets,
+          assets: min(assets, marketData.vaultAssets),
         });
       } else {
         if (utilization > upperUtilizationBound) {
@@ -231,6 +260,24 @@ export class ApyRange implements Strategy {
       // maxUint256 is a special value meaning "deposit all remaining", so exempt it from cap check
       return reallocation.assets === maxUint256 || cap > reallocation.assets;
     });
+
+    // console.log();
+    // for (const reallocation of reallocationFilteredByCap) {
+    //   const marketId = this.calculateMarketId(reallocation.marketParams);
+    //   const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+
+    //   console.log("marketId:", marketId);
+    //   console.log("collateralToken:", reallocation.marketParams.collateralToken);
+    //   console.log("loanToken:", reallocation.marketParams.loanToken);
+    //   console.log("oracle:", reallocation.marketParams.oracle);
+    //   console.log("irm:", reallocation.marketParams.irm);
+    //   console.log("lltv:", reallocation.marketParams.lltv);
+    //   console.log("assets:", reallocation.assets);
+    //   console.log("cap:", cap);
+
+    //   console.log();
+    // }
+    // console.log();
 
     return reallocationFilteredByCap;
   }
