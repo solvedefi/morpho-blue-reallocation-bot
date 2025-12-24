@@ -738,26 +738,26 @@ describe("apyRange strategy - unit tests", () => {
     it("should keep one market at 100% utilization and withdraw from the other market", () => {
       const strategy = new StrategyMock({
         ...TEST_CONFIG_NO_IDLE,
-        // DEFAULT_APY_RANGE: { min: 3, max: 8 },
-        // DEFAULT_APY_RANGE: { min: 16, max: 20 }, // doesn't work
-        DEFAULT_APY_RANGE: { min: 12, max: 14 }, // doesn't work
+        DEFAULT_APY_RANGE: { min: 30, max: 40 },
       });
 
       const targetApyAt100 = percentToWad(7);
       const lowRateAt100Util = apyToRate(targetApyAt100);
       const lowRateAtTarget = lowRateAt100Util / 4n;
 
-      const targetApyAt100WSTETH_EUSD = percentToWad(30);
-      console.log("targetApyAt100WSTETH_EUSD:", targetApyAt100WSTETH_EUSD);
-      const highRateAt100UtilWSTETH_EUSD = apyToRate(targetApyAt100WSTETH_EUSD);
-      console.log("highRateAt100UtilWSTETH_EUSD:", highRateAt100UtilWSTETH_EUSD);
-      const highRateAtTargetWSTETH_EUSD = highRateAt100UtilWSTETH_EUSD / 4n;
+      // For 16-20% APY range, we need a rateAtTarget that gives ~18% APY at 90% util
+      // The IRM curve: at 90% util, rate = rateAtTarget; at 100% util, rate = 4x rateAtTarget
+      const targetApyAt90WSTETH_EUSD = percentToWad(18); // Middle of 16-20% range
+      console.log("targetApyAt90WSTETH_EUSD:", targetApyAt90WSTETH_EUSD);
+      const highRateAtTargetWSTETH_EUSD = apyToRate(targetApyAt90WSTETH_EUSD);
       console.log("highRateAtTargetWSTETH_EUSD:", highRateAtTargetWSTETH_EUSD);
+      const highRateAt100UtilWSTETH_EUSD = highRateAtTargetWSTETH_EUSD * 4n;
+      console.log("highRateAt100UtilWSTETH_EUSD:", highRateAt100UtilWSTETH_EUSD);
 
-      const rateToAPYHighestUtilization = rateToApy(highRateAt100UtilWSTETH_EUSD);
-      const rateToAPYHighestAtTarget = rateToApy(highRateAtTargetWSTETH_EUSD);
-      console.log("rateToAPYHighestUtilization:", rateToAPYHighestUtilization);
-      console.log("rateToAPYHighestAtTarget:", rateToAPYHighestAtTarget);
+      const rateToAPYAt90 = rateToApy(highRateAtTargetWSTETH_EUSD);
+      const rateToAPYAt100 = rateToApy(highRateAt100UtilWSTETH_EUSD);
+      console.log("rateToAPYAt90 (target):", rateToAPYAt90);
+      console.log("rateToAPYAt100:", rateToAPYAt100);
 
       // const targetApyAt100 = percentToWad(10);
       // const highRateAtTarget = parseUnits("0.10", 18) / (365n * 24n * 60n * 60n);
