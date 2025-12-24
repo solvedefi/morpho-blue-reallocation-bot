@@ -1,8 +1,9 @@
 import { Range } from "@morpho-blue-reallocation-bot/config";
-import { Address, Hex, maxUint184, maxUint256, parseUnits, zeroAddress } from "viem";
+import { Address, Hex, maxUint184, maxUint256, parseEther, parseUnits, zeroAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { describe, expect, it } from "vitest";
 
+import { MarketState } from "../../../src/contracts/types.js";
 import { ApyRange } from "../../../src/strategies/apyRange/index.js";
 import {
   apyToRate,
@@ -94,6 +95,20 @@ function createVaultData(vaultAddress: Address, marketsData: VaultMarketData[]):
   return { vaultAddress, marketsData: marketsMap };
 }
 
+function calculateApyFromState(vaultMarketData: VaultMarketData, rateAtTarget: bigint): bigint {
+  const utilization = getUtilization(vaultMarketData.state);
+
+  const { newRateAtTarget } = calculateBorrowRate(
+    vaultMarketData.state,
+    rateAtTarget,
+    BigInt(Math.floor(Date.now() / 1000)),
+  );
+
+  const actualRate = utilizationToRate(utilization, newRateAtTarget);
+  const apy = rateToApy(actualRate);
+
+  return apy;
+}
 describe("apyRange strategy - unit tests", () => {
   const EUSD_VAULT_ADDRESS = "0xbb819D845b573B5D7C538F5b85057160cfb5f313" as Address;
 
@@ -736,9 +751,10 @@ describe("apyRange strategy - unit tests", () => {
     // });
 
     it("should keep one market at 100% utilization and withdraw from the other market", () => {
+      const DEFAULT_APY_RANGE = { min: 30, max: 40 };
       const strategy = new StrategyMock({
         ...TEST_CONFIG_NO_IDLE,
-        DEFAULT_APY_RANGE: { min: 30, max: 40 },
+        DEFAULT_APY_RANGE,
       });
 
       const targetApyAt100 = percentToWad(7);
@@ -748,21 +764,8 @@ describe("apyRange strategy - unit tests", () => {
       // For 16-20% APY range, we need a rateAtTarget that gives ~18% APY at 90% util
       // The IRM curve: at 90% util, rate = rateAtTarget; at 100% util, rate = 4x rateAtTarget
       const targetApyAt90WSTETH_EUSD = percentToWad(18); // Middle of 16-20% range
-      console.log("targetApyAt90WSTETH_EUSD:", targetApyAt90WSTETH_EUSD);
       const highRateAtTargetWSTETH_EUSD = apyToRate(targetApyAt90WSTETH_EUSD);
-      console.log("highRateAtTargetWSTETH_EUSD:", highRateAtTargetWSTETH_EUSD);
       const highRateAt100UtilWSTETH_EUSD = highRateAtTargetWSTETH_EUSD * 4n;
-      console.log("highRateAt100UtilWSTETH_EUSD:", highRateAt100UtilWSTETH_EUSD);
-
-      const rateToAPYAt90 = rateToApy(highRateAtTargetWSTETH_EUSD);
-      const rateToAPYAt100 = rateToApy(highRateAt100UtilWSTETH_EUSD);
-      console.log("rateToAPYAt90 (target):", rateToAPYAt90);
-      console.log("rateToAPYAt100:", rateToAPYAt100);
-
-      // const targetApyAt100 = percentToWad(10);
-      // const highRateAtTarget = parseUnits("0.10", 18) / (365n * 24n * 60n * 60n);
-      // const highRateAt100Util = apyToRate(targetApyAt100);
-      // console.log("highRateAt100Util:", highRateAt100Util);
 
       // Market 1: rateAt100Utilization < max APY (should withdraw to 100% util)
       const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
@@ -806,43 +809,9 @@ describe("apyRange strategy - unit tests", () => {
         vaultMarketDataIdle,
       ]);
       const result = strategy.findReallocation(vaultData);
-      console.log("result:", result);
 
       expect(result).toBeDefined();
       if (!result) return;
-
-      // for (const reallocation of result) {
-      //   console.log(
-      //     "reallocation.marketParams.collateralToken:",
-      //     reallocation.marketParams.collateralToken,
-      //   );
-      //   console.log("reallocation.assets:", reallocation.assets);
-      //   console.log();
-      // }
-      // expect(result.length).toBeGreaterThan(0);
-
-      // const market1Allocation = result.find(
-      //   (a) => a.marketParams.collateralToken === MOCK_MARKET_PARAMS.collateralToken,
-      // );
-      // const market2Allocation = result.find(
-      //   (a) => a.marketParams.collateralToken === MOCK_MARKET_PARAMS_2.collateralToken,
-      // );
-
-      // // Market 1 should have withdrawal to push to 100% util
-      // expect(market1Allocation).toBeDefined();
-      // if (market1Allocation) {
-      //   // The withdrawal should equal totalBorrowAssets (to push util to 100%)
-      //   expect(market1Allocation.assets).toBe(parseUnits("5000", 6));
-      // }
-
-      // // Market 2 might receive deposit from market 1's withdrawal
-      // if (market2Allocation) {
-      //   // Market 2 should receive a deposit (either maxUint256 or more than current vaultAssets)
-      //   const isDeposit =
-      //     market2Allocation.assets === maxUint256 ||
-      //     market2Allocation.assets > parseUnits("5000", 6);
-      //   expect(isDeposit).toBe(true);
-      // }
 
       expect(result[0]).toBeDefined();
       if (!result[0]) return;
@@ -861,34 +830,17 @@ describe("apyRange strategy - unit tests", () => {
         lowRateAt100Util,
       );
 
-      const BSDETH_EUSD_utilizationAfterReallocation = getUtilization(
-        vaultMarketData_BSDETH_EUSD_afterReallocation.state,
-      );
-      console.log(
-        "BSDETH_EUSD_utilizationAfterReallocation:",
-        BSDETH_EUSD_utilizationAfterReallocation,
-      );
-
-      const { newRateAtTarget: newRateAtTarget_BSDETH_EUSD } = calculateBorrowRate(
-        vaultMarketData_BSDETH_EUSD_afterReallocation.state,
+      const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
+        vaultMarketData_BSDETH_EUSD_afterReallocation,
         lowRateAtTarget,
-        BigInt(Math.floor(Date.now() / 1000)),
-      );
-      console.log(
-        "newRateAtTarget for BSDETH_EUSD after reallocation:",
-        newRateAtTarget_BSDETH_EUSD,
       );
 
-      // Calculate actual rate at current utilization, then convert to APY
-      const actualRate_BSDETH_EUSD = utilizationToRate(
-        BSDETH_EUSD_utilizationAfterReallocation,
-        newRateAtTarget_BSDETH_EUSD,
+      const apy_BSDETH_EUSD = parseFloat(
+        (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
       );
-      const apy_BSDETH_EUSD_afterReallocation = rateToApy(actualRate_BSDETH_EUSD);
-      console.log(
-        "apy for BSDETH_EUSD after reallocation (at current utilization):",
-        (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toString(),
-      );
+
+      // we should have exactly 7% since the curve haven't shifted yet
+      expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(targetApyAt100 / 10n ** 16n);
 
       const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
         MARKET_ID_BSDETH_EUSD as Hex,
@@ -901,34 +853,17 @@ describe("apyRange strategy - unit tests", () => {
         highRateAt100UtilWSTETH_EUSD,
       );
 
-      const WSTETH_EUSD_utilizationAfterReallocation = getUtilization(
-        vaultMarketData_WSTETH_EUSD_afterReallocation.state,
-      );
-      console.log(
-        "WSTETH_EUSD_utilizationAfterReallocation:",
-        WSTETH_EUSD_utilizationAfterReallocation,
-      );
-
-      const { newRateAtTarget: newRateAtTarget_WSTETH_EUSD } = calculateBorrowRate(
-        vaultMarketData_WSTETH_EUSD_afterReallocation.state,
+      const apy_WSTETH_EUSD_afterReallocation = calculateApyFromState(
+        vaultMarketData_WSTETH_EUSD_afterReallocation,
         highRateAtTargetWSTETH_EUSD,
-        BigInt(Math.floor(Date.now() / 1000)),
-      );
-      console.log(
-        "newRateAtTarget for WSTETH_EUSD after reallocation:",
-        newRateAtTarget_WSTETH_EUSD,
       );
 
-      // Calculate actual rate at current utilization, then convert to APY
-      const actualRate_WSTETH_EUSD = utilizationToRate(
-        WSTETH_EUSD_utilizationAfterReallocation,
-        newRateAtTarget_WSTETH_EUSD,
+      const apy_WSTETH_EUSD = parseFloat(
+        (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toFixed(1),
       );
-      const apy_WSTETH_EUSD_afterReallocation = rateToApy(actualRate_WSTETH_EUSD);
-      console.log(
-        "apy for WSTETH_EUSD after reallocation (at current utilization):",
-        (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toString(),
-      );
+
+      expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+      expect(apy_WSTETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max + 1);
     });
 
     // it("should not reallocate when rateAt100Utilization is above or equal to max APY", async () => {
