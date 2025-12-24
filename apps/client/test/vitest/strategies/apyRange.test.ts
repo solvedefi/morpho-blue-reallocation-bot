@@ -530,6 +530,7 @@ describe("apyRange strategy - unit tests", () => {
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
       DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
     });
 
     // Market 1: Low utilization (40%), APY below min (3%)
@@ -561,9 +562,22 @@ describe("apyRange strategy - unit tests", () => {
       rateAt100Util,
     );
 
+    // Idle market with liquidity to withdraw from
+    const vaultMarketData_IDLE = createVaultMarketData(
+      MARKET_ID_IDLE_EUSD as Hex,
+      parseUnits("5000", 18), // Available liquidity in idle
+      0n, // No borrows in idle
+      parseUnits("5000", 18),
+      parseUnits("1000000", 18),
+      0n,
+      IDLE_MARKET_PARAMS_EUSD,
+      0n,
+    );
+
     const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
       vaultMarketData_BSDETH_EUSD,
       vaultMarketData_WSTETH_EUSD,
+      vaultMarketData_IDLE,
     ]);
     const result = strategy.findReallocation(vaultData);
 
@@ -618,21 +632,14 @@ describe("apyRange strategy - unit tests", () => {
       (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    console.log("apy_BSDETH_EUSD:", apy_BSDETH_EUSD);
-
-    // After withdrawal, utilization should increase, APY should be within range
-    // // Specifically, it should be at the lower bound
-    // expect(apy_BSDETH_EUSD).toBeCloseTo(DEFAULT_APY_RANGE.min, 1);
+    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+    expect(apy_BSDETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
 
     if (!wstethAllocation) throw new Error("WSTETH allocation not found");
-    const apy_WSTETH_EUSD_before = calculateApyFromState(vaultMarketData_WSTETH_EUSD, rateAtTarget);
-    const apyBeforeWsteth = parseFloat((Number(apy_WSTETH_EUSD_before) / 1e16).toFixed(1));
-    expect(apyBeforeWsteth).toBeGreaterThan(DEFAULT_APY_RANGE.max);
 
     let newWstethAssets: bigint;
     if (wstethAllocation.assets === maxUint256) {
       // Calculate deposit amount from withdrawal
-      if (!bsdethAllocation) throw new Error("bsdethAllocation not found");
       const withdrawalAmount = vaultMarketData_BSDETH_EUSD.vaultAssets - bsdethAllocation.assets;
       newWstethAssets = vaultMarketData_WSTETH_EUSD.vaultAssets + withdrawalAmount;
     } else {
@@ -659,10 +666,7 @@ describe("apyRange strategy - unit tests", () => {
       (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    console.log("apy_WSTETH_EUSD:", apy_WSTETH_EUSD);
-
-    // // After deposit, utilization should decrease, APY should be within range
-    // // Specifically, it should be at the upper bound
-    // expect(apy_WSTETH_EUSD).toBeCloseTo(DEFAULT_APY_RANGE.max, 1);
+    expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+    expect(apy_WSTETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
   });
 });
