@@ -43,6 +43,7 @@ async function main() {
       client,
       config.vaultWhitelist,
       new ApyRange(),
+      // new ApyRange(client),
       conf,
     );
 

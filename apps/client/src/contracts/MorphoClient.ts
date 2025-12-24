@@ -2,9 +2,11 @@ import { Address, type Account, type Chain, type Client, type Transport } from "
 import { readContract } from "viem/actions";
 
 import { Config } from "../../../config/dist/types";
+import { irmAbi } from "../../abis/IRM";
 import { metaMorphoAbi } from "../../abis/MetaMorpho";
 import { adaptiveCurveIrmAbi } from "../../test/abis/AdaptiveCurveIrm";
 import { morphoBlueAbi } from "../../test/abis/MorphoBlue";
+import { rateToApy } from "../utils/maths";
 import { MarketParams, MarketState, VaultData, VaultMarketData } from "../utils/types";
 
 import { accrueInterest, toAssetsDown } from "./helpers";
@@ -41,7 +43,7 @@ export class MorphoClient {
     const marketIdsFromWithdrawQueue = await Promise.all(withdrawQueueCalls);
     const result: VaultData = {
       vaultAddress,
-      marketsData: [],
+      marketsData: new Map<`0x${string}`, VaultMarketData>(),
     };
 
     for (const marketId of marketIdsFromWithdrawQueue) {
@@ -89,7 +91,8 @@ export class MorphoClient {
         functionName: "config",
         args: [marketId as `0x${string}`],
       });
-      const cap = config[0];
+
+      const supplyCap = config[0];
 
       const position = await readContract(this.client, {
         address: this.config.morpho.address,
@@ -117,14 +120,69 @@ export class MorphoClient {
         id: marketId as `0x${string}`,
         params: marketParamsStruct,
         state: accuredState,
-        cap: BigInt(cap),
+        cap: BigInt(supplyCap),
         vaultAssets,
         rateAtTarget: accuredRateAtTarget,
+        rate: 0n,
+        rateAt100Utilization: 0n,
       };
 
-      result.marketsData.push(vaultMarketData);
+      vaultMarketData.rate = await this.calculateRate(vaultMarketData);
+      vaultMarketData.rateAt100Utilization =
+        await this.calculateRateAt100Utilization(vaultMarketData);
+
+      result.marketsData.set(marketId as `0x${string}`, vaultMarketData);
     }
 
     return result;
+  }
+
+  private async fetchRate(vaultMarketData: VaultMarketData): Promise<bigint> {
+    if (vaultMarketData.params.irm === "0x0000000000000000000000000000000000000000") {
+      return 0n;
+    }
+
+    const borrowRate = await readContract(this.client, {
+      address: vaultMarketData.params.irm,
+      abi: irmAbi,
+      functionName: "borrowRateView",
+      args: [
+        {
+          loanToken: vaultMarketData.params.loanToken,
+          collateralToken: vaultMarketData.params.collateralToken,
+          oracle: vaultMarketData.params.oracle,
+          irm: vaultMarketData.params.irm,
+          lltv: vaultMarketData.params.lltv,
+        },
+        {
+          totalSupplyAssets: vaultMarketData.state.totalSupplyAssets,
+          totalSupplyShares: vaultMarketData.state.totalSupplyShares,
+          totalBorrowAssets: vaultMarketData.state.totalBorrowAssets,
+          totalBorrowShares: vaultMarketData.state.totalBorrowShares,
+          lastUpdate: vaultMarketData.state.lastUpdate,
+          fee: vaultMarketData.state.fee,
+        },
+      ],
+    });
+
+    return borrowRate;
+  }
+
+  // returns borrow apy decimal (e.g. 0.05 for 5%)
+  async calculateRate(vaultMarketData: VaultMarketData): Promise<bigint> {
+    const borrowRate = await this.fetchRate(vaultMarketData);
+    const borrowApy = rateToApy(borrowRate);
+
+    return borrowApy;
+  }
+
+  // returns borrow apy decimal (e.g. 0.05 for 5%)
+  async calculateRateAt100Utilization(vaultMarketData: VaultMarketData): Promise<bigint> {
+    // we want to remove all excess supply assets, so that utilization is 100%
+    const vaultMarketDataCopy = structuredClone(vaultMarketData);
+    vaultMarketDataCopy.state.totalSupplyAssets = vaultMarketDataCopy.state.totalBorrowAssets;
+    vaultMarketDataCopy.state.totalSupplyShares = vaultMarketDataCopy.state.totalBorrowShares;
+
+    return await this.calculateRate(vaultMarketDataCopy);
   }
 }

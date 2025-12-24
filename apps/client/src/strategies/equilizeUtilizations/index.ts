@@ -16,7 +16,7 @@ import { Strategy } from "../strategy";
 
 export class EquilizeUtilizations implements Strategy {
   findReallocation(vaultData: VaultData) {
-    const marketsData = vaultData.marketsData.filter((marketData) => {
+    const marketsData = Array.from(vaultData.marketsData.values()).filter((marketData) => {
       return (
         // idle market
         marketData.params.collateralToken !== zeroAddress &&
@@ -51,7 +51,7 @@ export class EquilizeUtilizations implements Strategy {
 
       didExceedMinUtilizationDelta ||=
         Math.abs(Number((utilization - targetUtilization) / 1_000_000_000n) / 1e5) >
-        this.getMinUtilizationDeltaBips(marketData.chainId, marketData.id);
+        this.getMinUtilizationDeltaBips(marketData.chainId, vaultData.vaultAddress);
     }
 
     const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
