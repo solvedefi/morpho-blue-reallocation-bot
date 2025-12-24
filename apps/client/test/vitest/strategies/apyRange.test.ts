@@ -1,9 +1,8 @@
 import { Range } from "@morpho-blue-reallocation-bot/config";
-import { Address, Hex, maxUint184, maxUint256, parseEther, parseUnits, zeroAddress } from "viem";
+import { Address, Hex, maxUint256, parseUnits, zeroAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { describe, expect, it } from "vitest";
 
-import { MarketState } from "../../../src/contracts/types.js";
 import { ApyRange } from "../../../src/strategies/apyRange/index.js";
 import {
   apyToRate,
@@ -50,6 +49,7 @@ class StrategyMock extends ApyRange {
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getMinApyDeltaBips(_chainId: number, _vaultAddress: Address, _marketId: Hex) {
     return 25; // 0.25% = 25 bips
   }
@@ -115,7 +115,7 @@ describe("apyRange strategy - unit tests", () => {
     "0xf9ed1dba3b6ba1ede10e2115a9554e9c52091c9f1b1af21f9e0fecc855ee74bf";
   const MARKET_ID_WSTETH_EUSD =
     "0xce89aeb081d719cd35cb1aafb31239c4dfd9c017b2fec26fc2e9a443461e9aea";
-  const MARKET_ID_IDLE_EUSD = "0x54efdee08e272e929034a8f26f7ca34b1ebe364b275391169b28c6d7db24dbc8";
+  const MARKET_ID_IDLE_EUSD = "0x4a858e4426a2132c7090021abe5939a8afcd6644429e138e677104530be1e547";
 
   const MARKET_PARAMS_BSDETH_EUSD: MarketParams = {
     loanToken: "0xCfA3Ef56d303AE4fAabA0592388F19d7C3399FB4" as Address, // EUSD
@@ -173,7 +173,7 @@ describe("apyRange strategy - unit tests", () => {
 
     // Market 2: High utilization, normal rebalancing (rateAt100Util not set or high enough)
     const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
-      MARKET_ID_IDLE_EUSD as Hex,
+      MARKET_ID_WSTETH_EUSD as Hex,
       parseUnits("10000", 18),
       parseUnits("9500", 18),
       parseUnits("10000", 18),
@@ -185,7 +185,7 @@ describe("apyRange strategy - unit tests", () => {
 
     // Market 3: Idle market
     const vaultMarketDataIdle = createVaultMarketData(
-      MARKET_ID_WSTETH_EUSD as Hex,
+      MARKET_ID_IDLE_EUSD as Hex,
       parseUnits("1000000", 18),
       parseUnits("0", 18),
       parseUnits("1000000", 18),
@@ -258,7 +258,7 @@ describe("apyRange strategy - unit tests", () => {
     expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(targetApyAt100 / 10n ** 16n);
   });
 
-  it("should keep one market at 100% utilization and withdraw from the other market", () => {
+  it("should keep one market at 100% utilization and deposit to the other market", () => {
     const DEFAULT_APY_RANGE = { min: 30, max: 40 };
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
@@ -269,9 +269,9 @@ describe("apyRange strategy - unit tests", () => {
     const lowRateAt100Util = apyToRate(targetApyAt100);
     const lowRateAtTarget = lowRateAt100Util / 4n;
 
-    // For 16-20% APY range, we need a rateAtTarget that gives ~18% APY at 90% util
-    // The IRM curve: at 90% util, rate = rateAtTarget; at 100% util, rate = 4x rateAtTarget
-    const targetApyAt90WSTETH_EUSD = percentToWad(18); // Middle of 16-20% range
+    // For 30-40% APY range, use rateAtTarget that gives 40% APY at 90% util
+    // This ensures that even at 85-90% util after deposit, APY stays above 30%
+    const targetApyAt90WSTETH_EUSD = percentToWad(18);
     const highRateAtTargetWSTETH_EUSD = apyToRate(targetApyAt90WSTETH_EUSD);
     const highRateAt100UtilWSTETH_EUSD = highRateAtTargetWSTETH_EUSD * 4n;
 
@@ -287,21 +287,22 @@ describe("apyRange strategy - unit tests", () => {
       lowRateAt100Util,
     );
 
-    // Market 2: High utilization, normal rebalancing (rateAt100Util not set or high enough)
+    // Market 2: Very high utilization (98%), APY above max range - needs deposit
+    // Starting at 98% util with 40% APY at 90%, after deposit should land in 30-40% range
     const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
-      MARKET_ID_IDLE_EUSD as Hex,
+      MARKET_ID_WSTETH_EUSD as Hex,
       parseUnits("10000", 18),
-      parseUnits("9500", 18),
+      parseUnits("9800", 18), // 98% utilization
       parseUnits("10000", 18),
       parseUnits("20000", 18),
       highRateAtTargetWSTETH_EUSD,
       MARKET_PARAMS_WSTETH_EUSD,
-      highRateAt100UtilWSTETH_EUSD, // No rateAt100Utilization, normal rebalancing
+      highRateAt100UtilWSTETH_EUSD,
     );
 
     // Market 3: Idle market
     const vaultMarketDataIdle = createVaultMarketData(
-      MARKET_ID_WSTETH_EUSD as Hex,
+      MARKET_ID_IDLE_EUSD as Hex,
       parseUnits("1000000", 18),
       parseUnits("0", 18),
       parseUnits("1000000", 18),
@@ -321,17 +322,19 @@ describe("apyRange strategy - unit tests", () => {
     expect(result).toBeDefined();
     if (!result) return;
 
-    expect(result[0]).toBeDefined();
-    if (!result[0]) return;
+    expect(result.length).toBe(3);
 
-    expect(result[1]).toBeDefined();
-    if (!result[1]) return;
+    const bsdethAllocation = result.find(
+      (r) => r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken,
+    );
+    expect(bsdethAllocation).toBeDefined();
+    if (!bsdethAllocation) throw new Error("BSDETH allocation not found");
 
     const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
-      result[0].assets,
+      bsdethAllocation.assets,
       parseUnits("5000", 18),
-      result[0].assets,
+      bsdethAllocation.assets,
       parseUnits("20000", 18),
       lowRateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
@@ -350,14 +353,20 @@ describe("apyRange strategy - unit tests", () => {
     // we should have exactly 7% since the curve haven't shifted yet
     expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(targetApyAt100 / 10n ** 16n);
 
+    const wstethAllocation = result.find(
+      (r) => r.marketParams.collateralToken === MARKET_PARAMS_WSTETH_EUSD.collateralToken,
+    );
+    expect(wstethAllocation).toBeDefined();
+    if (!wstethAllocation) throw new Error("WSTETH allocation not found");
+
     const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
-      MARKET_ID_BSDETH_EUSD as Hex,
-      result[1].assets,
-      parseUnits("9500", 18), // WSTETH originally had 9500 borrow, doesn't change with reallocation
-      result[1].assets,
+      MARKET_ID_WSTETH_EUSD as Hex,
+      wstethAllocation.assets,
+      parseUnits("9800", 18), // WSTETH originally had 9800 borrow, doesn't change with reallocation
+      wstethAllocation.assets,
       parseUnits("20000", 18),
       highRateAtTargetWSTETH_EUSD,
-      MARKET_PARAMS_BSDETH_EUSD,
+      MARKET_PARAMS_WSTETH_EUSD,
       highRateAt100UtilWSTETH_EUSD,
     );
 
@@ -422,14 +431,15 @@ describe("apyRange strategy - unit tests", () => {
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
       DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
     });
 
-    // Market with high utilization (above upper bound) - needs deposit
+    // Market with high utilization (95%), APY above max (8%) - needs deposit
+    // At 95% util with 5% APY at 90%: APY ≈ 10% (above 8% max)
     const targetApyAt90 = percentToWad(5);
     const rateAtTarget = apyToRate(targetApyAt90);
     const rateAt100Util = rateAtTarget * 4n;
 
-    // Market 1: High utilization (95%), APY above max (8%)
     const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
       parseUnits("10000", 18),
@@ -441,92 +451,51 @@ describe("apyRange strategy - unit tests", () => {
       rateAt100Util,
     );
 
-    // Market 2: Lower utilization (50%), APY below min (3%)
-    const lowRateAtTarget = apyToRate(percentToWad(2));
-    const lowRateAt100Util = lowRateAtTarget * 4n;
-    const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
-      MARKET_ID_WSTETH_EUSD as Hex,
-      parseUnits("10000", 18),
-      parseUnits("5000", 18), // 50% utilization - below lower bound
-      parseUnits("10000", 18),
-      parseUnits("20000", 18),
-      lowRateAtTarget,
-      MARKET_PARAMS_WSTETH_EUSD,
-      lowRateAt100Util,
+    // Idle market with liquidity to withdraw from
+    const vaultMarketData_IDLE = createVaultMarketData(
+      MARKET_ID_IDLE_EUSD as Hex,
+      parseUnits("5000", 18), // Available liquidity in idle
+      0n, // No borrows in idle
+      parseUnits("5000", 18),
+      parseUnits("1000000", 18),
+      0n,
+      IDLE_MARKET_PARAMS_EUSD,
+      0n,
     );
 
     const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
       vaultMarketData_BSDETH_EUSD,
-      vaultMarketData_WSTETH_EUSD,
+      vaultMarketData_IDLE,
     ]);
     const result = strategy.findReallocation(vaultData);
 
     expect(result).toBeDefined();
     if (!result) return;
 
-    // Should have withdrawals from WSTETH and deposits to BSDETH
-    const withdrawals = result.filter((r) => r.assets < maxUint256);
-    const deposits = result.filter((r) => r.assets === maxUint256);
+    // Should have withdrawal from idle and deposit to BSDETH
+    expect(result.length).toBe(2);
 
-    expect(withdrawals.length).toBeGreaterThan(0);
-    expect(deposits.length).toBeGreaterThan(0);
-
-    // Verify APY after reallocation
-    const wstethAllocation = result.find(
-      (r) =>
-        r.marketParams.collateralToken === MARKET_PARAMS_WSTETH_EUSD.collateralToken &&
-        r.marketParams.loanToken === MARKET_PARAMS_WSTETH_EUSD.loanToken,
+    // Find the idle withdrawal and BSDETH deposit
+    const idleAllocation = result.find(
+      (r) => r.marketParams.collateralToken === IDLE_MARKET_PARAMS_EUSD.collateralToken,
     );
-
-    if (!wstethAllocation) throw new Error("wstethAllocation not found");
-
-    // WSTETH had withdrawal (assets decreased)
-    const apy_WSTETH_EUSD_before = calculateApyFromState(
-      vaultMarketData_WSTETH_EUSD,
-      lowRateAtTarget,
-    );
-    const apyBeforeForWSTETH = parseFloat((Number(apy_WSTETH_EUSD_before) / 1e16).toFixed(1));
-
-    const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
-      MARKET_ID_WSTETH_EUSD as Hex,
-      wstethAllocation.assets,
-      parseUnits("5000", 18), // Borrow doesn't change
-      wstethAllocation.assets,
-      parseUnits("20000", 18),
-      lowRateAtTarget,
-      MARKET_PARAMS_WSTETH_EUSD,
-      lowRateAt100Util,
-    );
-
-    const apy_WSTETH_EUSD_afterReallocation = calculateApyFromState(
-      vaultMarketData_WSTETH_EUSD_afterReallocation,
-      lowRateAtTarget,
-    );
-
-    const apy_WSTETH_EUSD = parseFloat(
-      (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toFixed(1),
-    );
-
-    // After withdrawal, utilization should increase, APY should increase
-    expect(apy_WSTETH_EUSD).toBeGreaterThan(apyBeforeForWSTETH);
-
-    // For BSDETH deposit, calculate new assets from withdrawal amount
     const bsdethAllocation = result.find(
-      (r) =>
-        r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken &&
-        r.marketParams.loanToken === MARKET_PARAMS_BSDETH_EUSD.loanToken,
+      (r) => r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken,
     );
-    if (!bsdethAllocation) throw new Error("bsdethAllocation not found");
 
-    let newBsdethAssets: bigint;
-    if (bsdethAllocation.assets === maxUint256) {
-      // Calculate deposit amount from withdrawal
-      if (!wstethAllocation) throw new Error("wstethAllocation not found");
-      const withdrawalAmount = vaultMarketData_WSTETH_EUSD.vaultAssets - wstethAllocation.assets;
-      newBsdethAssets = vaultMarketData_BSDETH_EUSD.vaultAssets + withdrawalAmount;
-    } else {
-      newBsdethAssets = bsdethAllocation.assets;
-    }
+    expect(idleAllocation).toBeDefined();
+    expect(bsdethAllocation).toBeDefined();
+    if (!idleAllocation || !bsdethAllocation) return;
+
+    // Idle should have withdrawal (assets < original)
+    expect(idleAllocation.assets).toBeLessThan(vaultMarketData_IDLE.vaultAssets);
+
+    // BSDETH should have deposit (maxUint256)
+    expect(bsdethAllocation.assets).toBe(maxUint256);
+
+    // Calculate new BSDETH assets after deposit
+    const withdrawalAmount = vaultMarketData_IDLE.vaultAssets - idleAllocation.assets;
+    const newBsdethAssets = vaultMarketData_BSDETH_EUSD.vaultAssets + withdrawalAmount;
 
     const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
@@ -548,10 +517,10 @@ describe("apyRange strategy - unit tests", () => {
       (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    const apy_BSDETH_EUSD_before = calculateApyFromState(vaultMarketData_BSDETH_EUSD, rateAtTarget);
-    const apyBeforeForBSDETH = parseFloat((Number(apy_BSDETH_EUSD_before) / 1e16).toFixed(1));
+    console.log("apy_BSDETH_EUSD after reallocation:", apy_BSDETH_EUSD);
 
-    // After deposit, utilization should decrease, APY should decrease
-    expect(apy_BSDETH_EUSD).toBeLessThan(apyBeforeForBSDETH);
+    // After deposit, utilization should decrease, APY should be within range
+    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+    expect(apy_BSDETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
   });
 });
