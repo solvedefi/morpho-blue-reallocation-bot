@@ -108,13 +108,15 @@ export class ApyRange implements Strategy {
 
       // Check if we need to push to 100% utilization to trigger Adaptive IRM curve shift.
       // This happens when even at 100% utilization, the current APY would be below our target range.
-      if (
-        marketData.rateAt100Utilization &&
-        rateToApy(marketData.rateAt100Utilization) < apyRange.max
-      ) {
-        const amountToWithdraw =
-          marketData.state.totalSupplyAssets - marketData.state.totalBorrowAssets;
-        totalDepositableAmount += amountToWithdraw;
+      if (marketData.rateAt100Utilization && marketData.rateAt100Utilization < apyRange.max) {
+        // vaultsAssets is the assets owned by our vault
+        // so we is the difference between the total supply and the total borrow is higher
+        // then we're trying to withdraw funds from another vault allocated to this market
+        const amountToWithdraw = min(
+          marketData.vaultAssets,
+          marketData.state.totalSupplyAssets - marketData.state.totalBorrowAssets,
+        );
+        totalWithdrawableAmount += amountToWithdraw;
 
         // setting this to true because if the range is not
         // within the irm curve, then we already exceeded
@@ -197,13 +199,22 @@ export class ApyRange implements Strategy {
         // We push utilization to 100% so that the Adaptive IRM curve can shift up and introduce higher rates.
         // This is done by withdrawing everything except what is needed to cover current borrows.
 
-        const buffer = (marketData.state.totalBorrowAssets * 2n) / 100n; // 5% buffer
-        const assets = marketData.state.totalBorrowAssets + buffer;
-        // const assets = marketData.state.totalBorrowAssets;
+        const amountToWithdraw = min(
+          marketData.vaultAssets,
+          marketData.state.totalSupplyAssets - marketData.state.totalBorrowAssets,
+        );
+
+        const withdrawal = min(amountToWithdraw, remainingWithdrawal);
+        const buffer = (withdrawal * 2n) / 100n; // 2% buffer
+
+        const withdrawalWithBuffer = withdrawal - buffer;
+        // const withdrawalWithBuffer = withdrawal;
+
+        remainingWithdrawal -= withdrawalWithBuffer;
 
         withdrawals.push({
           marketParams: marketData.params,
-          assets: min(assets, marketData.vaultAssets),
+          assets: marketData.vaultAssets - withdrawalWithBuffer,
         });
       } else {
         if (utilization > upperUtilizationBound) {
@@ -261,23 +272,23 @@ export class ApyRange implements Strategy {
       return reallocation.assets === maxUint256 || cap > reallocation.assets;
     });
 
-    // console.log();
-    // for (const reallocation of reallocationFilteredByCap) {
-    //   const marketId = this.calculateMarketId(reallocation.marketParams);
-    //   const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+    console.log();
+    for (const reallocation of reallocationFilteredByCap) {
+      const marketId = this.calculateMarketId(reallocation.marketParams);
+      const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
 
-    //   console.log("marketId:", marketId);
-    //   console.log("collateralToken:", reallocation.marketParams.collateralToken);
-    //   console.log("loanToken:", reallocation.marketParams.loanToken);
-    //   console.log("oracle:", reallocation.marketParams.oracle);
-    //   console.log("irm:", reallocation.marketParams.irm);
-    //   console.log("lltv:", reallocation.marketParams.lltv);
-    //   console.log("assets:", reallocation.assets);
-    //   console.log("cap:", cap);
+      console.log("marketId:", marketId);
+      console.log("collateralToken:", reallocation.marketParams.collateralToken);
+      console.log("loanToken:", reallocation.marketParams.loanToken);
+      console.log("oracle:", reallocation.marketParams.oracle);
+      console.log("irm:", reallocation.marketParams.irm);
+      console.log("lltv:", reallocation.marketParams.lltv);
+      console.log("assets:", reallocation.assets);
+      console.log("cap:", cap);
 
-    //   console.log();
-    // }
-    // console.log();
+      console.log();
+    }
+    console.log();
 
     return reallocationFilteredByCap;
   }
