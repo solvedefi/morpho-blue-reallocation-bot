@@ -126,8 +126,41 @@ The bot uses by default an `EquilizeUtilizations` strategy that:
 
 The bot can also use the `ApyRange` strategy (if you change the strategy passed to the bot in the `apps/client/src/index.ts` file).
 
-This strategy tries to keep vaults listed markets borrow APY within the ranges defined in `apps/config/src/strategies/apyRange.ts`.
+This strategy tries to keep vaults listed markets borrow APY within the ranges defined in the PostgreSQL database.
 Ranges can be defined at the global level, at the vaults level, or/and at the markets level.
+
+### Database Configuration
+
+The APY ranges are now stored in a PostgreSQL database with three tables:
+- `vault_apy_config`: Vault-specific APY ranges
+- `market_apy_config`: Market-specific APY ranges
+- `apy_strategy_config`: Global strategy configuration
+
+See [apps/client/prisma/README.md](apps/client/prisma/README.md) for detailed database documentation.
+
+#### Quick Start with Database
+
+1. **Start PostgreSQL** (included in docker-compose.yml):
+   ```bash
+   docker compose up -d postgres
+   ```
+
+2. **Run migrations**:
+   ```bash
+   cd apps/client
+   pnpm db:migrate
+   ```
+
+3. **Seed initial data** (migrates config from `apps/config/src/strategies/apyRange.ts`):
+   ```bash
+   pnpm db:seed
+   ```
+
+4. **View/edit configurations** using Prisma Studio:
+   ```bash
+   pnpm db:studio
+   ```
+   Then navigate to http://localhost:5555 to visually manage APY configurations.
 
 ## Run the bot
 

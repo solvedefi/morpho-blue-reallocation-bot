@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: morpho_bot
+      POSTGRES_USER: morpho_user
+      POSTGRES_PASSWORD: morpho_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U morpho_user -d morpho_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
   reallocation_bot:
     build:
       context: .
@@ -9,5 +27,12 @@ services:
     environment:
       - USE_AWS_SECRETS=true
       - AWS_REGION=eu-west-2
+      - DATABASE_URL=postgresql://morpho_user:morpho_password@postgres:5432/morpho_bot
     volumes:
       - ~/.aws:/root/.aws:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
