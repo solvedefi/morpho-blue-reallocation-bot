@@ -108,7 +108,7 @@ export class ApyRange implements Strategy {
 
       // Check if we need to push to 100% utilization to trigger Adaptive IRM curve shift.
       // This happens when even at 100% utilization, the current APY would be below our target range.
-      if (marketData.rateAt100Utilization && marketData.rateAt100Utilization < apyRange.max) {
+      if (marketData.apyAt100Utilization < apyRange.max) {
         // vaultsAssets is the assets owned by our vault
         // so we is the difference between the total supply and the total borrow is higher
         // then we're trying to withdraw funds from another vault allocated to this market
@@ -192,7 +192,7 @@ export class ApyRange implements Strategy {
       );
       const utilization = getUtilization(marketData.state);
 
-      const apyAt100Utilization = marketData.rateAt100Utilization;
+      const apyAt100Utilization = marketData.apyAt100Utilization;
       const apyRangeMax = apyRange.max;
 
       if (apyAt100Utilization && apyAt100Utilization < apyRangeMax) {
@@ -207,10 +207,11 @@ export class ApyRange implements Strategy {
         const withdrawal = min(amountToWithdraw, remainingWithdrawal);
 
         // if the withdrawal is less than 1 token, then we don't need to withdraw
+        // TODO: fix decimals
         if (withdrawal < 10n ** 18n) {
           continue;
         }
-        const buffer = (withdrawal * 2n) / 100n; // 1% buffer
+        const buffer = (withdrawal * 1n) / 100n; // 1% buffer
 
         const withdrawalWithBuffer = withdrawal - buffer;
         // const withdrawalWithBuffer = withdrawal;
@@ -295,6 +296,13 @@ export class ApyRange implements Strategy {
     // }
     // console.log();
 
+    // filter so that we don't waste gas on reallocations containing only idle
+    if (
+      reallocationFilteredByCap.length === 1 &&
+      reallocationFilteredByCap[0]?.assets === maxUint256
+    ) {
+      return undefined;
+    }
     return reallocationFilteredByCap;
   }
 
