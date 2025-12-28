@@ -63,8 +63,7 @@ class StrategyMock extends ApyRange {
     this.testConfig = config;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getMinApyDeltaBips(_chainId: number, _vaultAddress: Address, _marketId: Hex) {
+  getMinApyDeltaBips() {
     return 25; // 0.25% = 25 bips
   }
 }

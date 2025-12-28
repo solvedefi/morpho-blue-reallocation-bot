@@ -29,6 +29,14 @@ export class ReallocationBot {
     this.client = client;
   }
 
+  /**
+   * Update the bot's strategy with new configuration
+   */
+  updateStrategy(strategy: Strategy) {
+    this.strategy = strategy;
+    console.log(`Strategy updated for bot on chain ${this.chainId.toString()}`);
+  }
+
   async run() {
     const { vaultWhitelist } = this;
     const vaultsData = await Promise.all(
@@ -44,6 +52,7 @@ export class ReallocationBot {
           );
           return;
         }
+
         console.log(`Reallocating on ${vaultData.vaultAddress}`);
 
         try {

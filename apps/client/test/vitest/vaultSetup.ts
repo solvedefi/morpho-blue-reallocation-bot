@@ -241,6 +241,7 @@ export async function borrow(client: AnvilTestClient, borrowStructs: BorrowStruc
       address: MORPHO,
       abi: morphoBlueAbi,
       functionName: "borrow",
+      // @ts-expect-error - Type inference issue with writeContract args
       args: [
         borrowStruct.marketParams,
         borrowStruct.loanAmount,

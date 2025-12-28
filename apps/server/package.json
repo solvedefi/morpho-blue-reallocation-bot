@@ -1,0 +1,32 @@
+{
+  "name": "@morpho-blue-reallocation-bot/server",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      }
+    }
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "viem": "^2.21.54"
+  },
+  "devDependencies": {
+    "@hono/node-server": "^1.13.7"
+  }
+}

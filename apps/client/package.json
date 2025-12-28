@@ -9,8 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.7",
     "@morpho-blue-reallocation-bot/config": "workspace:*",
-    "@ponder/client": "^0.9.27"
+    "@morpho-blue-reallocation-bot/server": "workspace:*",
+    "@ponder/client": "^0.9.27",
+    "hono": "^4.6.14"
   },
   "devDependencies": {
     "@morpho-org/test": "^2.1.1",

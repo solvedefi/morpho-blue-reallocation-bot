@@ -143,4 +143,117 @@ export class DatabaseClient {
       defaultMaxApy: parseFloat(config.defaultMaxApy.toString()),
     };
   }
+
+  /**
+   * Create or update APY range for a vault
+   */
+  async upsertVaultApyRange(
+    chainId: number,
+    vaultAddress: Address,
+    minApy: number,
+    maxApy: number,
+  ): Promise<void> {
+    await this.prisma.vaultApyConfig.upsert({
+      where: {
+        unique_vault_config: {
+          chainId,
+          vaultAddress,
+        },
+      },
+      create: {
+        chainId,
+        vaultAddress,
+        minApy,
+        maxApy,
+      },
+      update: {
+        minApy,
+        maxApy,
+      },
+    });
+  }
+
+  /**
+   * Create or update APY range for a market
+   */
+  async upsertMarketApyRange(
+    chainId: number,
+    marketId: Hex,
+    minApy: number,
+    maxApy: number,
+  ): Promise<void> {
+    await this.prisma.marketApyConfig.upsert({
+      where: {
+        unique_market_config: {
+          chainId,
+          marketId,
+        },
+      },
+      create: {
+        chainId,
+        marketId,
+        minApy,
+        maxApy,
+      },
+      update: {
+        minApy,
+        maxApy,
+      },
+    });
+  }
+
+  /**
+   * Update global strategy configuration
+   */
+  async updateApyStrategyConfig(config: {
+    allowIdleReallocation?: boolean;
+    defaultMinApy?: number;
+    defaultMaxApy?: number;
+  }): Promise<void> {
+    // Get or create the first (and only) strategy config
+    let existingConfig = await this.prisma.apyStrategyConfig.findFirst();
+
+    if (!existingConfig) {
+      existingConfig = await this.prisma.apyStrategyConfig.create({
+        data: {
+          allowIdleReallocation: config.allowIdleReallocation ?? true,
+          defaultMinApy: config.defaultMinApy ?? 0,
+          defaultMaxApy: config.defaultMaxApy ?? 10,
+        },
+      });
+    } else {
+      await this.prisma.apyStrategyConfig.update({
+        where: { id: existingConfig.id },
+        data: config,
+      });
+    }
+  }
+
+  /**
+   * Delete APY range for a vault
+   */
+  async deleteVaultApyRange(chainId: number, vaultAddress: Address): Promise<void> {
+    await this.prisma.vaultApyConfig.delete({
+      where: {
+        unique_vault_config: {
+          chainId,
+          vaultAddress,
+        },
+      },
+    });
+  }
+
+  /**
+   * Delete APY range for a market
+   */
+  async deleteMarketApyRange(chainId: number, marketId: Hex): Promise<void> {
+    await this.prisma.marketApyConfig.delete({
+      where: {
+        unique_market_config: {
+          chainId,
+          marketId,
+        },
+      },
+    });
+  }
 }

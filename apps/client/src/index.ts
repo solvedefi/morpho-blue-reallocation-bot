@@ -1,4 +1,7 @@
+import { serve } from "@hono/node-server";
 import { chainConfig, chainConfigs } from "@morpho-blue-reallocation-bot/config";
+import { createServer } from "@morpho-blue-reallocation-bot/server";
+import { type Hono } from "hono";
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
@@ -22,15 +25,9 @@ async function runBotInBackground(bot: ReallocationBot, executionInterval: numbe
   return new Promise<void>(() => {});
 }
 
-async function main() {
-  // Initialize database client and load configuration
-  const dbClient = new DatabaseClient();
-  await dbClient.connect();
-
-  console.log("Loading APY configuration from database...");
-  const apyConfig = await dbClient.loadApyConfiguration();
-  console.log("APY configuration loaded successfully");
-  // Log all the configuration for debugging/inspection
+function logApyConfiguration(
+  apyConfig: Awaited<ReturnType<DatabaseClient["loadApyConfiguration"]>>,
+) {
   console.log("--- APY Configuration ---");
   console.log(`Allow idle reallocation: ${String(apyConfig.allowIdleReallocation)}`);
   console.log(
@@ -63,6 +60,57 @@ async function main() {
       console.log(`    Market ${marketId}: min=${String(range.min)}, max=${String(range.max)}`);
     }
   }
+}
+
+async function main() {
+  // Initialize database client and load configuration
+  const dbClient = new DatabaseClient();
+  await dbClient.connect();
+
+  console.log("Loading APY configuration from database...");
+  let apyConfig = await dbClient.loadApyConfiguration();
+  console.log("APY configuration loaded successfully");
+  logApyConfiguration(apyConfig);
+
+  // Store all bots for configuration reload
+  const bots: ReallocationBot[] = [];
+
+  // Create a callback function to reload configuration and update all bots
+  const reloadConfiguration = async () => {
+    console.log("\n🔄 Configuration change detected. Reloading...");
+    try {
+      const newApyConfig = await dbClient.loadApyConfiguration();
+      apyConfig = newApyConfig;
+
+      console.log("Configuration reloaded successfully");
+      logApyConfiguration(apyConfig);
+
+      // Update all bots with new strategy
+      for (const bot of bots) {
+        const newStrategy = new ApyRange(apyConfig);
+        bot.updateStrategy(newStrategy);
+      }
+
+      console.log("✅ All bots updated with new configuration\n");
+    } catch (error) {
+      console.error("❌ Failed to reload configuration:", error);
+    }
+  };
+
+  // Start the HTTP server with configuration reload callback
+  const server: Hono = createServer(dbClient, reloadConfiguration);
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+
+  console.log(`Starting HTTP server on port ${String(port)}...`);
+  serve(
+    {
+      fetch: server.fetch,
+      port,
+    },
+    (info: { port: number; address: string }) => {
+      console.log(`Server is running on http://localhost:${String(info.port)}`);
+    },
+  );
 
   const botTasks: Promise<void>[] = [];
 
@@ -84,6 +132,9 @@ async function main() {
     const strategy = new ApyRange(apyConfig);
 
     const bot = new ReallocationBot(config.chainId, client, config.vaultWhitelist, strategy, conf);
+
+    // Store bot reference for configuration updates
+    bots.push(bot);
 
     // Run on startup.
     void bot.run();
