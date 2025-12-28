@@ -63,7 +63,7 @@ function createVaultMarketData(
   cap: bigint,
   rateAtTarget: bigint,
   params: MarketParams,
-  rateAt100Utilization?: bigint,
+  apyAt100Utilization: bigint,
 ): VaultMarketData {
   const isIdle = params.collateralToken === zeroAddress;
 
@@ -82,7 +82,7 @@ function createVaultMarketData(
     cap,
     vaultAssets,
     rateAtTarget: isIdle ? 0n : rateAtTarget,
-    rateAt100Utilization,
+    apyAt100Utilization: apyAt100Utilization,
   };
 }
 
@@ -108,6 +108,7 @@ function calculateApyFromState(vaultMarketData: VaultMarketData, rateAtTarget: b
 
   return apy;
 }
+
 describe("apyRange strategy - unit tests", () => {
   const EUSD_VAULT_ADDRESS = "0xbb819D845b573B5D7C538F5b85057160cfb5f313" as Address;
 
@@ -148,7 +149,8 @@ describe("apyRange strategy - unit tests", () => {
     ALLOW_IDLE_REALLOCATION: false,
   };
 
-  it("should keep two markets at 100% util because the curve haven't shifted yet", () => {
+  it("should keep one market at 100% util because the curve haven't shifted yet and perform normal reallocation for the other market", () => {
+    const APY_AT_100_FOR_BSDETH_EUSD = 7;
     const DEFAULT_APY_RANGE = { min: 30, max: 40 };
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
@@ -156,41 +158,88 @@ describe("apyRange strategy - unit tests", () => {
       ALLOW_IDLE_REALLOCATION: true,
     });
 
-    const targetApyAt100 = percentToWad(7);
-    const rateAt100Util = apyToRate(targetApyAt100);
-    const rateAtTarget = rateAt100Util / 4n;
+    const totalSupply_BSDETH_EUSD = parseUnits("10000", 18);
+    const totalBorrow_BSDETH_EUSD = parseUnits("5000", 18);
+    const vaultAssets_BSDETH_EUSD = parseUnits("10000", 18);
+    const cap_BSDETH_EUSD = parseUnits("20000", 18);
 
-    // Market 1: rateAt100Utilization < max APY (should withdraw to 100% util)
-    const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
-      MARKET_ID_BSDETH_EUSD as Hex,
-      parseUnits("10000", 18),
-      parseUnits("5000", 18),
-      parseUnits("10000", 18),
-      parseUnits("20000", 18),
-      rateAtTarget,
-      MARKET_PARAMS_BSDETH_EUSD,
-      rateAt100Util,
+    const targetApyAt100Utilization_BSDETH_EUSD = percentToWad(APY_AT_100_FOR_BSDETH_EUSD);
+    const rateAt100Utilization_BSDETH_EUSD = apyToRate(targetApyAt100Utilization_BSDETH_EUSD);
+    const rateAtTarget_BSDETH_EUSD = rateAt100Utilization_BSDETH_EUSD / 4n;
+    const apyAt100Util_BSDETH_EUSD = rateToApy(rateAt100Utilization_BSDETH_EUSD);
+    const apyAtTarget_BSDETH_EUSD = rateToApy(rateAtTarget_BSDETH_EUSD);
+
+    console.log("targetApyAt100Utilization_BSDETH_EUSD:", targetApyAt100Utilization_BSDETH_EUSD);
+    console.log("rateAt100Utilization_BSDETH_EUSD:", rateAt100Utilization_BSDETH_EUSD);
+    console.log("rateAtTarget_BSDETH_EUSD:", rateAtTarget_BSDETH_EUSD);
+    console.log(
+      `apyAt100Util_BSDETH_EUSD: ${apyAt100Util_BSDETH_EUSD.toString()}, ${(apyAt100Util_BSDETH_EUSD / 10n ** 16n).toString()}%`,
+    );
+    console.log(
+      `apyAtTarget_BSDETH_EUSD: ${apyAtTarget_BSDETH_EUSD.toString()}, ${(apyAtTarget_BSDETH_EUSD / 10n ** 16n).toString()}%`,
     );
 
-    // Market 2: High utilization, normal rebalancing (rateAt100Util not set or high enough)
+    console.log();
+
+    const totalSupply_WSTETH_EUSD = parseUnits("10000", 18);
+    const totalBorrow_WSTETH_EUSD = parseUnits("9500", 18);
+    const vaultAssets_WSTETH_EUSD = parseUnits("10000", 18);
+    const cap_WSTETH_EUSD = parseUnits("20000", 18);
+
+    // MAX apy at 100% utilization is 50%, should not push to 100% util and jsut rebalance normally
+    const targetApyAt100Utilization_WSTETH_EUSD = percentToWad(50);
+    const rateAt100Utilization_WSTETH_EUSD = apyToRate(targetApyAt100Utilization_WSTETH_EUSD);
+    const rateAtTarget_WSTETH_EUSD = rateAt100Utilization_WSTETH_EUSD / 4n;
+    const apyAt100Util_WSTETH_EUSD = rateToApy(rateAt100Utilization_WSTETH_EUSD);
+    const apyAtTarget_WSTETH_EUSD = rateToApy(rateAtTarget_WSTETH_EUSD);
+
+    console.log("targetApyAt100Utilization_WSTETH_EUSD:", targetApyAt100Utilization_WSTETH_EUSD);
+    console.log("rateAtTarget_WSTETH_EUSD:", rateAtTarget_WSTETH_EUSD);
+    console.log("rateAt100Utilization_WSTETH_EUSD:", rateAt100Utilization_WSTETH_EUSD);
+    console.log(
+      `apyAt100Util_WSTETH_EUSD: ${apyAt100Util_WSTETH_EUSD.toString()}, ${(apyAt100Util_WSTETH_EUSD / 10n ** 16n).toString()}%`,
+    );
+    console.log(
+      `apyAtTarget_WSTETH_EUSD: ${apyAtTarget_WSTETH_EUSD.toString()}, ${(apyAtTarget_WSTETH_EUSD / 10n ** 16n).toString()}%`,
+    );
+    console.log();
+
+    const totalSupply_IDLE = parseUnits("1000000", 18);
+    const totalBorrow_IDLE = parseUnits("0", 18);
+    const vaultAssets_IDLE = parseUnits("1000000", 18);
+    const cap_IDLE = parseUnits("2000000", 18);
+
+    // Market 1: rateAt100Utilization < max APY (7) (should withdraw to 100% util)
+    const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
+      MARKET_ID_BSDETH_EUSD as Hex,
+      totalSupply_BSDETH_EUSD,
+      totalBorrow_BSDETH_EUSD,
+      vaultAssets_BSDETH_EUSD,
+      cap_BSDETH_EUSD,
+      rateAtTarget_BSDETH_EUSD,
+      MARKET_PARAMS_BSDETH_EUSD,
+      apyAt100Util_BSDETH_EUSD,
+    );
+
+    // Market 2: High utilization, max apy is 50%, normal rebalancing (rateAt100Util not set or high enough)
     const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
       MARKET_ID_WSTETH_EUSD as Hex,
-      parseUnits("10000", 18),
-      parseUnits("9500", 18),
-      parseUnits("10000", 18),
-      parseUnits("20000", 18),
-      rateAtTarget,
+      totalSupply_WSTETH_EUSD,
+      totalBorrow_WSTETH_EUSD,
+      vaultAssets_WSTETH_EUSD,
+      cap_WSTETH_EUSD,
+      rateAtTarget_WSTETH_EUSD,
       MARKET_PARAMS_WSTETH_EUSD,
-      rateAt100Util, // No rateAt100Utilization, normal rebalancing
+      apyAt100Util_WSTETH_EUSD, // No rateAt100Utilization, normal rebalancing
     );
 
     // Market 3: Idle market
     const vaultMarketDataIdle = createVaultMarketData(
       MARKET_ID_IDLE_EUSD as Hex,
-      parseUnits("1000000", 18),
-      parseUnits("0", 18),
-      parseUnits("1000000", 18),
-      parseUnits("2000000", 18),
+      totalSupply_IDLE,
+      totalBorrow_IDLE,
+      vaultAssets_IDLE,
+      cap_IDLE,
       0n,
       IDLE_MARKET_PARAMS_EUSD,
       0n,
@@ -212,54 +261,69 @@ describe("apyRange strategy - unit tests", () => {
     expect(result[1]).toBeDefined();
     if (!result[1]) return;
 
+    const vaultAssets_BSDETH_EUSD_afterReallocation = result[0].assets;
+    const totalSupply_BSDETH_EUSD_afterReallocation = result[0].assets;
+
     const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
-      result[0].assets,
-      parseUnits("5000", 18),
-      result[0].assets,
-      parseUnits("20000", 18),
-      rateAtTarget,
+      totalSupply_BSDETH_EUSD_afterReallocation,
+      totalBorrow_BSDETH_EUSD,
+      vaultAssets_BSDETH_EUSD_afterReallocation,
+      cap_BSDETH_EUSD,
+      rateAtTarget_BSDETH_EUSD,
       MARKET_PARAMS_BSDETH_EUSD,
-      rateAt100Util,
+      apyAt100Util_BSDETH_EUSD,
     );
 
     const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
       vaultMarketData_BSDETH_EUSD_afterReallocation,
-      rateAtTarget,
+      rateAtTarget_BSDETH_EUSD,
     );
 
     const apy_BSDETH_EUSD = parseFloat(
       (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    // we should have exactly 7% since the curve haven't shifted yet
-    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(targetApyAt100 / 10n ** 16n);
+    console.log();
+    console.log();
+    console.log();
+
+    console.log("apy_BSDETH_EUSD:", apy_BSDETH_EUSD);
+
+    // we should have approx 7% apy because of the buffer
+    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(APY_AT_100_FOR_BSDETH_EUSD - 1);
+
+    const vaultAssets_WSTETH_EUSD_afterReallocation = result[1].assets;
+    const totalSupply_WSTETH_EUSD_afterReallocation = result[1].assets;
 
     const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
-      MARKET_ID_BSDETH_EUSD as Hex,
-      result[1].assets,
-      parseUnits("9500", 18), // WSTETH originally had 9500 borrow, doesn't change with reallocation
-      result[1].assets,
-      parseUnits("20000", 18),
-      rateAtTarget,
-      MARKET_PARAMS_BSDETH_EUSD,
-      rateAt100Util,
+      MARKET_ID_WSTETH_EUSD as Hex,
+      totalSupply_WSTETH_EUSD_afterReallocation,
+      totalBorrow_WSTETH_EUSD,
+      vaultAssets_WSTETH_EUSD_afterReallocation,
+      cap_WSTETH_EUSD,
+      rateAtTarget_WSTETH_EUSD,
+      MARKET_PARAMS_WSTETH_EUSD,
+      apyAt100Util_WSTETH_EUSD,
     );
 
     const apy_WSTETH_EUSD_afterReallocation = calculateApyFromState(
       vaultMarketData_WSTETH_EUSD_afterReallocation,
-      rateAtTarget,
+      rateAtTarget_WSTETH_EUSD,
     );
 
     const apy_WSTETH_EUSD = parseFloat(
       (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    // we should have exactly 7% since the curve haven't shifted yet
-    expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(targetApyAt100 / 10n ** 16n);
+    console.log("apy_WSTETH_EUSD:", apy_WSTETH_EUSD);
+
+    expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+    expect(apy_WSTETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
   });
 
-  it("should keep one market at 100% utilization and deposit to the other market", () => {
+  it("should keep two market at 100% utilization and deposit", () => {
+    const apyAt100Number = 7;
     const DEFAULT_APY_RANGE = { min: 30, max: 40 };
     const strategy = new StrategyMock({
       ...TEST_CONFIG_NO_IDLE,
@@ -267,48 +331,58 @@ describe("apyRange strategy - unit tests", () => {
       ALLOW_IDLE_REALLOCATION: true,
     });
 
-    const targetApyAt100 = percentToWad(7);
-    const lowRateAt100Util = apyToRate(targetApyAt100);
-    const lowRateAtTarget = lowRateAt100Util / 4n;
+    const totalSupply_IDLE = parseUnits("1000000", 18);
+    const totalBorrow_IDLE = parseUnits("0", 18);
+    const vaultAssets_IDLE = parseUnits("1000000", 18);
+    const cap_IDLE = parseUnits("2000000", 18);
 
-    // For 30-40% APY range, use rateAtTarget that gives 40% APY at 90% util
-    // This ensures that even at 85-90% util after deposit, APY stays above 30%
-    const targetApyAt90WSTETH_EUSD = percentToWad(18);
-    const highRateAtTargetWSTETH_EUSD = apyToRate(targetApyAt90WSTETH_EUSD);
-    const highRateAt100UtilWSTETH_EUSD = highRateAtTargetWSTETH_EUSD * 4n;
+    const totalSupply_BSDETH_EUSD = parseUnits("10000", 18);
+    const totalBorrow_BSDETH_EUSD = parseUnits("5000", 18);
+    const vaultAssets_BSDETH_EUSD = parseUnits("10000", 18);
+    const cap_BSDETH_EUSD = parseUnits("20000", 18);
+
+    const targetApyAt100 = percentToWad(apyAt100Number);
+    const rateAt100Util = apyToRate(targetApyAt100);
+    const rateAtTarget = rateAt100Util / 4n;
+    const apyAt100Util = rateToApy(rateAt100Util);
 
     // Market 1: rateAt100Utilization < max APY (should withdraw to 100% util)
     const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
-      parseUnits("10000", 18),
-      parseUnits("5000", 18),
-      parseUnits("10000", 18),
-      parseUnits("20000", 18),
-      lowRateAtTarget,
+      totalSupply_BSDETH_EUSD,
+      totalBorrow_BSDETH_EUSD,
+      vaultAssets_BSDETH_EUSD,
+      cap_BSDETH_EUSD,
+      rateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
-      lowRateAt100Util,
+      apyAt100Util,
     );
+
+    const totalSupply_WSTETH_EUSD = parseUnits("10000", 18);
+    const totalBorrow_WSTETH_EUSD = parseUnits("9800", 18);
+    const vaultAssets_WSTETH_EUSD = parseUnits("10000", 18);
+    const cap_WSTETH_EUSD = parseUnits("20000", 18);
 
     // Market 2: Very high utilization (98%), APY above max range - needs deposit
     // Starting at 98% util with 40% APY at 90%, after deposit should land in 30-40% range
     const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
       MARKET_ID_WSTETH_EUSD as Hex,
-      parseUnits("10000", 18),
-      parseUnits("9800", 18), // 98% utilization
-      parseUnits("10000", 18),
-      parseUnits("20000", 18),
-      highRateAtTargetWSTETH_EUSD,
+      totalSupply_WSTETH_EUSD,
+      totalBorrow_WSTETH_EUSD,
+      vaultAssets_WSTETH_EUSD,
+      cap_WSTETH_EUSD,
+      rateAtTarget,
       MARKET_PARAMS_WSTETH_EUSD,
-      highRateAt100UtilWSTETH_EUSD,
+      apyAt100Util,
     );
 
     // Market 3: Idle market
     const vaultMarketDataIdle = createVaultMarketData(
       MARKET_ID_IDLE_EUSD as Hex,
-      parseUnits("1000000", 18),
-      parseUnits("0", 18),
-      parseUnits("1000000", 18),
-      parseUnits("2000000", 18),
+      totalSupply_IDLE,
+      totalBorrow_IDLE,
+      vaultAssets_IDLE,
+      cap_IDLE,
       0n,
       IDLE_MARKET_PARAMS_EUSD,
       0n,
@@ -330,59 +404,65 @@ describe("apyRange strategy - unit tests", () => {
       (r) => r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken,
     );
     expect(bsdethAllocation).toBeDefined();
-    if (!bsdethAllocation) throw new Error("BSDETH allocation not found");
+    if (!bsdethAllocation) expect.fail("BSDETH_EUSD reallocation not found");
+
+    const vaultAssets_BSDETH_EUSD_afterReallocation = bsdethAllocation.assets;
+    const totalSupply_BSDETH_EUSD_afterReallocation = bsdethAllocation.assets;
 
     const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
-      bsdethAllocation.assets,
-      parseUnits("5000", 18),
-      bsdethAllocation.assets,
-      parseUnits("20000", 18),
-      lowRateAtTarget,
+      totalSupply_BSDETH_EUSD_afterReallocation,
+      totalBorrow_BSDETH_EUSD,
+      vaultAssets_BSDETH_EUSD_afterReallocation,
+      cap_BSDETH_EUSD,
+      rateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
-      lowRateAt100Util,
+      apyAt100Util,
     );
 
     const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
       vaultMarketData_BSDETH_EUSD_afterReallocation,
-      lowRateAtTarget,
+      rateAtTarget,
     );
 
     const apy_BSDETH_EUSD = parseFloat(
       (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    // we should have exactly 7% since the curve haven't shifted yet
-    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(targetApyAt100 / 10n ** 16n);
+    // we should have around 6.5% since the strategy leaves a 1% buffer when pushing to 100% util
+    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(apyAt100Number - 0.5);
 
     const wstethAllocation = result.find(
       (r) => r.marketParams.collateralToken === MARKET_PARAMS_WSTETH_EUSD.collateralToken,
     );
     expect(wstethAllocation).toBeDefined();
-    if (!wstethAllocation) throw new Error("WSTETH allocation not found");
+    if (!wstethAllocation) expect.fail("WSTETH_EUSD reallocation not found");
+
+    const vaultAssets_WSTETH_EUSD_afterReallocation = wstethAllocation.assets;
+    const totalSupply_WSTETH_EUSD_afterReallocation = wstethAllocation.assets;
 
     const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
       MARKET_ID_WSTETH_EUSD as Hex,
-      wstethAllocation.assets,
-      parseUnits("9800", 18), // WSTETH originally had 9800 borrow, doesn't change with reallocation
-      wstethAllocation.assets,
-      parseUnits("20000", 18),
-      highRateAtTargetWSTETH_EUSD,
+      totalSupply_WSTETH_EUSD_afterReallocation,
+      totalBorrow_WSTETH_EUSD,
+      vaultAssets_WSTETH_EUSD_afterReallocation,
+      cap_WSTETH_EUSD,
+      rateAtTarget,
       MARKET_PARAMS_WSTETH_EUSD,
-      highRateAt100UtilWSTETH_EUSD,
+      apyAt100Util,
     );
 
     const apy_WSTETH_EUSD_afterReallocation = calculateApyFromState(
       vaultMarketData_WSTETH_EUSD_afterReallocation,
-      highRateAtTargetWSTETH_EUSD,
+      rateAtTarget,
     );
 
     const apy_WSTETH_EUSD = parseFloat(
       (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toFixed(1),
     );
 
-    expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
-    expect(apy_WSTETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max + 1);
+    // don't adjust for buffer because high number of borrows gives 7% apy after reallocation
+    expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(apyAt100Number);
   });
 
   it("should return no reallocation when all markets are within APY range", () => {
@@ -397,6 +477,7 @@ describe("apyRange strategy - unit tests", () => {
     const targetApyAt90 = percentToWad(5);
     const rateAtTarget = apyToRate(targetApyAt90);
     const rateAt100Util = rateAtTarget * 4n;
+    const apyAt100Util = rateToApy(rateAt100Util);
 
     const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
@@ -406,7 +487,7 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       rateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
-      rateAt100Util,
+      apyAt100Util,
     );
 
     const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
@@ -417,7 +498,7 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       rateAtTarget,
       MARKET_PARAMS_WSTETH_EUSD,
-      rateAt100Util,
+      apyAt100Util,
     );
 
     const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
@@ -442,6 +523,7 @@ describe("apyRange strategy - unit tests", () => {
     const targetApyAt90 = percentToWad(5);
     const rateAtTarget = apyToRate(targetApyAt90);
     const rateAt100Util = rateAtTarget * 4n;
+    const apyAt100Util = rateToApy(rateAt100Util);
 
     const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
@@ -451,7 +533,7 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       rateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
-      rateAt100Util,
+      apyAt100Util,
     );
 
     // Idle market with liquidity to withdraw from
@@ -498,7 +580,7 @@ describe("apyRange strategy - unit tests", () => {
     expect(bsdethAllocation.assets).toBe(maxUint256);
 
     // Calculate new BSDETH assets after deposit
-    const withdrawalAmount = vaultMarketData_IDLE.vaultAssets - idleAllocation.assets;
+    const withdrawalAmount = idleAllocation.assets;
     const newBsdethAssets = vaultMarketData_BSDETH_EUSD.vaultAssets + withdrawalAmount;
 
     const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
@@ -509,7 +591,7 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       rateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
-      rateAt100Util,
+      apyAt100Util,
     );
 
     const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
@@ -536,6 +618,7 @@ describe("apyRange strategy - unit tests", () => {
     // Market 1: Low utilization (40%), APY below min (3%)
     const lowRateAtTarget = apyToRate(percentToWad(2));
     const lowRateAt100Util = lowRateAtTarget * 4n;
+    const apyAt100Util_BSDETH_EUSD = rateToApy(lowRateAt100Util);
     const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
       MARKET_ID_BSDETH_EUSD as Hex,
       parseUnits("10000", 18),
@@ -544,13 +627,14 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       lowRateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
-      lowRateAt100Util,
+      apyAt100Util_BSDETH_EUSD,
     );
 
     // Market 2: Higher utilization (92%), APY above upper bound - needs deposit
     const targetApyAt90 = percentToWad(9); // Above max (8%)
     const rateAtTarget = apyToRate(targetApyAt90);
-    const rateAt100Util = rateAtTarget * 4n;
+    const rateAt100Util_WSTETH_EUSD = rateAtTarget * 4n;
+    const apyAt100Util_WSTETH_EUSD = rateToApy(rateAt100Util_WSTETH_EUSD);
     const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
       MARKET_ID_WSTETH_EUSD as Hex,
       parseUnits("10000", 18),
@@ -559,7 +643,7 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       rateAtTarget,
       MARKET_PARAMS_WSTETH_EUSD,
-      rateAt100Util,
+      apyAt100Util_WSTETH_EUSD,
     );
 
     // Idle market with liquidity to withdraw from
@@ -620,7 +704,7 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       lowRateAtTarget,
       MARKET_PARAMS_BSDETH_EUSD,
-      lowRateAt100Util,
+      apyAt100Util_BSDETH_EUSD,
     );
 
     const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
@@ -654,7 +738,7 @@ describe("apyRange strategy - unit tests", () => {
       parseUnits("20000", 18),
       rateAtTarget,
       MARKET_PARAMS_WSTETH_EUSD,
-      rateAt100Util,
+      apyAt100Util_WSTETH_EUSD,
     );
 
     const apy_WSTETH_EUSD_afterReallocation = calculateApyFromState(

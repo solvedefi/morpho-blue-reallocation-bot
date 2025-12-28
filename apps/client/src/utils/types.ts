@@ -32,8 +32,7 @@ export interface VaultMarketData {
   cap: bigint;
   vaultAssets: bigint;
   rateAtTarget: bigint;
-  rate?: bigint;
-  rateAt100Utilization?: bigint;
+  apyAt100Utilization: bigint;
 }
 
 export interface VaultData {

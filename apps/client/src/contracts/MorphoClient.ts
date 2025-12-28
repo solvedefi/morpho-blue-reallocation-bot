@@ -123,13 +123,11 @@ export class MorphoClient {
         cap: BigInt(supplyCap),
         vaultAssets,
         rateAtTarget: accuredRateAtTarget,
-        rate: 0n,
-        rateAt100Utilization: 0n,
+        apyAt100Utilization: 0n,
       };
 
-      vaultMarketData.rate = await this.calculateRate(vaultMarketData);
-      vaultMarketData.rateAt100Utilization =
-        await this.calculateRateAt100Utilization(vaultMarketData);
+      vaultMarketData.apyAt100Utilization =
+        await this.calculateAPYAt100Utilization(vaultMarketData);
 
       result.marketsData.set(marketId as `0x${string}`, vaultMarketData);
     }
@@ -168,21 +166,19 @@ export class MorphoClient {
     return borrowRate;
   }
 
-  // returns borrow apy decimal (e.g. 0.05 for 5%)
-  async calculateRate(vaultMarketData: VaultMarketData): Promise<bigint> {
+  async calculateAPY(vaultMarketData: VaultMarketData): Promise<bigint> {
     const borrowRate = await this.fetchRate(vaultMarketData);
     const borrowApy = rateToApy(borrowRate);
 
     return borrowApy;
   }
 
-  // returns borrow apy decimal (e.g. 0.05 for 5%)
-  async calculateRateAt100Utilization(vaultMarketData: VaultMarketData): Promise<bigint> {
+  async calculateAPYAt100Utilization(vaultMarketData: VaultMarketData): Promise<bigint> {
     // we want to remove all excess supply assets, so that utilization is 100%
     const vaultMarketDataCopy = structuredClone(vaultMarketData);
     vaultMarketDataCopy.state.totalSupplyAssets = vaultMarketDataCopy.state.totalBorrowAssets;
     vaultMarketDataCopy.state.totalSupplyShares = vaultMarketDataCopy.state.totalBorrowShares;
 
-    return await this.calculateRate(vaultMarketDataCopy);
+    return await this.calculateAPY(vaultMarketDataCopy);
   }
 }
