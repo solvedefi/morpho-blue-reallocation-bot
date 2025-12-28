@@ -465,292 +465,292 @@ describe("apyRange strategy - unit tests", () => {
     expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(apyAt100Number);
   });
 
-  // it("should return no reallocation when all markets are within APY range", () => {
-  //   const DEFAULT_APY_RANGE = { min: 3, max: 8 };
-  //   const strategy = new StrategyMock({
-  //     ...TEST_CONFIG_NO_IDLE,
-  //     DEFAULT_APY_RANGE,
-  //     ALLOW_IDLE_REALLOCATION: true,
-  //   });
+  it("should return no reallocation when all markets are within APY range", () => {
+    const DEFAULT_APY_RANGE = { min: 3, max: 8 };
+    const strategy = new StrategyMock({
+      ...TEST_CONFIG_NO_IDLE,
+      DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
+    });
 
-  //   // Market with APY around 5% (within 3-8% range)
-  //   const targetApyAt90 = percentToWad(5);
-  //   const rateAtTarget = apyToRate(targetApyAt90);
-  //   const rateAt100Util = rateAtTarget * 4n;
-  //   const apyAt100Util = rateToApy(rateAt100Util);
+    // Market with APY around 5% (within 3-8% range)
+    const targetApyAt90 = percentToWad(5);
+    const rateAtTarget = apyToRate(targetApyAt90);
+    const rateAt100Util = rateAtTarget * 4n;
+    const apyAt100Util = rateToApy(rateAt100Util);
 
-  //   const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
-  //     MARKET_ID_BSDETH_EUSD as Hex,
-  //     parseUnits("10000", 18),
-  //     parseUnits("9000", 18), // 90% utilization
-  //     parseUnits("10000", 18),
-  //     parseUnits("20000", 18),
-  //     rateAtTarget,
-  //     MARKET_PARAMS_BSDETH_EUSD,
-  //     apyAt100Util,
-  //   );
+    const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
+      MARKET_ID_BSDETH_EUSD as Hex,
+      parseUnits("10000", 18),
+      parseUnits("9000", 18), // 90% utilization
+      parseUnits("10000", 18),
+      parseUnits("20000", 18),
+      rateAtTarget,
+      MARKET_PARAMS_BSDETH_EUSD,
+      apyAt100Util,
+    );
 
-  //   const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
-  //     MARKET_ID_WSTETH_EUSD as Hex,
-  //     parseUnits("10000", 18),
-  //     parseUnits("8500", 18), // 85% utilization
-  //     parseUnits("10000", 18),
-  //     parseUnits("20000", 18),
-  //     rateAtTarget,
-  //     MARKET_PARAMS_WSTETH_EUSD,
-  //     apyAt100Util,
-  //   );
+    const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
+      MARKET_ID_WSTETH_EUSD as Hex,
+      parseUnits("10000", 18),
+      parseUnits("8500", 18), // 85% utilization
+      parseUnits("10000", 18),
+      parseUnits("20000", 18),
+      rateAtTarget,
+      MARKET_PARAMS_WSTETH_EUSD,
+      apyAt100Util,
+    );
 
-  //   const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
-  //     vaultMarketData_BSDETH_EUSD,
-  //     vaultMarketData_WSTETH_EUSD,
-  //   ]);
-  //   const result = strategy.findReallocation(vaultData);
+    const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
+      vaultMarketData_BSDETH_EUSD,
+      vaultMarketData_WSTETH_EUSD,
+    ]);
+    const result = strategy.findReallocation(vaultData);
 
-  //   expect(result).toBeUndefined();
-  // });
+    expect(result).toBeUndefined();
+  });
 
-  // it("should deposit to market above upper utilization bound", () => {
-  //   const DEFAULT_APY_RANGE = { min: 3, max: 8 };
-  //   const strategy = new StrategyMock({
-  //     ...TEST_CONFIG_NO_IDLE,
-  //     DEFAULT_APY_RANGE,
-  //     ALLOW_IDLE_REALLOCATION: true,
-  //   });
+  it("should deposit to market above upper utilization bound", () => {
+    const DEFAULT_APY_RANGE = { min: 3, max: 8 };
+    const strategy = new StrategyMock({
+      ...TEST_CONFIG_NO_IDLE,
+      DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
+    });
 
-  //   // Market with high utilization (95%), APY above max (8%) - needs deposit
-  //   // At 95% util with 5% APY at 90%: APY ≈ 10% (above 8% max)
-  //   const targetApyAt90 = percentToWad(5);
-  //   const rateAtTarget = apyToRate(targetApyAt90);
-  //   const rateAt100Util = rateAtTarget * 4n;
-  //   const apyAt100Util = rateToApy(rateAt100Util);
+    // Market with high utilization (95%), APY above max (8%) - needs deposit
+    // At 95% util with 5% APY at 90%: APY ≈ 10% (above 8% max)
+    const targetApyAt90 = percentToWad(5);
+    const rateAtTarget = apyToRate(targetApyAt90);
+    const rateAt100Util = rateAtTarget * 4n;
+    const apyAt100Util = rateToApy(rateAt100Util);
 
-  //   const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
-  //     MARKET_ID_BSDETH_EUSD as Hex,
-  //     parseUnits("10000", 18),
-  //     parseUnits("9500", 18), // 95% utilization - above upper bound
-  //     parseUnits("10000", 18),
-  //     parseUnits("20000", 18),
-  //     rateAtTarget,
-  //     MARKET_PARAMS_BSDETH_EUSD,
-  //     apyAt100Util,
-  //   );
+    const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
+      MARKET_ID_BSDETH_EUSD as Hex,
+      parseUnits("10000", 18),
+      parseUnits("9500", 18), // 95% utilization - above upper bound
+      parseUnits("10000", 18),
+      parseUnits("20000", 18),
+      rateAtTarget,
+      MARKET_PARAMS_BSDETH_EUSD,
+      apyAt100Util,
+    );
 
-  //   // Idle market with liquidity to withdraw from
-  //   const vaultMarketData_IDLE = createVaultMarketData(
-  //     MARKET_ID_IDLE_EUSD as Hex,
-  //     parseUnits("5000", 18), // Available liquidity in idle
-  //     0n, // No borrows in idle
-  //     parseUnits("5000", 18),
-  //     parseUnits("1000000", 18),
-  //     0n,
-  //     IDLE_MARKET_PARAMS_EUSD,
-  //     0n,
-  //   );
+    // Idle market with liquidity to withdraw from
+    const vaultMarketData_IDLE = createVaultMarketData(
+      MARKET_ID_IDLE_EUSD as Hex,
+      parseUnits("5000", 18), // Available liquidity in idle
+      0n, // No borrows in idle
+      parseUnits("5000", 18),
+      parseUnits("1000000", 18),
+      0n,
+      IDLE_MARKET_PARAMS_EUSD,
+      0n,
+    );
 
-  //   const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
-  //     vaultMarketData_BSDETH_EUSD,
-  //     vaultMarketData_IDLE,
-  //   ]);
-  //   const result = strategy.findReallocation(vaultData);
+    const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
+      vaultMarketData_BSDETH_EUSD,
+      vaultMarketData_IDLE,
+    ]);
+    const result = strategy.findReallocation(vaultData);
 
-  //   expect(result).toBeDefined();
-  //   if (!result) return;
+    expect(result).toBeDefined();
+    if (!result) return;
 
-  //   // Should have withdrawal from idle and deposit to BSDETH
-  //   expect(result.length).toBe(2);
+    // Should have withdrawal from idle and deposit to BSDETH
+    expect(result.length).toBe(2);
 
-  //   // Find the idle withdrawal and BSDETH deposit
-  //   const idleAllocation = result.find(
-  //     (r) => r.marketParams.collateralToken === IDLE_MARKET_PARAMS_EUSD.collateralToken,
-  //   );
-  //   const bsdethAllocation = result.find(
-  //     (r) => r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken,
-  //   );
+    // Find the idle withdrawal and BSDETH deposit
+    const idleAllocation = result.find(
+      (r) => r.marketParams.collateralToken === IDLE_MARKET_PARAMS_EUSD.collateralToken,
+    );
+    const bsdethAllocation = result.find(
+      (r) => r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken,
+    );
 
-  //   expect(idleAllocation).toBeDefined();
-  //   expect(bsdethAllocation).toBeDefined();
-  //   if (!idleAllocation) throw new Error("Idle allocation not found");
-  //   if (!bsdethAllocation) throw new Error("BSDETH allocation not found");
+    expect(idleAllocation).toBeDefined();
+    expect(bsdethAllocation).toBeDefined();
+    if (!idleAllocation) throw new Error("Idle allocation not found");
+    if (!bsdethAllocation) throw new Error("BSDETH allocation not found");
 
-  //   // Idle should have withdrawal (assets < original)
-  //   expect(idleAllocation.assets).toBeLessThan(vaultMarketData_IDLE.vaultAssets);
+    // Idle should have withdrawal (assets < original)
+    expect(idleAllocation.assets).toBeLessThan(vaultMarketData_IDLE.vaultAssets);
 
-  //   // BSDETH should have deposit (maxUint256)
-  //   expect(bsdethAllocation.assets).toBe(maxUint256);
+    // BSDETH should have deposit (maxUint256)
+    expect(bsdethAllocation.assets).toBe(maxUint256);
 
-  //   // Calculate new BSDETH assets after deposit
-  //   const withdrawalAmount = idleAllocation.assets;
-  //   const newBsdethAssets = vaultMarketData_BSDETH_EUSD.vaultAssets + withdrawalAmount;
+    // Calculate new BSDETH assets after deposit
+    const withdrawalAmount = idleAllocation.assets;
+    const newBsdethAssets = vaultMarketData_BSDETH_EUSD.vaultAssets + withdrawalAmount;
 
-  //   const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
-  //     MARKET_ID_BSDETH_EUSD as Hex,
-  //     newBsdethAssets,
-  //     parseUnits("9500", 18), // Borrow doesn't change
-  //     newBsdethAssets,
-  //     parseUnits("20000", 18),
-  //     rateAtTarget,
-  //     MARKET_PARAMS_BSDETH_EUSD,
-  //     apyAt100Util,
-  //   );
+    const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
+      MARKET_ID_BSDETH_EUSD as Hex,
+      newBsdethAssets,
+      parseUnits("9500", 18), // Borrow doesn't change
+      newBsdethAssets,
+      parseUnits("20000", 18),
+      rateAtTarget,
+      MARKET_PARAMS_BSDETH_EUSD,
+      apyAt100Util,
+    );
 
-  //   const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
-  //     vaultMarketData_BSDETH_EUSD_afterReallocation,
-  //     rateAtTarget,
-  //   );
+    const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
+      vaultMarketData_BSDETH_EUSD_afterReallocation,
+      rateAtTarget,
+    );
 
-  //   const apy_BSDETH_EUSD = parseFloat(
-  //     (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
-  //   );
+    const apy_BSDETH_EUSD = parseFloat(
+      (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
+    );
 
-  //   expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
-  //   expect(apy_BSDETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
-  // });
+    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+    expect(apy_BSDETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
+  });
 
-  // it("should withdraw from market below lower utilization bound", () => {
-  //   const DEFAULT_APY_RANGE = { min: 3, max: 8 };
-  //   const strategy = new StrategyMock({
-  //     ...TEST_CONFIG_NO_IDLE,
-  //     DEFAULT_APY_RANGE,
-  //     ALLOW_IDLE_REALLOCATION: true,
-  //   });
+  it("should withdraw from market below lower utilization bound", () => {
+    const DEFAULT_APY_RANGE = { min: 3, max: 8 };
+    const strategy = new StrategyMock({
+      ...TEST_CONFIG_NO_IDLE,
+      DEFAULT_APY_RANGE,
+      ALLOW_IDLE_REALLOCATION: true,
+    });
 
-  //   // Market 1: Low utilization (40%), APY below min (3%)
-  //   const lowRateAtTarget = apyToRate(percentToWad(2));
-  //   const lowRateAt100Util = lowRateAtTarget * 4n;
-  //   const apyAt100Util_BSDETH_EUSD = rateToApy(lowRateAt100Util);
-  //   const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
-  //     MARKET_ID_BSDETH_EUSD as Hex,
-  //     parseUnits("10000", 18),
-  //     parseUnits("4000", 18), // 40% utilization - below lower bound
-  //     parseUnits("10000", 18),
-  //     parseUnits("20000", 18),
-  //     lowRateAtTarget,
-  //     MARKET_PARAMS_BSDETH_EUSD,
-  //     apyAt100Util_BSDETH_EUSD,
-  //   );
+    // Market 1: Low utilization (40%), APY below min (3%)
+    const lowRateAtTarget = apyToRate(percentToWad(2));
+    const lowRateAt100Util = lowRateAtTarget * 4n;
+    const apyAt100Util_BSDETH_EUSD = rateToApy(lowRateAt100Util);
+    const vaultMarketData_BSDETH_EUSD = createVaultMarketData(
+      MARKET_ID_BSDETH_EUSD as Hex,
+      parseUnits("10000", 18),
+      parseUnits("4000", 18), // 40% utilization - below lower bound
+      parseUnits("10000", 18),
+      parseUnits("20000", 18),
+      lowRateAtTarget,
+      MARKET_PARAMS_BSDETH_EUSD,
+      apyAt100Util_BSDETH_EUSD,
+    );
 
-  //   // Market 2: Higher utilization (92%), APY above upper bound - needs deposit
-  //   const targetApyAt90 = percentToWad(9); // Above max (8%)
-  //   const rateAtTarget = apyToRate(targetApyAt90);
-  //   const rateAt100Util_WSTETH_EUSD = rateAtTarget * 4n;
-  //   const apyAt100Util_WSTETH_EUSD = rateToApy(rateAt100Util_WSTETH_EUSD);
-  //   const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
-  //     MARKET_ID_WSTETH_EUSD as Hex,
-  //     parseUnits("10000", 18),
-  //     parseUnits("9200", 18), // 92% utilization - above upper bound
-  //     parseUnits("10000", 18),
-  //     parseUnits("20000", 18),
-  //     rateAtTarget,
-  //     MARKET_PARAMS_WSTETH_EUSD,
-  //     apyAt100Util_WSTETH_EUSD,
-  //   );
+    // Market 2: Higher utilization (92%), APY above upper bound - needs deposit
+    const targetApyAt90 = percentToWad(9); // Above max (8%)
+    const rateAtTarget = apyToRate(targetApyAt90);
+    const rateAt100Util_WSTETH_EUSD = rateAtTarget * 4n;
+    const apyAt100Util_WSTETH_EUSD = rateToApy(rateAt100Util_WSTETH_EUSD);
+    const vaultMarketData_WSTETH_EUSD = createVaultMarketData(
+      MARKET_ID_WSTETH_EUSD as Hex,
+      parseUnits("10000", 18),
+      parseUnits("9200", 18), // 92% utilization - above upper bound
+      parseUnits("10000", 18),
+      parseUnits("20000", 18),
+      rateAtTarget,
+      MARKET_PARAMS_WSTETH_EUSD,
+      apyAt100Util_WSTETH_EUSD,
+    );
 
-  //   // Idle market with liquidity to withdraw from
-  //   const vaultMarketData_IDLE = createVaultMarketData(
-  //     MARKET_ID_IDLE_EUSD as Hex,
-  //     parseUnits("5000", 18), // Available liquidity in idle
-  //     0n, // No borrows in idle
-  //     parseUnits("5000", 18),
-  //     parseUnits("1000000", 18),
-  //     0n,
-  //     IDLE_MARKET_PARAMS_EUSD,
-  //     0n,
-  //   );
+    // Idle market with liquidity to withdraw from
+    const vaultMarketData_IDLE = createVaultMarketData(
+      MARKET_ID_IDLE_EUSD as Hex,
+      parseUnits("5000", 18), // Available liquidity in idle
+      0n, // No borrows in idle
+      parseUnits("5000", 18),
+      parseUnits("1000000", 18),
+      0n,
+      IDLE_MARKET_PARAMS_EUSD,
+      0n,
+    );
 
-  //   const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
-  //     vaultMarketData_BSDETH_EUSD,
-  //     vaultMarketData_WSTETH_EUSD,
-  //     vaultMarketData_IDLE,
-  //   ]);
-  //   const result = strategy.findReallocation(vaultData);
+    const vaultData = createVaultData(EUSD_VAULT_ADDRESS, [
+      vaultMarketData_BSDETH_EUSD,
+      vaultMarketData_WSTETH_EUSD,
+      vaultMarketData_IDLE,
+    ]);
+    const result = strategy.findReallocation(vaultData);
 
-  //   expect(result).toBeDefined();
-  //   if (!result) return;
+    expect(result).toBeDefined();
+    if (!result) return;
 
-  //   // Should have withdrawals from BSDETH and deposits to WSTETH
-  //   const withdrawals = result.filter((r) => r.assets < maxUint256);
-  //   const deposits = result.filter((r) => r.assets === maxUint256);
+    // Should have withdrawals from BSDETH and deposits to WSTETH
+    const withdrawals = result.filter((r) => r.assets < maxUint256);
+    const deposits = result.filter((r) => r.assets === maxUint256);
 
-  //   expect(withdrawals.length).toBeGreaterThan(0);
-  //   expect(deposits.length).toBeGreaterThan(0);
+    expect(withdrawals.length).toBeGreaterThan(0);
+    expect(deposits.length).toBeGreaterThan(0);
 
-  //   // Verify APY after reallocation
-  //   const bsdethAllocation = result.find(
-  //     (r) =>
-  //       r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken &&
-  //       r.marketParams.loanToken === MARKET_PARAMS_BSDETH_EUSD.loanToken,
-  //   );
-  //   const wstethAllocation = result.find(
-  //     (r) =>
-  //       r.marketParams.collateralToken === MARKET_PARAMS_WSTETH_EUSD.collateralToken &&
-  //       r.marketParams.loanToken === MARKET_PARAMS_WSTETH_EUSD.loanToken,
-  //   );
+    // Verify APY after reallocation
+    const bsdethAllocation = result.find(
+      (r) =>
+        r.marketParams.collateralToken === MARKET_PARAMS_BSDETH_EUSD.collateralToken &&
+        r.marketParams.loanToken === MARKET_PARAMS_BSDETH_EUSD.loanToken,
+    );
+    const wstethAllocation = result.find(
+      (r) =>
+        r.marketParams.collateralToken === MARKET_PARAMS_WSTETH_EUSD.collateralToken &&
+        r.marketParams.loanToken === MARKET_PARAMS_WSTETH_EUSD.loanToken,
+    );
 
-  //   if (!bsdethAllocation) throw new Error("BSDETH allocation not found");
+    if (!bsdethAllocation) throw new Error("BSDETH allocation not found");
 
-  //   const apy_BSDETH_EUSD_before = calculateApyFromState(
-  //     vaultMarketData_BSDETH_EUSD,
-  //     lowRateAtTarget,
-  //   );
-  //   const apyBefore = parseFloat((Number(apy_BSDETH_EUSD_before) / 1e16).toFixed(1));
-  //   expect(apyBefore).toBeLessThan(DEFAULT_APY_RANGE.min);
+    const apy_BSDETH_EUSD_before = calculateApyFromState(
+      vaultMarketData_BSDETH_EUSD,
+      lowRateAtTarget,
+    );
+    const apyBefore = parseFloat((Number(apy_BSDETH_EUSD_before) / 1e16).toFixed(1));
+    expect(apyBefore).toBeLessThan(DEFAULT_APY_RANGE.min);
 
-  //   const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
-  //     MARKET_ID_BSDETH_EUSD as Hex,
-  //     bsdethAllocation.assets,
-  //     parseUnits("4000", 18), // Borrow doesn't change
-  //     bsdethAllocation.assets,
-  //     parseUnits("20000", 18),
-  //     lowRateAtTarget,
-  //     MARKET_PARAMS_BSDETH_EUSD,
-  //     apyAt100Util_BSDETH_EUSD,
-  //   );
+    const vaultMarketData_BSDETH_EUSD_afterReallocation = createVaultMarketData(
+      MARKET_ID_BSDETH_EUSD as Hex,
+      bsdethAllocation.assets,
+      parseUnits("4000", 18), // Borrow doesn't change
+      bsdethAllocation.assets,
+      parseUnits("20000", 18),
+      lowRateAtTarget,
+      MARKET_PARAMS_BSDETH_EUSD,
+      apyAt100Util_BSDETH_EUSD,
+    );
 
-  //   const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
-  //     vaultMarketData_BSDETH_EUSD_afterReallocation,
-  //     lowRateAtTarget,
-  //   );
+    const apy_BSDETH_EUSD_afterReallocation = calculateApyFromState(
+      vaultMarketData_BSDETH_EUSD_afterReallocation,
+      lowRateAtTarget,
+    );
 
-  //   const apy_BSDETH_EUSD = parseFloat(
-  //     (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
-  //   );
+    const apy_BSDETH_EUSD = parseFloat(
+      (Number(apy_BSDETH_EUSD_afterReallocation) / 1e16).toFixed(1),
+    );
 
-  //   expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
-  //   expect(apy_BSDETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
+    expect(apy_BSDETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+    expect(apy_BSDETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
 
-  //   if (!wstethAllocation) throw new Error("WSTETH allocation not found");
+    if (!wstethAllocation) throw new Error("WSTETH allocation not found");
 
-  //   let newWstethAssets: bigint;
-  //   if (wstethAllocation.assets === maxUint256) {
-  //     // Calculate deposit amount from withdrawal
-  //     const withdrawalAmount = vaultMarketData_BSDETH_EUSD.vaultAssets - bsdethAllocation.assets;
-  //     newWstethAssets = vaultMarketData_WSTETH_EUSD.vaultAssets + withdrawalAmount;
-  //   } else {
-  //     newWstethAssets = wstethAllocation.assets;
-  //   }
+    let newWstethAssets: bigint;
+    if (wstethAllocation.assets === maxUint256) {
+      // Calculate deposit amount from withdrawal
+      const withdrawalAmount = vaultMarketData_BSDETH_EUSD.vaultAssets - bsdethAllocation.assets;
+      newWstethAssets = vaultMarketData_WSTETH_EUSD.vaultAssets + withdrawalAmount;
+    } else {
+      newWstethAssets = wstethAllocation.assets;
+    }
 
-  //   const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
-  //     MARKET_ID_WSTETH_EUSD as Hex,
-  //     newWstethAssets,
-  //     parseUnits("9200", 18), // Borrow doesn't change
-  //     newWstethAssets,
-  //     parseUnits("20000", 18),
-  //     rateAtTarget,
-  //     MARKET_PARAMS_WSTETH_EUSD,
-  //     apyAt100Util_WSTETH_EUSD,
-  //   );
+    const vaultMarketData_WSTETH_EUSD_afterReallocation = createVaultMarketData(
+      MARKET_ID_WSTETH_EUSD as Hex,
+      newWstethAssets,
+      parseUnits("9200", 18), // Borrow doesn't change
+      newWstethAssets,
+      parseUnits("20000", 18),
+      rateAtTarget,
+      MARKET_PARAMS_WSTETH_EUSD,
+      apyAt100Util_WSTETH_EUSD,
+    );
 
-  //   const apy_WSTETH_EUSD_afterReallocation = calculateApyFromState(
-  //     vaultMarketData_WSTETH_EUSD_afterReallocation,
-  //     rateAtTarget,
-  //   );
+    const apy_WSTETH_EUSD_afterReallocation = calculateApyFromState(
+      vaultMarketData_WSTETH_EUSD_afterReallocation,
+      rateAtTarget,
+    );
 
-  //   const apy_WSTETH_EUSD = parseFloat(
-  //     (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toFixed(1),
-  //   );
+    const apy_WSTETH_EUSD = parseFloat(
+      (Number(apy_WSTETH_EUSD_afterReallocation) / 1e16).toFixed(1),
+    );
 
-  //   expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
-  //   expect(apy_WSTETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
-  // });
+    expect(apy_WSTETH_EUSD).toBeGreaterThanOrEqual(DEFAULT_APY_RANGE.min);
+    expect(apy_WSTETH_EUSD).toBeLessThanOrEqual(DEFAULT_APY_RANGE.max);
+  });
 });
