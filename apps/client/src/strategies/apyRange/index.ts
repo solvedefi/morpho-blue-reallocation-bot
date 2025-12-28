@@ -205,7 +205,12 @@ export class ApyRange implements Strategy {
         );
 
         const withdrawal = min(amountToWithdraw, remainingWithdrawal);
-        const buffer = (withdrawal * 2n) / 100n; // 2% buffer
+
+        // if the withdrawal is less than 1 token, then we don't need to withdraw
+        if (withdrawal < 10n ** 18n) {
+          continue;
+        }
+        const buffer = (withdrawal * 2n) / 100n; // 1% buffer
 
         const withdrawalWithBuffer = withdrawal - buffer;
         // const withdrawalWithBuffer = withdrawal;
@@ -272,23 +277,23 @@ export class ApyRange implements Strategy {
       return reallocation.assets === maxUint256 || cap > reallocation.assets;
     });
 
-    console.log();
-    for (const reallocation of reallocationFilteredByCap) {
-      const marketId = this.calculateMarketId(reallocation.marketParams);
-      const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
+    // console.log();
+    // for (const reallocation of reallocationFilteredByCap) {
+    //   const marketId = this.calculateMarketId(reallocation.marketParams);
+    //   const cap = vaultData.marketsData.get(marketId)?.cap ?? 0n;
 
-      console.log("marketId:", marketId);
-      console.log("collateralToken:", reallocation.marketParams.collateralToken);
-      console.log("loanToken:", reallocation.marketParams.loanToken);
-      console.log("oracle:", reallocation.marketParams.oracle);
-      console.log("irm:", reallocation.marketParams.irm);
-      console.log("lltv:", reallocation.marketParams.lltv);
-      console.log("assets:", reallocation.assets);
-      console.log("cap:", cap);
+    //   console.log("marketId:", marketId);
+    //   console.log("collateralToken:", reallocation.marketParams.collateralToken);
+    //   console.log("loanToken:", reallocation.marketParams.loanToken);
+    //   console.log("oracle:", reallocation.marketParams.oracle);
+    //   console.log("irm:", reallocation.marketParams.irm);
+    //   console.log("lltv:", reallocation.marketParams.lltv);
+    //   console.log("assets:", reallocation.assets);
+    //   console.log("cap:", cap);
 
-      console.log();
-    }
-    console.log();
+    //   console.log();
+    // }
+    // console.log();
 
     return reallocationFilteredByCap;
   }
