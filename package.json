@@ -9,6 +9,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
     "build:config": "pnpm --filter @morpho-blue-reallocation-bot/config build",
+    "db:generate": "cd apps/client && dotenv -e ../../.env -- prisma generate",
+    "db:migrate": "cd apps/client && dotenv -e ../../.env -- prisma migrate deploy",
+    "db:migrate:dev": "cd apps/client && dotenv -e ../../.env -- prisma migrate dev",
+    "db:studio": "cd apps/client && dotenv -e ../../.env -- prisma studio",
+    "db:reset": "cd apps/client && dotenv -e ../../.env -- prisma migrate reset --force",
     "prepare": "husky"
   },
   "lint-staged": {

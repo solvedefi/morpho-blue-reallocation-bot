@@ -1,15 +1,7 @@
-import {
-  ALLOW_IDLE_REALLOCATION,
-  DEFAULT_APY_RANGE,
-  DEFAULT_MIN_APY_DELTA_BIPS,
-  marketsApyRanges,
-  marketsMinApsDeltaBips,
-  vaultsDefaultApyRanges,
-  vaultsDefaultMinApsDeltaBips,
-} from "@morpho-blue-reallocation-bot/config";
+import { DEFAULT_MIN_APY_DELTA_BIPS } from "@morpho-blue-reallocation-bot/config";
 import { Address, Hex, encodeAbiParameters, keccak256, maxUint256, zeroAddress } from "viem";
 
-import { Range } from "../../../../config/dist/strategies/apyRange";
+import { ApyConfiguration } from "../../database";
 import {
   apyToRate,
   getDepositableAmount,
@@ -38,6 +30,11 @@ import { Strategy } from "../strategy";
  * desired higher APY levels.
  */
 export class ApyRange implements Strategy {
+  private config: ApyConfiguration;
+
+  constructor(config: ApyConfiguration) {
+    this.config = config;
+  }
   findReallocation(vaultData: VaultData) {
     const marketsDataArray = Array.from(vaultData.marketsData.values());
 
@@ -135,8 +132,7 @@ export class ApyRange implements Strategy {
             rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
 
           didExceedMinApyDelta ||=
-            Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
-            this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
+            Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) > this.getMinApyDeltaBips();
         } else if (utilization < lowerUtilizationBound) {
           totalWithdrawableAmount += getWithdrawableAmount(marketData, lowerUtilizationBound);
 
@@ -145,8 +141,7 @@ export class ApyRange implements Strategy {
             rateToApy(utilizationToRate(utilization, marketData.rateAtTarget));
 
           didExceedMinApyDelta ||=
-            Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) >
-            this.getMinApyDeltaBips(marketData.chainId, vaultData.vaultAddress, marketData.id);
+            Math.abs(Number(apyDelta / 1_000_000_000n) / 1e5) > this.getMinApyDeltaBips();
         }
       }
     }
@@ -154,8 +149,7 @@ export class ApyRange implements Strategy {
     let idleWithdrawal = 0n;
     let idleDeposit = 0n;
     if (idleMarket) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (totalWithdrawableAmount > totalDepositableAmount && ALLOW_IDLE_REALLOCATION) {
+      if (totalWithdrawableAmount > totalDepositableAmount && this.config.allowIdleReallocation) {
         idleDeposit = min(
           totalWithdrawableAmount - totalDepositableAmount,
           idleMarket.cap - idleMarket.vaultAssets,
@@ -259,8 +253,7 @@ export class ApyRange implements Strategy {
         });
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (idleDeposit > 0n && ALLOW_IDLE_REALLOCATION) {
+      if (idleDeposit > 0n && this.config.allowIdleReallocation) {
         deposits.push({
           marketParams: idleMarket.params,
           assets: maxUint256,
@@ -307,30 +300,34 @@ export class ApyRange implements Strategy {
   }
 
   protected getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let apyRange: Range = DEFAULT_APY_RANGE;
+    // Start with default values from config
+    let min = this.config.defaultMinApy;
+    let max = this.config.defaultMaxApy;
 
-    if (vaultsDefaultApyRanges[chainId]?.[vaultAddress] !== undefined)
-      apyRange = vaultsDefaultApyRanges[chainId][vaultAddress];
+    // Check for vault-specific configuration
+    const vaultConfig = this.config.vaultRanges[chainId]?.[vaultAddress];
+    if (vaultConfig) {
+      min = vaultConfig.min;
+      max = vaultConfig.max;
+    }
 
-    if (marketsApyRanges[chainId]?.[marketId] !== undefined)
-      apyRange = marketsApyRanges[chainId][marketId];
+    // Market-specific configuration takes precedence
+    const marketConfig = this.config.marketRanges[chainId]?.[marketId];
+    if (marketConfig) {
+      min = marketConfig.min;
+      max = marketConfig.max;
+    }
 
+    // Convert from percentage to WAD format
     return {
-      min: percentToWad(apyRange.min),
-      max: percentToWad(apyRange.max),
+      min: percentToWad(min),
+      max: percentToWad(max),
     };
   }
 
-  protected getMinApyDeltaBips(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let minApyDeltaBips = DEFAULT_MIN_APY_DELTA_BIPS;
-
-    if (vaultsDefaultMinApsDeltaBips[chainId]?.[vaultAddress] !== undefined)
-      minApyDeltaBips = vaultsDefaultMinApsDeltaBips[chainId][vaultAddress];
-
-    if (marketsMinApsDeltaBips[chainId]?.[marketId] !== undefined)
-      minApyDeltaBips = marketsMinApsDeltaBips[chainId][marketId];
-
-    return minApyDeltaBips;
+  protected getMinApyDeltaBips() {
+    // Using default value for now, can be extended to support per-vault/market configuration
+    return DEFAULT_MIN_APY_DELTA_BIPS;
   }
 
   private calculateMarketId(marketParams: MarketParams): Hex {

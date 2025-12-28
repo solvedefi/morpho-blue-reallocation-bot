@@ -3,13 +3,14 @@ import { Address, Hex, maxUint256, parseUnits, zeroAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { describe, expect, it } from "vitest";
 
+import { ApyConfiguration } from "../../../src/database/index.js";
 import { ApyRange } from "../../../src/strategies/apyRange/index.js";
 import {
   apyToRate,
-  rateToApy,
-  percentToWad,
-  getUtilization,
   calculateBorrowRate,
+  getUtilization,
+  percentToWad,
+  rateToApy,
   utilizationToRate,
 } from "../../../src/utils/maths.js";
 import { MarketParams, VaultData, VaultMarketData } from "../../../src/utils/types.js";
@@ -22,31 +23,44 @@ interface TestConfig {
 }
 
 class StrategyMock extends ApyRange {
-  private readonly config: TestConfig;
+  private readonly testConfig: TestConfig;
 
   constructor(config: TestConfig) {
-    super();
-    this.config = config;
-  }
-
-  getApyRange(chainId: number, vaultAddress: Address, marketId: Hex) {
-    let apyRange = this.config.DEFAULT_APY_RANGE;
-
-    const vaultRange: Range | undefined =
-      this.config.vaultsDefaultApyRanges[chainId]?.[vaultAddress];
-    if (vaultRange !== undefined) {
-      apyRange = vaultRange;
-    }
-
-    const marketRange: Range | undefined = this.config.marketsDefaultApyRanges[chainId]?.[marketId];
-    if (marketRange !== undefined) {
-      apyRange = marketRange;
-    }
-
-    return {
-      min: percentToWad(apyRange.min),
-      max: percentToWad(apyRange.max),
+    // Convert TestConfig to ApyConfiguration
+    const apyConfig: ApyConfiguration = {
+      allowIdleReallocation: config.ALLOW_IDLE_REALLOCATION,
+      defaultMinApy: config.DEFAULT_APY_RANGE.min,
+      defaultMaxApy: config.DEFAULT_APY_RANGE.max,
+      vaultRanges: {},
+      marketRanges: {},
     };
+
+    // Convert vault ranges
+    for (const [chainId, vaults] of Object.entries(config.vaultsDefaultApyRanges)) {
+      apyConfig.vaultRanges[Number(chainId)] = {};
+      for (const [vaultAddress, range] of Object.entries(vaults)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        apyConfig.vaultRanges[Number(chainId)]![vaultAddress] = {
+          min: range.min,
+          max: range.max,
+        };
+      }
+    }
+
+    // Convert market ranges
+    for (const [chainId, markets] of Object.entries(config.marketsDefaultApyRanges)) {
+      apyConfig.marketRanges[Number(chainId)] = {};
+      for (const [marketId, range] of Object.entries(markets)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        apyConfig.marketRanges[Number(chainId)]![marketId] = {
+          min: range.min,
+          max: range.max,
+        };
+      }
+    }
+
+    super(apyConfig);
+    this.testConfig = config;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

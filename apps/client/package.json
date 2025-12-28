@@ -6,12 +6,7 @@
   "scripts": {
     "dev": "tsc && concurrently \"tsc --watch\" \"node dist/client/src/index.js\"",
     "lint": "eslint . --fix",
-    "typecheck": "tsc --noEmit",
-    "db:generate": "dotenv -e ../../.env -- prisma generate",
-    "db:migrate": "dotenv -e ../../.env -- prisma migrate deploy",
-    "db:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
-    "db:studio": "dotenv -e ../../.env -- prisma studio",
-    "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@morpho-blue-reallocation-bot/config": "workspace:*",
