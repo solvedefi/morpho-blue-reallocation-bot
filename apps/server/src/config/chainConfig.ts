@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/dot-notation */
 /* eslint-disable import-x/order */
-import dotenv from "dotenv";
+import { config as dotenvConfig } from "dotenv";
 import type { Address, Chain, Hex } from "viem";
 
 import { chainConfigs } from "./config";
@@ -24,7 +24,7 @@ import {
   type Range,
 } from "./strategies/apyRange";
 
-dotenv.config();
+dotenvConfig();
 
 export async function chainConfig(chainId: number): Promise<ChainConfig> {
   const config = chainConfigs[chainId];

@@ -1,9 +1,60 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono, Context } from "hono";
-import { Address, Hex, isAddress, isHex } from "viem";
+import { isAddress, isHex } from "viem";
+import { z } from "zod";
 
 import { DatabaseClient } from "./database";
 
 export type OnConfigChangeCallback = () => Promise<void>;
+
+// Zod schemas for request validation
+const vaultConfigSchema = z.object({
+  chainId: z.number(),
+  vaultAddress: z.string().refine((val) => isAddress(val), {
+    message: "Invalid Ethereum address",
+  }),
+  minApy: z.number(),
+  maxApy: z.number(),
+});
+
+const marketConfigSchema = z.object({
+  chainId: z.number(),
+  marketId: z.string().refine((val) => isHex(val), {
+    message: "Invalid market ID (must be hex)",
+  }),
+  minApy: z.number(),
+  maxApy: z.number(),
+});
+
+const strategyConfigSchema = z
+  .object({
+    allowIdleReallocation: z.boolean().optional(),
+    defaultMinApy: z.number().optional(),
+    defaultMaxApy: z.number().optional(),
+  })
+  .refine(
+    (data) =>
+      data.allowIdleReallocation !== undefined ||
+      data.defaultMinApy !== undefined ||
+      data.defaultMaxApy !== undefined,
+    {
+      message: "At least one field must be provided",
+    },
+  );
+
+const deleteVaultConfigSchema = z.object({
+  chainId: z.number(),
+  vaultAddress: z.string().refine((val) => isAddress(val), {
+    message: "Invalid Ethereum address",
+  }),
+});
+
+const deleteMarketConfigSchema = z.object({
+  chainId: z.number(),
+  marketId: z.string().refine((val) => isHex(val), {
+    message: "Invalid market ID (must be hex)",
+  }),
+});
 
 export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfigChangeCallback) {
   const app = new Hono();
@@ -27,59 +78,12 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  app.post("/config/vault", async (c) => {
+  app.post("/config/vault", zValidator("json", vaultConfigSchema), async (c) => {
     try {
-      const body = await c.req.json();
-      const { chainId, vaultAddress, minApy, maxApy } = body;
-
-      // Validate required fields
-      if (!chainId || !vaultAddress || minApy === undefined || maxApy === undefined) {
-        return c.json(
-          {
-            success: false,
-            error: "Missing required fields: chainId, vaultAddress, minApy, maxApy",
-          },
-          400,
-        );
-      }
-
-      // Validate chainId is a number
-      const chainIdNum = Number(chainId);
-      if (isNaN(chainIdNum)) {
-        return c.json(
-          {
-            success: false,
-            error: "chainId must be a valid number",
-          },
-          400,
-        );
-      }
-
-      // Validate vaultAddress is a valid Ethereum address
-      if (!isAddress(vaultAddress)) {
-        return c.json(
-          {
-            success: false,
-            error: "vaultAddress must be a valid Ethereum address",
-          },
-          400,
-        );
-      }
+      const { chainId, vaultAddress, minApy, maxApy } = c.req.valid("json");
 
       // Validate APY values
-      const minApyNum = Number(minApy);
-      const maxApyNum = Number(maxApy);
-      if (isNaN(minApyNum) || isNaN(maxApyNum)) {
-        return c.json(
-          {
-            success: false,
-            error: "minApy and maxApy must be valid numbers",
-          },
-          400,
-        );
-      }
-
-      if (minApyNum < 0 || maxApyNum < 0) {
+      if (minApy < 0 || maxApy < 0) {
         return c.json(
           {
             success: false,
@@ -89,7 +93,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         );
       }
 
-      if (minApyNum >= maxApyNum) {
+      if (minApy >= maxApy) {
         return c.json(
           {
             success: false,
@@ -99,7 +103,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         );
       }
 
-      await dbClient.upsertVaultApyRange(chainIdNum, vaultAddress, minApyNum, maxApyNum);
+      await dbClient.upsertVaultApyRange(chainId, vaultAddress, minApy, maxApy);
 
       // Trigger configuration reload
       if (onConfigChange) {
@@ -110,10 +114,10 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         success: true,
         message: "Vault APY range configured successfully",
         data: {
-          chainId: chainIdNum,
+          chainId,
           vaultAddress,
-          minApy: minApyNum,
-          maxApy: maxApyNum,
+          minApy,
+          maxApy,
         },
       });
     } catch (error) {
@@ -128,59 +132,12 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  app.post("/config/market", async (c) => {
+  app.post("/config/market", zValidator("json", marketConfigSchema), async (c) => {
     try {
-      const body = await c.req.json();
-      const { chainId, marketId, minApy, maxApy } = body;
-
-      // Validate required fields
-      if (!chainId || !marketId || minApy === undefined || maxApy === undefined) {
-        return c.json(
-          {
-            success: false,
-            error: "Missing required fields: chainId, marketId, minApy, maxApy",
-          },
-          400,
-        );
-      }
-
-      // Validate chainId is a number
-      const chainIdNum = Number(chainId);
-      if (isNaN(chainIdNum)) {
-        return c.json(
-          {
-            success: false,
-            error: "chainId must be a valid number",
-          },
-          400,
-        );
-      }
-
-      // Validate marketId is a valid hex string
-      if (!isHex(marketId)) {
-        return c.json(
-          {
-            success: false,
-            error: "marketId must be a valid hex string",
-          },
-          400,
-        );
-      }
+      const { chainId, marketId, minApy, maxApy } = c.req.valid("json");
 
       // Validate APY values
-      const minApyNum = Number(minApy);
-      const maxApyNum = Number(maxApy);
-      if (isNaN(minApyNum) || isNaN(maxApyNum)) {
-        return c.json(
-          {
-            success: false,
-            error: "minApy and maxApy must be valid numbers",
-          },
-          400,
-        );
-      }
-
-      if (minApyNum < 0 || maxApyNum < 0) {
+      if (minApy < 0 || maxApy < 0) {
         return c.json(
           {
             success: false,
@@ -190,7 +147,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         );
       }
 
-      if (minApyNum >= maxApyNum) {
+      if (minApy >= maxApy) {
         return c.json(
           {
             success: false,
@@ -200,7 +157,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         );
       }
 
-      await dbClient.upsertMarketApyRange(chainIdNum, marketId, minApyNum, maxApyNum);
+      await dbClient.upsertMarketApyRange(chainId, marketId, minApy, maxApy);
 
       // Trigger configuration reload
       if (onConfigChange) {
@@ -211,10 +168,10 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         success: true,
         message: "Market APY range configured successfully",
         data: {
-          chainId: chainIdNum,
+          chainId,
           marketId,
-          minApy: minApyNum,
-          maxApy: maxApyNum,
+          minApy,
+          maxApy,
         },
       });
     } catch (error) {
@@ -229,26 +186,9 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  app.put("/config/strategy", async (c) => {
+  app.put("/config/strategy", zValidator("json", strategyConfigSchema), async (c) => {
     try {
-      const body = await c.req.json();
-      const { allowIdleReallocation, defaultMinApy, defaultMaxApy } = body;
-
-      // Validate at least one field is provided
-      if (
-        allowIdleReallocation === undefined &&
-        defaultMinApy === undefined &&
-        defaultMaxApy === undefined
-      ) {
-        return c.json(
-          {
-            success: false,
-            error:
-              "At least one field must be provided: allowIdleReallocation, defaultMinApy, defaultMaxApy",
-          },
-          400,
-        );
-      }
+      const { allowIdleReallocation, defaultMinApy, defaultMaxApy } = c.req.valid("json");
 
       const updateData: {
         allowIdleReallocation?: boolean;
@@ -258,22 +198,12 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
 
       // Validate allowIdleReallocation if provided
       if (allowIdleReallocation !== undefined) {
-        if (typeof allowIdleReallocation !== "boolean") {
-          return c.json(
-            {
-              success: false,
-              error: "allowIdleReallocation must be a boolean",
-            },
-            400,
-          );
-        }
         updateData.allowIdleReallocation = allowIdleReallocation;
       }
 
       // Validate defaultMinApy if provided
       if (defaultMinApy !== undefined) {
-        const defaultMinApyNum = Number(defaultMinApy);
-        if (isNaN(defaultMinApyNum) || defaultMinApyNum < 0) {
+        if (defaultMinApy < 0) {
           return c.json(
             {
               success: false,
@@ -282,13 +212,12 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
             400,
           );
         }
-        updateData.defaultMinApy = defaultMinApyNum;
+        updateData.defaultMinApy = defaultMinApy;
       }
 
       // Validate defaultMaxApy if provided
       if (defaultMaxApy !== undefined) {
-        const defaultMaxApyNum = Number(defaultMaxApy);
-        if (isNaN(defaultMaxApyNum) || defaultMaxApyNum < 0) {
+        if (defaultMaxApy < 0) {
           return c.json(
             {
               success: false,
@@ -297,7 +226,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
             400,
           );
         }
-        updateData.defaultMaxApy = defaultMaxApyNum;
+        updateData.defaultMaxApy = defaultMaxApy;
       }
 
       // Validate min < max if both are provided
@@ -337,45 +266,11 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  app.delete("/config/vault", async (c) => {
+  app.delete("/config/vault", zValidator("json", deleteVaultConfigSchema), async (c) => {
     try {
-      const { chainId, vaultAddress } = await c.req.json();
+      const { chainId, vaultAddress } = c.req.valid("json");
 
-      // Validate required fields
-      if (!chainId || !vaultAddress) {
-        return c.json(
-          {
-            success: false,
-            error: "Missing required fields: chainId, vaultAddress",
-          },
-          400,
-        );
-      }
-
-      // Validate chainId is a number
-      const chainIdNum = Number(chainId);
-      if (isNaN(chainIdNum)) {
-        return c.json(
-          {
-            success: false,
-            error: "chainId must be a valid number",
-          },
-          400,
-        );
-      }
-
-      // Validate vaultAddress is a valid Ethereum address
-      if (!isAddress(vaultAddress)) {
-        return c.json(
-          {
-            success: false,
-            error: "vaultAddress must be a valid Ethereum address",
-          },
-          400,
-        );
-      }
-
-      await dbClient.deleteVaultApyRange(chainIdNum, vaultAddress);
+      await dbClient.deleteVaultApyRange(chainId, vaultAddress);
 
       // Trigger configuration reload
       if (onConfigChange) {
@@ -398,45 +293,11 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  app.delete("/config/market", async (c) => {
+  app.delete("/config/market", zValidator("json", deleteMarketConfigSchema), async (c) => {
     try {
-      const { chainId, marketId } = await c.req.json();
+      const { chainId, marketId } = c.req.valid("json");
 
-      // Validate required fields
-      if (!chainId || !marketId) {
-        return c.json(
-          {
-            success: false,
-            error: "Missing required fields: chainId, marketId",
-          },
-          400,
-        );
-      }
-
-      // Validate chainId is a number
-      const chainIdNum = Number(chainId);
-      if (isNaN(chainIdNum)) {
-        return c.json(
-          {
-            success: false,
-            error: "chainId must be a valid number",
-          },
-          400,
-        );
-      }
-
-      // Validate marketId is a valid hex string
-      if (!isHex(marketId)) {
-        return c.json(
-          {
-            success: false,
-            error: "marketId must be a valid hex string",
-          },
-          400,
-        );
-      }
-
-      await dbClient.deleteMarketApyRange(chainIdNum, marketId);
+      await dbClient.deleteMarketApyRange(chainId, marketId);
 
       // Trigger configuration reload
       if (onConfigChange) {

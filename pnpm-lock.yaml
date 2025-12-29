@@ -22,7 +22,7 @@ importers:
         version: 4.19.3
       viem:
         specifier: 2.23.2
-        version: 2.23.2(typescript@5.8.3)
+        version: 2.23.2(typescript@5.8.3)(zod@4.2.1)
     devDependencies:
       '@eslint/js':
         specifier: ^9.20.0
@@ -81,6 +81,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.13.7
         version: 1.19.6(hono@4.10.6)
+      '@hono/zod-validator':
+        specifier: ^0.7.6
+        version: 0.7.6(hono@4.10.6)(zod@4.2.1)
       '@ponder/client':
         specifier: ^0.9.27
         version: 0.9.28(@electric-sql/pglite@0.3.2)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0(prisma@5.22.0))(kysely@0.26.3)(mysql2@3.15.3)(pg@8.15.1)(postgres@3.4.7)(prisma@5.22.0)(typescript@5.8.3)
@@ -95,14 +98,17 @@ importers:
         version: 4.10.6
       viem:
         specifier: 2.23.2
-        version: 2.23.2(typescript@5.8.3)
+        version: 2.23.2(typescript@5.8.3)(zod@4.2.1)
+      zod:
+        specifier: ^4.2.1
+        version: 4.2.1
     devDependencies:
       '@hono/eslint-config':
         specifier: ^2.0.3
         version: 2.0.3(eslint@9.25.1(jiti@2.6.1))(typescript@5.8.3)
       '@morpho-org/test':
         specifier: ^2.1.1
-        version: 2.1.2(viem@2.23.2(typescript@5.8.3))(vitest@3.1.2(@types/node@22.14.1)(jiti@2.6.1)(tsx@4.19.3)(yaml@2.7.1))
+        version: 2.1.2(viem@2.23.2(typescript@5.8.3)(zod@4.2.1))(vitest@3.1.2(@types/node@22.14.1)(jiti@2.6.1)(tsx@4.19.3)(yaml@2.7.1))
       concurrently:
         specifier: ^9.1.2
         version: 9.1.2
@@ -156,7 +162,7 @@ importers:
         version: 2.6.0
       viem:
         specifier: 2.23.2
-        version: 2.23.2(typescript@5.8.3)
+        version: 2.23.2(typescript@5.8.3)(zod@4.2.1)
     devDependencies:
       '@types/node':
         specifier: ^20.17.6
@@ -993,6 +999,12 @@ packages:
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
+
+  '@hono/zod-validator@0.7.6':
+    resolution: {integrity: sha512-Io1B6d011Gj1KknV4rXYz4le5+5EubcWEU/speUjuw9XMMIaP3n78yXLhjd2A3PXaXaUwEAluOiAyLqhBEJgsw==}
+    peerDependencies:
+      hono: '>=3.9.0'
+      zod: ^3.25.0 || ^4.0.0
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -4312,6 +4324,9 @@ packages:
   zeptomatch@2.0.2:
     resolution: {integrity: sha512-H33jtSKf8Ijtb5BW6wua3G5DhnFjbFML36eFu+VdOoVY4HD9e7ggjqdM6639B+L87rjnR6Y+XeRzBXZdy52B/g==}
 
+  zod@4.2.1:
+    resolution: {integrity: sha512-0wZ1IRqGGhMP76gLqz8EyfBXKk0J2qo2+H3fi4mcUP/KtTocoX08nmIAHl1Z2kJIZbZee8KOpBCSNPRgauucjw==}
+
 snapshots:
 
   '@adraffy/ens-normalize@1.11.0': {}
@@ -5221,6 +5236,11 @@ snapshots:
     dependencies:
       hono: 4.10.6
 
+  '@hono/zod-validator@0.7.6(hono@4.10.6)(zod@4.2.1)':
+    dependencies:
+      hono: 4.10.6
+      zod: 4.2.1
+
   '@humanfs/core@0.19.1': {}
 
   '@humanfs/node@0.16.6':
@@ -5262,12 +5282,12 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  '@morpho-org/test@2.1.2(viem@2.23.2(typescript@5.8.3))(vitest@3.1.2(@types/node@22.14.1)(jiti@2.6.1)(tsx@4.19.3)(yaml@2.7.1))':
+  '@morpho-org/test@2.1.2(viem@2.23.2(typescript@5.8.3)(zod@4.2.1))(vitest@3.1.2(@types/node@22.14.1)(jiti@2.6.1)(tsx@4.19.3)(yaml@2.7.1))':
     dependencies:
       lodash.kebabcase: 4.1.1
-      viem: 2.23.2(typescript@5.8.3)
-      viem-deal: 2.0.4(viem@2.23.2(typescript@5.8.3))
-      viem-tracer: 1.5.5(viem@2.23.2(typescript@5.8.3))
+      viem: 2.23.2(typescript@5.8.3)(zod@4.2.1)
+      viem-deal: 2.0.4(viem@2.23.2(typescript@5.8.3)(zod@4.2.1))
+      viem-tracer: 1.5.5(viem@2.23.2(typescript@5.8.3)(zod@4.2.1))
     optionalDependencies:
       vitest: 3.1.2(@types/node@22.14.1)(jiti@2.6.1)(tsx@4.19.3)(yaml@2.7.1)
 
@@ -5374,7 +5394,7 @@ snapshots:
 
   '@ponder/utils@0.2.3(typescript@5.8.3)(viem@2.23.2(typescript@5.8.3))':
     dependencies:
-      viem: 2.23.2(typescript@5.8.3)
+      viem: 2.23.2(typescript@5.8.3)(zod@4.2.1)
     optionalDependencies:
       typescript: 5.8.3
 
@@ -6370,9 +6390,10 @@ snapshots:
     optionalDependencies:
       typescript: 5.8.3
 
-  abitype@1.0.8(typescript@5.8.3):
+  abitype@1.0.8(typescript@5.8.3)(zod@4.2.1):
     optionalDependencies:
       typescript: 5.8.3
+      zod: 4.2.1
 
   abort-controller@3.0.0:
     dependencies:
@@ -7565,14 +7586,14 @@ snapshots:
 
   outvariant@1.4.3: {}
 
-  ox@0.6.7(typescript@5.8.3):
+  ox@0.6.7(typescript@5.8.3)(zod@4.2.1):
     dependencies:
       '@adraffy/ens-normalize': 1.11.0
       '@noble/curves': 1.8.1
       '@noble/hashes': 1.7.1
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
-      abitype: 1.0.8(typescript@5.8.3)
+      abitype: 1.0.8(typescript@5.8.3)(zod@4.2.1)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 5.8.3
@@ -7743,7 +7764,7 @@ snapshots:
       stacktrace-parser: 0.1.11
       superjson: 2.2.2
       terminal-size: 4.0.0
-      viem: 2.23.2(typescript@5.8.3)
+      viem: 2.23.2(typescript@5.8.3)(zod@4.2.1)
       vite: 5.0.7(@types/node@20.17.30)
       vite-node: 1.0.2(@types/node@20.17.30)
       vite-tsconfig-paths: 4.3.1(typescript@5.8.3)(vite@5.0.7(@types/node@20.17.30))
@@ -8367,24 +8388,24 @@ snapshots:
       typescript: 5.8.3
     optional: true
 
-  viem-deal@2.0.4(viem@2.23.2(typescript@5.8.3)):
+  viem-deal@2.0.4(viem@2.23.2(typescript@5.8.3)(zod@4.2.1)):
     dependencies:
-      viem: 2.23.2(typescript@5.8.3)
+      viem: 2.23.2(typescript@5.8.3)(zod@4.2.1)
 
-  viem-tracer@1.5.5(viem@2.23.2(typescript@5.8.3)):
+  viem-tracer@1.5.5(viem@2.23.2(typescript@5.8.3)(zod@4.2.1)):
     dependencies:
       colors: 1.4.0
-      viem: 2.23.2(typescript@5.8.3)
+      viem: 2.23.2(typescript@5.8.3)(zod@4.2.1)
 
-  viem@2.23.2(typescript@5.8.3):
+  viem@2.23.2(typescript@5.8.3)(zod@4.2.1):
     dependencies:
       '@noble/curves': 1.8.1
       '@noble/hashes': 1.7.1
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
-      abitype: 1.0.8(typescript@5.8.3)
+      abitype: 1.0.8(typescript@5.8.3)(zod@4.2.1)
       isows: 1.0.6(ws@8.18.0)
-      ox: 0.6.7(typescript@5.8.3)
+      ox: 0.6.7(typescript@5.8.3)(zod@4.2.1)
       ws: 8.18.0
     optionalDependencies:
       typescript: 5.8.3
@@ -8656,3 +8677,5 @@ snapshots:
     dependencies:
       grammex: 3.1.12
     optional: true
+
+  zod@4.2.1: {}

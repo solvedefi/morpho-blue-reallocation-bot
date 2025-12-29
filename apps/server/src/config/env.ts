@@ -1,11 +1,11 @@
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
-import dotenv from "dotenv";
+import { config as dotenvConfig } from "dotenv";
 import type { Address, Chain, Hex } from "viem";
 
 import { chainConfigs } from "./chains";
 import type { ChainConfig } from "./types";
 
-dotenv.config();
+dotenvConfig();
 
 async function getSecretsFromAWS(secretName: string): Promise<string> {
   const client = new SecretsManagerClient({

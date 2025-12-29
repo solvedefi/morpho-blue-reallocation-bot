@@ -46,5 +46,17 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Relax strict type checking for files with Prisma client
+    files: ["**/database/**/*.ts", "**/server.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
   }
 );

@@ -1,5 +1,5 @@
 import { defineChain } from "viem";
-import { base, berachain, mainnet, worldchain } from "viem/chains";
+import { base } from "viem/chains";
 
 import type { Config } from "./types";
 
