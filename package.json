@@ -8,6 +8,7 @@
     "dev": "pnpm --filter @morpho-blue-reallocation-bot/server dev",
     "dev:ui": "pnpm --filter @morpho-blue-reallocation-bot/ui dev",
     "start": "pnpm --filter @morpho-blue-reallocation-bot/server start",
+    "start:ui": "pnpm --filter @morpho-blue-reallocation-bot/ui start",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
     "build:server": "pnpm --filter @morpho-blue-reallocation-bot/server build",
