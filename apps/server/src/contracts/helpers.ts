@@ -157,4 +157,3 @@ const bound = (x: bigint, min: bigint, max: bigint): bigint => {
   if (x > max) return max;
   return x;
 };
-

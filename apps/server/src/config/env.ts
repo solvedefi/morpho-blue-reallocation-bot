@@ -32,7 +32,7 @@ async function getSecrets(chainId: number, chain?: Chain) {
 
   let reallocatorPrivateKey: string;
   if (useAWSSecretManager) {
-    const reallocatorPrivateKeySecretName = process.env[`REALLOCATOR_PRIVATE_KEY`];
+    const reallocatorPrivateKeySecretName = process.env.REALLOCATOR_PRIVATE_KEY;
     if (!reallocatorPrivateKeySecretName) {
       throw new Error(
         `No reallocator private key secret name found for chainId ${String(chainId)}`,
@@ -44,7 +44,7 @@ async function getSecrets(chainId: number, chain?: Chain) {
       throw new Error(`No reallocator private key found for ${reallocatorPrivateKeySecretName}`);
     }
   } else {
-    reallocatorPrivateKey = process.env[`REALLOCATOR_PRIVATE_KEY`] ?? "";
+    reallocatorPrivateKey = process.env.REALLOCATOR_PRIVATE_KEY ?? "";
   }
 
   const rpcUrl = process.env[`RPC_URL_${String(chainId)}`] ?? defaultRpcUrl;
@@ -90,5 +90,3 @@ export async function chainConfig(chainId: number): Promise<ChainConfig> {
     executionInterval,
   };
 }
-
-

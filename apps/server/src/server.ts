@@ -1,8 +1,7 @@
-import { Hono } from "hono";
+import { Hono, Context } from "hono";
 import { Address, Hex, isAddress, isHex } from "viem";
 
 import { DatabaseClient } from "./database";
-import { Context } from "hono";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 

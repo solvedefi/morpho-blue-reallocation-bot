@@ -56,5 +56,3 @@ export const chainConfigs: Record<number, Config> = {
   },
   // Add other chains as needed (currently commented out in original config)
 };
-
-

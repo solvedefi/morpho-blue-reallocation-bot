@@ -45,4 +45,3 @@ export interface MarketAllocation {
   marketParams: MarketParams;
   assets: bigint;
 }
-

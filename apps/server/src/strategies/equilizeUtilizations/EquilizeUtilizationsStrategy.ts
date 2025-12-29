@@ -1,10 +1,6 @@
 import { Address, maxUint256, zeroAddress } from "viem";
 
-import {
-  DEFAULT_MIN_UTILIZATION_DELTA_BIPS,
-  vaultsMinUtilizationDeltaBips,
-} from "../../config";
-
+import { DEFAULT_MIN_UTILIZATION_DELTA_BIPS, vaultsMinUtilizationDeltaBips } from "../../config";
 import {
   getDepositableAmount,
   getWithdrawableAmount,

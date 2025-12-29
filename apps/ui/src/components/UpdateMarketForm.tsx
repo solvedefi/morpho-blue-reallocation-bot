@@ -1,44 +1,48 @@
-import { useState, useEffect } from 'react'
-import { CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import type { UpdateMarketRequest } from '../lib/api'
+import { CheckCircle2, AlertCircle, TrendingUp } from "lucide-react";
+import { useState, useEffect } from "react";
+
+import type { UpdateMarketRequest } from "../lib/api";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface UpdateMarketFormProps {
-  onSubmit: (data: UpdateMarketRequest) => void
-  isLoading: boolean
-  error: Error | null
-  success: boolean
+  onSubmit: (data: UpdateMarketRequest) => void;
+  isLoading: boolean;
+  error: Error | null;
+  success: boolean;
 }
 
 export function UpdateMarketForm({ onSubmit, isLoading, error, success }: UpdateMarketFormProps) {
   const [formData, setFormData] = useState({
-    chainId: '',
-    marketId: '',
-    minApy: '',
-    maxApy: '',
-  })
+    chainId: "",
+    marketId: "",
+    minApy: "",
+    maxApy: "",
+  });
 
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => {
-        setFormData({ chainId: '', marketId: '', minApy: '', maxApy: '' })
-      }, 2000)
-      return () => clearTimeout(timer)
+        setFormData({ chainId: "", marketId: "", minApy: "", maxApy: "" });
+      }, 2000);
+      return () => {
+        clearTimeout(timer);
+      };
     }
-  }, [success])
+  }, [success]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     onSubmit({
       chainId: parseInt(formData.chainId),
       marketId: formData.marketId,
       minApy: parseFloat(formData.minApy),
       maxApy: parseFloat(formData.maxApy),
-    })
-  }
+    });
+  };
 
   return (
     <Card className="max-w-2xl border-purple-500/20 bg-card/50 backdrop-blur-sm">
@@ -47,9 +51,7 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
           <TrendingUp className="h-6 w-6 text-purple-500" />
           Update Market APY Range
         </CardTitle>
-        <CardDescription>
-          Configure APY range for a specific market across chains
-        </CardDescription>
+        <CardDescription>Configure APY range for a specific market across chains</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -60,7 +62,9 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
               type="number"
               required
               value={formData.chainId}
-              onChange={(e) => setFormData({ ...formData, chainId: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, chainId: e.target.value });
+              }}
               placeholder="1"
               className="font-mono"
             />
@@ -76,7 +80,9 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
               type="text"
               required
               value={formData.marketId}
-              onChange={(e) => setFormData({ ...formData, marketId: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, marketId: e.target.value });
+              }}
               placeholder="0x..."
               className="font-mono text-sm"
             />
@@ -94,7 +100,9 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
                 step="0.1"
                 required
                 value={formData.minApy}
-                onChange={(e) => setFormData({ ...formData, minApy: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, minApy: e.target.value });
+                }}
                 placeholder="2.5"
                 className="font-mono"
               />
@@ -108,7 +116,9 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
                 step="0.1"
                 required
                 value={formData.maxApy}
-                onChange={(e) => setFormData({ ...formData, maxApy: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, maxApy: e.target.value });
+                }}
                 placeholder="8.0"
                 className="font-mono"
               />
@@ -132,23 +142,18 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full"
-            size="lg"
-          >
+          <Button type="submit" disabled={isLoading} className="w-full" size="lg">
             {isLoading ? (
               <>
                 <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                 Updating...
               </>
             ) : (
-              'Update Market Range'
+              "Update Market Range"
             )}
           </Button>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -1,14 +1,16 @@
-import { CheckCircle2, XCircle } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import type { ConfigResponse } from '../lib/api'
+import { CheckCircle2, XCircle } from "lucide-react";
+
+import type { ConfigResponse } from "../lib/api";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ConfigViewProps {
-  config: ConfigResponse
+  config: ConfigResponse;
 }
 
 export function ConfigView({ config }: ConfigViewProps) {
-  const { data } = config
+  const { data } = config;
 
   return (
     <div className="space-y-6">
@@ -19,9 +21,7 @@ export function ConfigView({ config }: ConfigViewProps) {
             <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
             Global Strategy
           </CardTitle>
-          <CardDescription>
-            Default settings for all markets and vaults
-          </CardDescription>
+          <CardDescription>Default settings for all markets and vaults</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
@@ -30,7 +30,10 @@ export function ConfigView({ config }: ConfigViewProps) {
               {data.allowIdleReallocation ? (
                 <>
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <Badge variant="default" className="bg-green-500/10 text-green-500 border-green-500/20">
+                  <Badge
+                    variant="default"
+                    className="bg-green-500/10 text-green-500 border-green-500/20"
+                  >
                     Enabled
                   </Badge>
                 </>
@@ -64,7 +67,7 @@ export function ConfigView({ config }: ConfigViewProps) {
           </CardTitle>
           <CardDescription>
             {Object.keys(data.vaultRanges).length === 0
-              ? 'No vault configurations'
+              ? "No vault configurations"
               : `${Object.keys(data.vaultRanges).reduce((acc, chainId) => acc + Object.keys(data.vaultRanges[Number(chainId)] || {}).length, 0)} vaults configured`}
           </CardDescription>
         </CardHeader>
@@ -80,7 +83,8 @@ export function ConfigView({ config }: ConfigViewProps) {
                       Chain {chainId}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {Object.keys(vaults).length} vault{Object.keys(vaults).length !== 1 ? 's' : ''}
+                      {Object.keys(vaults).length} vault
+                      {Object.keys(vaults).length !== 1 ? "s" : ""}
                     </span>
                   </div>
                   <div className="space-y-2">
@@ -116,7 +120,7 @@ export function ConfigView({ config }: ConfigViewProps) {
           </CardTitle>
           <CardDescription>
             {Object.keys(data.marketRanges).length === 0
-              ? 'No market configurations'
+              ? "No market configurations"
               : `${Object.keys(data.marketRanges).reduce((acc, chainId) => acc + Object.keys(data.marketRanges[Number(chainId)] || {}).length, 0)} markets configured`}
           </CardDescription>
         </CardHeader>
@@ -132,7 +136,8 @@ export function ConfigView({ config }: ConfigViewProps) {
                       Chain {chainId}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      {Object.keys(markets).length} market{Object.keys(markets).length !== 1 ? 's' : ''}
+                      {Object.keys(markets).length} market
+                      {Object.keys(markets).length !== 1 ? "s" : ""}
                     </span>
                   </div>
                   <div className="space-y-2">
@@ -159,5 +164,5 @@ export function ConfigView({ config }: ConfigViewProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

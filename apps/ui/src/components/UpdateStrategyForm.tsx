@@ -1,26 +1,34 @@
-import { useState, useEffect } from 'react'
-import { CheckCircle2, AlertCircle, Settings } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import type { UpdateStrategyRequest, Configuration } from '../lib/api'
+import { CheckCircle2, AlertCircle, Settings } from "lucide-react";
+import { useState, useEffect } from "react";
+
+import type { UpdateStrategyRequest, Configuration } from "../lib/api";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 interface UpdateStrategyFormProps {
-  currentConfig?: Configuration
-  onSubmit: (data: UpdateStrategyRequest) => void
-  isLoading: boolean
-  error: Error | null
-  success: boolean
+  currentConfig?: Configuration;
+  onSubmit: (data: UpdateStrategyRequest) => void;
+  isLoading: boolean;
+  error: Error | null;
+  success: boolean;
 }
 
-export function UpdateStrategyForm({ currentConfig, onSubmit, isLoading, error, success }: UpdateStrategyFormProps) {
+export function UpdateStrategyForm({
+  currentConfig,
+  onSubmit,
+  isLoading,
+  error,
+  success,
+}: UpdateStrategyFormProps) {
   const [formData, setFormData] = useState({
     allowIdleReallocation: currentConfig?.allowIdleReallocation ?? true,
-    defaultMinApy: currentConfig?.defaultMinApy?.toString() ?? '',
-    defaultMaxApy: currentConfig?.defaultMaxApy?.toString() ?? '',
-  })
+    defaultMinApy: currentConfig?.defaultMinApy.toString() ?? "",
+    defaultMaxApy: currentConfig?.defaultMaxApy.toString() ?? "",
+  });
 
   useEffect(() => {
     if (currentConfig) {
@@ -28,18 +36,18 @@ export function UpdateStrategyForm({ currentConfig, onSubmit, isLoading, error, 
         allowIdleReallocation: currentConfig.allowIdleReallocation,
         defaultMinApy: currentConfig.defaultMinApy.toString(),
         defaultMaxApy: currentConfig.defaultMaxApy.toString(),
-      })
+      });
     }
-  }, [currentConfig])
+  }, [currentConfig]);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     onSubmit({
       allowIdleReallocation: formData.allowIdleReallocation,
       defaultMinApy: parseFloat(formData.defaultMinApy),
       defaultMaxApy: parseFloat(formData.defaultMaxApy),
-    })
-  }
+    });
+  };
 
   return (
     <Card className="max-w-2xl border-primary/20 bg-card/50 backdrop-blur-sm">
@@ -66,9 +74,9 @@ export function UpdateStrategyForm({ currentConfig, onSubmit, isLoading, error, 
             <Switch
               id="idle-reallocation"
               checked={formData.allowIdleReallocation}
-              onCheckedChange={(checked) =>
-                setFormData({ ...formData, allowIdleReallocation: checked })
-              }
+              onCheckedChange={(checked) => {
+                setFormData({ ...formData, allowIdleReallocation: checked });
+              }}
             />
           </div>
 
@@ -81,13 +89,13 @@ export function UpdateStrategyForm({ currentConfig, onSubmit, isLoading, error, 
                 step="0.1"
                 required
                 value={formData.defaultMinApy}
-                onChange={(e) => setFormData({ ...formData, defaultMinApy: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, defaultMinApy: e.target.value });
+                }}
                 placeholder="0"
                 className="font-mono"
               />
-              <p className="text-xs text-muted-foreground">
-                Minimum APY threshold
-              </p>
+              <p className="text-xs text-muted-foreground">Minimum APY threshold</p>
             </div>
 
             <div className="space-y-2">
@@ -98,13 +106,13 @@ export function UpdateStrategyForm({ currentConfig, onSubmit, isLoading, error, 
                 step="0.1"
                 required
                 value={formData.defaultMaxApy}
-                onChange={(e) => setFormData({ ...formData, defaultMaxApy: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, defaultMaxApy: e.target.value });
+                }}
                 placeholder="10"
                 className="font-mono"
               />
-              <p className="text-xs text-muted-foreground">
-                Maximum APY threshold
-              </p>
+              <p className="text-xs text-muted-foreground">Maximum APY threshold</p>
             </div>
           </div>
 
@@ -125,23 +133,18 @@ export function UpdateStrategyForm({ currentConfig, onSubmit, isLoading, error, 
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full"
-            size="lg"
-          >
+          <Button type="submit" disabled={isLoading} className="w-full" size="lg">
             {isLoading ? (
               <>
                 <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                 Updating...
               </>
             ) : (
-              'Update Strategy'
+              "Update Strategy"
             )}
           </Button>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

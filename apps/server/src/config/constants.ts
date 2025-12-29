@@ -4,7 +4,10 @@ export const DEFAULT_MIN_UTILIZATION_DELTA_BIPS = 250;
 export const DEFAULT_MIN_APR_DELTA_BIPS = 50;
 
 // Type for range configuration
-export type Range = { min: number; max: number };
+export interface Range {
+  min: number;
+  max: number;
+}
 
 // Legacy exports from strategy configs (currently unused but kept for compatibility)
 export const ALLOW_IDLE_REALLOCATION = true;
@@ -17,5 +20,3 @@ export const marketsApyRanges: Record<number, Record<string, Range>> = {};
 export const marketsMinApsDeltaBips: Record<number, Record<string, number>> = {};
 export const vaultsDefaultApyRanges: Record<number, Record<string, Range>> = {};
 export const vaultsDefaultMinApsDeltaBips: Record<number, Record<string, number>> = {};
-
-

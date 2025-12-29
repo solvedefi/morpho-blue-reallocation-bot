@@ -1,10 +1,10 @@
-import { type Range } from "../../../src/config";
 import { Address, Hex, maxUint256, parseUnits, zeroAddress } from "viem";
 import { mainnet } from "viem/chains";
 import { describe, expect, it } from "vitest";
 
-import { ApyConfiguration } from "../../../src/database/index.js";
 import { ApyRange } from "../../../../server/src/strategies/apyRange/ApyRangeStrategy.js";
+import { type Range } from "../../../src/config";
+import { ApyConfiguration } from "../../../src/database/index.js";
 import {
   apyToRate,
   calculateBorrowRate,

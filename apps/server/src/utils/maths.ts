@@ -224,4 +224,3 @@ export function calculateBorrowRate(
 
   return { avgRate: curve(avgRateAtTarget, err), newRateAtTarget: endRateAtTarget };
 }
-

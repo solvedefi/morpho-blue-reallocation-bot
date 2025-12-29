@@ -6,4 +6,3 @@ export interface MarketState {
   lastUpdate: bigint;
   fee: bigint;
 }
-

@@ -1,41 +1,47 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Activity, Settings, TrendingUp } from 'lucide-react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ConfigView } from './components/ConfigView'
-import { UpdateMarketForm } from './components/UpdateMarketForm'
-import { UpdateVaultForm } from './components/UpdateVaultForm'
-import { UpdateStrategyForm } from './components/UpdateStrategyForm'
-import { api } from './lib/api'
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Activity, Settings, TrendingUp } from "lucide-react";
+
+import { ConfigView } from "./components/ConfigView";
+import { UpdateMarketForm } from "./components/UpdateMarketForm";
+import { UpdateStrategyForm } from "./components/UpdateStrategyForm";
+import { UpdateVaultForm } from "./components/UpdateVaultForm";
+import { api } from "./lib/api";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function App() {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
-  const { data: config, isLoading, error } = useQuery({
-    queryKey: ['config'],
+  const {
+    data: config,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["config"],
     queryFn: api.getConfig,
     refetchInterval: 5000,
-  })
+  });
 
   const updateMarketMutation = useMutation({
     mutationFn: api.updateMarketRange,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] })
+      queryClient.invalidateQueries({ queryKey: ["config"] });
     },
-  })
+  });
 
   const updateVaultMutation = useMutation({
     mutationFn: api.updateVaultRange,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] })
+      queryClient.invalidateQueries({ queryKey: ["config"] });
     },
-  })
+  });
 
   const updateStrategyMutation = useMutation({
     mutationFn: api.updateStrategy,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] })
+      queryClient.invalidateQueries({ queryKey: ["config"] });
     },
-  })
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -50,9 +56,7 @@ function App() {
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
                 RE7 Morpho reallocation bot
               </h1>
-              <p className="text-muted-foreground mt-1">
-                Manage APY ranges for vaults and markets
-              </p>
+              <p className="text-muted-foreground mt-1">Manage APY ranges for vaults and markets</p>
             </div>
           </div>
         </header>
@@ -109,7 +113,9 @@ function App() {
 
               <TabsContent value="market" className="space-y-6">
                 <UpdateMarketForm
-                  onSubmit={(data) => updateMarketMutation.mutate(data)}
+                  onSubmit={(data) => {
+                    updateMarketMutation.mutate(data);
+                  }}
                   isLoading={updateMarketMutation.isPending}
                   error={updateMarketMutation.error}
                   success={updateMarketMutation.isSuccess}
@@ -118,7 +124,9 @@ function App() {
 
               <TabsContent value="vault" className="space-y-6">
                 <UpdateVaultForm
-                  onSubmit={(data) => updateVaultMutation.mutate(data)}
+                  onSubmit={(data) => {
+                    updateVaultMutation.mutate(data);
+                  }}
                   isLoading={updateVaultMutation.isPending}
                   error={updateVaultMutation.error}
                   success={updateVaultMutation.isSuccess}
@@ -127,8 +135,10 @@ function App() {
 
               <TabsContent value="strategy" className="space-y-6">
                 <UpdateStrategyForm
-                  currentConfig={config?.data}
-                  onSubmit={(data) => updateStrategyMutation.mutate(data)}
+                  currentConfig={config.data}
+                  onSubmit={(data) => {
+                    updateStrategyMutation.mutate(data);
+                  }}
                   isLoading={updateStrategyMutation.isPending}
                   error={updateStrategyMutation.error}
                   success={updateStrategyMutation.isSuccess}
@@ -139,7 +149,7 @@ function App() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -10,4 +10,3 @@ import { MarketAllocation, VaultData } from "../utils/types";
 export interface Strategy {
   findReallocation(vaultData: VaultData): MaybePromise<MarketAllocation[] | undefined>;
 }
-
