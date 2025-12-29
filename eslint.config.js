@@ -4,8 +4,10 @@ import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import eslintPluginImportX from "eslint-plugin-import-x";
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
+import eslintPluginHono from "@hono/eslint-config";
 
 export default tseslint.config({ ignores: ["dist"] }, eslint.configs.recommended, {
+  ...eslintPluginHono,
   extends: [
     tseslint.configs.strictTypeChecked,
     tseslint.configs.stylisticTypeChecked,

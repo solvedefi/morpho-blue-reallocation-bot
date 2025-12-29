@@ -1,52 +1,15 @@
 import { Hono } from "hono";
 import { Address, Hex, isAddress, isHex } from "viem";
 
-export interface DatabaseClient {
-  loadApyConfiguration(): Promise<ApyConfiguration>;
-  upsertVaultApyRange(
-    chainId: number,
-    vaultAddress: Address,
-    minApy: number,
-    maxApy: number,
-  ): Promise<void>;
-  upsertMarketApyRange(
-    chainId: number,
-    marketId: Hex,
-    minApy: number,
-    maxApy: number,
-  ): Promise<void>;
-  updateApyStrategyConfig(config: {
-    allowIdleReallocation?: boolean;
-    defaultMinApy?: number;
-    defaultMaxApy?: number;
-  }): Promise<void>;
-  deleteVaultApyRange(chainId: number, vaultAddress: Address): Promise<void>;
-  deleteMarketApyRange(chainId: number, marketId: Hex): Promise<void>;
-}
-
-export interface ApyRangeConfig {
-  min: number;
-  max: number;
-}
-
-export type VaultApyRanges = Record<string, ApyRangeConfig>;
-export type MarketApyRanges = Record<string, ApyRangeConfig>;
-
-export interface ApyConfiguration {
-  vaultRanges: Record<number, VaultApyRanges>;
-  marketRanges: Record<number, MarketApyRanges>;
-  allowIdleReallocation: boolean;
-  defaultMinApy: number;
-  defaultMaxApy: number;
-}
+import { DatabaseClient } from "./database";
+import { Context } from "hono";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 
 export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfigChangeCallback) {
   const app = new Hono();
 
-  // GET /config - Get all current configuration
-  app.get("/config", async (c) => {
+  app.get("/config", async (c: Context) => {
     try {
       const config = await dbClient.loadApyConfiguration();
       return c.json({
@@ -65,7 +28,6 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  // POST /config/vault - Add or update APY range for a vault
   app.post("/config/vault", async (c) => {
     try {
       const body = await c.req.json();
@@ -167,7 +129,6 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  // POST /config/market - Add or update APY range for a market
   app.post("/config/market", async (c) => {
     try {
       const body = await c.req.json();
@@ -269,7 +230,6 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  // PUT /config/strategy - Update global strategy configuration
   app.put("/config/strategy", async (c) => {
     try {
       const body = await c.req.json();
@@ -378,7 +338,6 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  // DELETE /config/vault - Delete APY range for a vault
   app.delete("/config/vault", async (c) => {
     try {
       const { chainId, vaultAddress } = await c.req.json();
@@ -440,7 +399,6 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  // DELETE /config/market - Delete APY range for a market
   app.delete("/config/market", async (c) => {
     try {
       const { chainId, marketId } = await c.req.json();
@@ -502,7 +460,6 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     }
   });
 
-  // GET /health - Health check endpoint
   app.get("/health", (c) => {
     return c.json({ status: "ok", timestamp: new Date().toISOString() });
   });

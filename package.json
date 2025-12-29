@@ -5,24 +5,22 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "dev": "pnpm build:all && pnpm --filter @morpho-blue-reallocation-bot/client dev",
+    "dev": "pnpm --filter @morpho-blue-reallocation-bot/server dev",
     "dev:ui": "pnpm --filter @morpho-blue-reallocation-bot/ui dev",
-    "start": "pnpm build:all && tsx apps/client/src/index.ts --env-file=.env",
-    "reallocate": "pnpm build:config && tsx apps/client/src/index.ts --env-file=.env",
+    "start": "pnpm --filter @morpho-blue-reallocation-bot/server start",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
-    "build:all": "pnpm build:config && pnpm build:server",
-    "build:config": "pnpm --filter @morpho-blue-reallocation-bot/config build",
     "build:server": "pnpm --filter @morpho-blue-reallocation-bot/server build",
     "build:ui": "pnpm --filter @morpho-blue-reallocation-bot/ui build",
-    "db:generate": "cd apps/client && dotenv -e ../../.env -- pnpm prisma generate",
-    "db:migrate": "cd apps/client && dotenv -e ../../.env -- pnpm prisma migrate deploy",
-    "db:migrate:dev": "cd apps/client && dotenv -e ../../.env -- pnpm prisma migrate dev",
-    "db:studio": "cd apps/client && dotenv -e ../../.env -- pnpm prisma studio",
-    "db:reset": "cd apps/client && dotenv -e ../../.env -- pnpm prisma migrate reset --force",
+    "db:generate": "cd apps/server && dotenv -e ../../.env -- pnpm prisma generate",
+    "db:migrate": "cd apps/server && dotenv -e ../../.env -- pnpm prisma migrate deploy",
+    "db:migrate:dev": "cd apps/server && dotenv -e ../../.env -- pnpm prisma migrate dev",
+    "db:studio": "cd apps/server && dotenv -e ../../.env -- pnpm prisma studio",
+    "db:reset": "cd apps/server && dotenv -e ../../.env -- pnpm prisma migrate reset --force",
     "prepare": "husky"
   },
   "lint-staged": {
+
     "*.ts": [
       "prettier --write",
       "eslint --fix --max-warnings=0"
@@ -30,6 +28,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.864.0",
+
     "ponder": "^0.10.13",
     "tsx": "^4.19.3",
     "viem": "^2.23.2"

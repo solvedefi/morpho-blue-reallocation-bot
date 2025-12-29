@@ -7,12 +7,12 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install
-RUN pnpm build:config
+RUN pnpm build:all
 
 # Generate Prisma Client
-RUN cd apps/client && pnpm db:generate
+RUN cd apps/server && pnpm prisma generate
 
 COPY .env* ./
 
-# Run migrations on startup, then start the bot
-CMD sh -c "cd apps/client && pnpm db:migrate && cd ../.. && pnpm reallocate"
+# Run migrations on startup, then start the server
+CMD sh -c "pnpm db:migrate && pnpm start"

@@ -122,9 +122,9 @@ The bot uses by default an `EquilizeUtilizations` strategy that:
 3. Determines optimal withdrawals and deposits to balance utilization rates
 4. Only executes reallocations when the utilization delta exceeds a minimum threshold (2.5% by default)
 
-## Apy Range Strategy
+## APY Range Strategy
 
-The bot can also use the `ApyRange` strategy (if you change the strategy passed to the bot in the `apps/client/src/index.ts` file).
+The bot uses the `ApyRange` strategy by default (configured in `apps/server/src/index.ts`).
 
 This strategy tries to keep vaults listed markets borrow APY within the ranges defined in the PostgreSQL database.
 Ranges can be defined at the global level, at the vaults level, or/and at the markets level.
@@ -136,7 +136,7 @@ The APY ranges are now stored in a PostgreSQL database with three tables:
 - `market_apy_config`: Market-specific APY ranges
 - `apy_strategy_config`: Global strategy configuration
 
-See [apps/client/prisma/README.md](apps/client/prisma/README.md) for detailed database documentation.
+See [apps/server/prisma/README.md](apps/server/prisma/README.md) for detailed database documentation.
 
 #### Quick Start with Database
 
@@ -147,32 +147,59 @@ See [apps/client/prisma/README.md](apps/client/prisma/README.md) for detailed da
 
 2. **Run migrations**:
    ```bash
-   cd apps/client
    pnpm db:migrate
    ```
 
-3. **Seed initial data** (migrates config from `apps/config/src/strategies/apyRange.ts`):
-   ```bash
-   pnpm db:seed
-   ```
-
-4. **View/edit configurations** using Prisma Studio:
+3. **View/edit configurations** using Prisma Studio:
    ```bash
    pnpm db:studio
    ```
    Then navigate to http://localhost:5555 to visually manage APY configurations.
+
+### HTTP API for Configuration
+
+The bot now includes an HTTP API server (port 3000) for managing configurations at runtime:
+
+```bash
+# Get current configuration
+curl http://localhost:3000/config
+
+# Set vault APY range
+curl -X POST http://localhost:3000/config/vault \
+  -H "Content-Type: application/json" \
+  -d '{"chainId": 1, "vaultAddress": "0x...", "minApy": 2.5, "maxApy": 8.0}'
+
+# Update global strategy
+curl -X PUT http://localhost:3000/config/strategy \
+  -H "Content-Type: application/json" \
+  -d '{"allowIdleReallocation": true, "defaultMinApy": 0, "defaultMaxApy": 10}'
+```
+
+See [apps/server/README.md](apps/server/README.md) for complete API documentation.
 
 ## Run the bot
 
 Once the bot is installed and configured, you can run it by executing the following command:
 
 ```bash
-pnpm reallocate
+# Development mode with hot reload
+pnpm dev
+
+# Production mode
+pnpm start
 ```
 
-This command will start the bot, which will start reallocating once the configured chains are fully indexed.
+This command will:
+1. Start the HTTP API server on port 3000
+2. Initialize the database connection
+3. Load configuration from the database
+4. Start reallocation bots for all configured chains
+5. Run reallocations at the configured intervals
 
-⚠⏱️ The indexing process can take some time depending on the number of blocks to index.
+The server includes:
+- **Bot processes**: Automated reallocations for each chain
+- **HTTP API**: Configuration management endpoints
+- **Health checks**: Monitor bot status at `/health`
 
 ## Config Changes
 

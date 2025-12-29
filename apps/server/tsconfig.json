@@ -5,10 +5,10 @@
     "moduleResolution": "bundler",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "noEmit": false,
     "baseUrl": "."
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "abis/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"]
 }

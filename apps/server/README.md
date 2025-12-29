@@ -1,313 +1,212 @@
-# Morpho Blue Reallocation Bot - Server
+# Morpho Blue Reallocation Bot Server
 
-HTTP API server for managing APY configuration for the Morpho Blue Reallocation Bot.
+This package contains the complete reallocation bot system, including:
 
-## API Endpoints
+- **HTTP API Server**: Configuration management endpoints
+- **Reallocation Bot**: Automated vault reallocation logic
+- **Database Client**: PostgreSQL/Prisma integration
+- **Strategies**: APY Range and Equalize Utilizations strategies
+- **Morpho Client**: Blockchain interaction layer
 
-### GET /health
+## Architecture
 
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-12-28T12:00:00.000Z"
-}
 ```
-
-### GET /config
-
-Get all current APY configuration including vault ranges, market ranges, and global strategy settings.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "vaultRanges": {
-      "1": {
-        "0x1234...": { "min": 2.5, "max": 8.0 }
-      }
-    },
-    "marketRanges": {
-      "1": {
-        "0xabcd...": { "min": 3.0, "max": 7.5 }
-      }
-    },
-    "allowIdleReallocation": true,
-    "defaultMinApy": 0,
-    "defaultMaxApy": 10
-  }
-}
+apps/server/
+├── src/
+│   ├── index.ts                 # Main entry point - starts server & bots
+│   ├── server.ts                # HTTP API (Hono)
+│   ├── bot/
+│   │   └── ReallocationBot.ts   # Bot orchestration
+│   ├── contracts/
+│   │   ├── MorphoClient.ts      # Blockchain client
+│   │   ├── helpers.ts           # IRM calculations
+│   │   └── types.ts             # Contract types
+│   ├── database/
+│   │   └── DatabaseClient.ts    # Prisma client wrapper
+│   ├── strategies/
+│   │   ├── strategy.ts          # Strategy interface
+│   │   ├── apyRange/            # APY Range strategy
+│   │   └── equilizeUtilizations/ # Equalize strategy
+│   └── utils/
+│       ├── maths.ts             # Math utilities
+│       └── types.ts             # Shared types
+├── abis/                        # Contract ABIs
+├── prisma/                      # Database schema & migrations
+└── test/                        # Test files
 ```
-
-### POST /config/vault
-
-Add or update APY range for a specific vault.
-
-**Request Body:**
-```json
-{
-  "chainId": 1,
-  "vaultAddress": "0x1234567890abcdef1234567890abcdef12345678",
-  "minApy": 2.5,
-  "maxApy": 8.0
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Vault APY range configured successfully",
-  "data": {
-    "chainId": 1,
-    "vaultAddress": "0x1234567890abcdef1234567890abcdef12345678",
-    "minApy": 2.5,
-    "maxApy": 8.0
-  }
-}
-```
-
-**Validation:**
-- `chainId` must be a valid number
-- `vaultAddress` must be a valid Ethereum address
-- `minApy` and `maxApy` must be non-negative numbers
-- `minApy` must be less than `maxApy`
-
-### POST /config/market
-
-Add or update APY range for a specific market.
-
-**Request Body:**
-```json
-{
-  "chainId": 1,
-  "marketId": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-  "minApy": 3.0,
-  "maxApy": 7.5
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Market APY range configured successfully",
-  "data": {
-    "chainId": 1,
-    "marketId": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-    "minApy": 3.0,
-    "maxApy": 7.5
-  }
-}
-```
-
-**Validation:**
-- `chainId` must be a valid number
-- `marketId` must be a valid hex string
-- `minApy` and `maxApy` must be non-negative numbers
-- `minApy` must be less than `maxApy`
-
-### PUT /config/strategy
-
-Update global strategy configuration.
-
-**Request Body:**
-```json
-{
-  "allowIdleReallocation": true,
-  "defaultMinApy": 0,
-  "defaultMaxApy": 10
-}
-```
-
-All fields are optional - you can update one or more fields at a time.
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Strategy configuration updated successfully",
-  "data": {
-    "allowIdleReallocation": true,
-    "defaultMinApy": 0,
-    "defaultMaxApy": 10
-  }
-}
-```
-
-**Validation:**
-- `allowIdleReallocation` must be a boolean (if provided)
-- `defaultMinApy` must be a non-negative number (if provided)
-- `defaultMaxApy` must be a non-negative number (if provided)
-- `defaultMinApy` must be less than `defaultMaxApy` (if both provided)
-
-### DELETE /config/vault
-
-Delete APY range configuration for a specific vault.
-
-**Request Body:**
-```json
-{
-  "chainId": 1,
-  "vaultAddress": "0x1234567890abcdef1234567890abcdef12345678"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Vault APY range deleted successfully"
-}
-```
-
-### DELETE /config/market
-
-Delete APY range configuration for a specific market.
-
-**Request Body:**
-```json
-{
-  "chainId": 1,
-  "marketId": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Market APY range deleted successfully"
-}
-```
-
-## Error Responses
-
-All endpoints return errors in the following format:
-
-```json
-{
-  "success": false,
-  "error": "Error message describing what went wrong"
-}
-```
-
-Common HTTP status codes:
-- `400` - Bad Request (validation error)
-- `500` - Internal Server Error
 
 ## Features
 
-- **Automatic Bot Reload**: When configuration is changed through any of the mutation endpoints (POST, PUT, DELETE), the server automatically triggers a reload of the bot configuration. This means all running bots will immediately start using the new APY ranges without requiring a restart.
+### 1. HTTP API Server (Port 3000)
 
-## Usage
+Configuration management endpoints:
 
-### Basic Usage
+- `GET /config` - Get current configuration
+- `POST /config/vault` - Set vault APY range
+- `POST /config/market` - Set market APY range
+- `PUT /config/strategy` - Update global strategy config
+- `DELETE /config/vault` - Remove vault config
+- `DELETE /config/market` - Remove market config
+- `GET /health` - Health check
 
-```typescript
-import { createServer } from "@morpho-blue-reallocation-bot/server";
-import { serve } from "@hono/node-server";
-import { DatabaseClient } from "./database";
+### 2. Reallocation Bot
 
-const dbClient = new DatabaseClient();
-await dbClient.connect();
+- Monitors configured vaults across multiple chains
+- Executes reallocation strategies automatically
+- Supports hot-reload of configuration changes
+- Runs on configurable intervals per chain
 
-const server = createServer(dbClient);
-const port = 3000;
+### 3. Database Integration
 
-serve({
-  fetch: server.fetch,
-  port,
-}, (info) => {
-  console.log(`Server running on http://localhost:${info.port}`);
-});
-```
+- PostgreSQL with Prisma ORM
+- Stores vault and market APY configurations
+- Global strategy settings
+- Supports runtime configuration updates
 
-### With Configuration Reload Callback
+## Getting Started
 
-To enable automatic bot updates when configuration changes, provide a callback function:
+### Prerequisites
 
-```typescript
-import { createServer } from "@morpho-blue-reallocation-bot/server";
-import { serve } from "@hono/node-server";
-import { DatabaseClient } from "./database";
-import { ApyRange } from "./strategies";
+- Node.js >= 18.14
+- PostgreSQL database
+- Environment variables configured (see `.env.example`)
 
-const dbClient = new DatabaseClient();
-await dbClient.connect();
-
-const bots = []; // Array of ReallocationBot instances
-
-// Create a callback to reload configuration
-const reloadConfiguration = async () => {
-  console.log("Reloading configuration...");
-  const newApyConfig = await dbClient.loadApyConfiguration();
-
-  // Update all bots with new configuration
-  for (const bot of bots) {
-    const newStrategy = new ApyRange(newApyConfig);
-    bot.updateStrategy(newStrategy);
-  }
-
-  console.log("Configuration reloaded successfully");
-};
-
-const server = createServer(dbClient, reloadConfiguration);
-const port = 3000;
-
-serve({
-  fetch: server.fetch,
-  port,
-}, (info) => {
-  console.log(`Server running on http://localhost:${info.port}`);
-});
-```
-
-## Examples
-
-### Using curl
+### Installation
 
 ```bash
-# Get current configuration
-curl http://localhost:3000/config
+# Install dependencies
+pnpm install
 
-# Add vault APY range
+# Generate Prisma client
+pnpm db:generate
+
+# Run migrations
+pnpm db:migrate
+```
+
+### Development
+
+```bash
+# Start in development mode with hot reload
+pnpm dev
+
+# Build
+pnpm build
+
+# Start production server
+pnpm start
+```
+
+### Database Commands
+
+```bash
+# Generate Prisma client
+pnpm db:generate
+
+# Run migrations
+pnpm db:migrate
+
+# Create new migration
+pnpm db:migrate:dev
+
+# Open Prisma Studio
+pnpm db:studio
+
+# Reset database
+pnpm db:reset
+```
+
+## Configuration
+
+The bot loads configuration from:
+
+1. **Environment Variables**: Chain configs, RPC URLs, private keys
+2. **Database**: APY ranges, strategy settings (runtime configurable via API)
+
+### Environment Variables
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/morpho"
+
+# Server
+PORT=3000
+
+# Chain Configuration (loaded from src/config)
+```
+
+### Runtime Configuration (via API)
+
+Configure APY ranges and strategy settings through the HTTP API:
+
+```bash
+# Set vault APY range
 curl -X POST http://localhost:3000/config/vault \
   -H "Content-Type: application/json" \
   -d '{
     "chainId": 1,
-    "vaultAddress": "0x1234567890abcdef1234567890abcdef12345678",
+    "vaultAddress": "0x...",
     "minApy": 2.5,
     "maxApy": 8.0
   }'
 
-# Add market APY range
-curl -X POST http://localhost:3000/config/market \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chainId": 1,
-    "marketId": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-    "minApy": 3.0,
-    "maxApy": 7.5
-  }'
-
-# Update strategy configuration
+# Update global strategy
 curl -X PUT http://localhost:3000/config/strategy \
   -H "Content-Type: application/json" \
   -d '{
-    "allowIdleReallocation": false,
-    "defaultMinApy": 1.0,
-    "defaultMaxApy": 9.0
-  }'
-
-# Delete vault configuration
-curl -X DELETE http://localhost:3000/config/vault \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chainId": 1,
-    "vaultAddress": "0x1234567890abcdef1234567890abcdef12345678"
+    "allowIdleReallocation": true,
+    "defaultMinApy": 0,
+    "defaultMaxApy": 10
   }'
 ```
+
+## Strategies
+
+### APY Range Strategy
+
+Maintains market APY within configured ranges:
+- Deposits assets when APY > max (lower utilization)
+- Withdraws assets when APY < min (increase utilization)
+- Handles Adaptive IRM curve shifts for markets below target
+
+### Equalize Utilizations Strategy
+
+Balances utilization across all markets in a vault to a target average.
+
+## Development
+
+### Adding a New Strategy
+
+1. Create strategy file in `src/strategies/`
+2. Implement the `Strategy` interface
+3. Export from `src/strategies/index.ts`
+4. Update bot initialization in `src/index.ts`
+
+### Testing
+
+```bash
+# Run tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+```
+
+## Deployment
+
+The server can be deployed as a single service that handles both:
+- HTTP API for configuration management
+- Background bot processes for each chain
+
+Recommended deployment:
+- Docker container with PostgreSQL
+- Health check endpoint: `GET /health`
+- Environment variables for secrets
+- Persistent volume for database
+
+## Monitoring
+
+- Bot logs reallocation attempts and results
+- Configuration changes are logged
+- Health endpoint for uptime monitoring
+- Database stores historical configurations
