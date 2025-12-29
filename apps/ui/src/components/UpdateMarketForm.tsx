@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react'
+import { CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import type { UpdateMarketRequest } from '../lib/api'
 
 interface UpdateMarketFormProps {
@@ -18,7 +23,6 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
 
   useEffect(() => {
     if (success) {
-      // Reset form on success
       const timer = setTimeout(() => {
         setFormData({ chainId: '', marketId: '', minApy: '', maxApy: '' })
       }, 2000)
@@ -37,88 +41,114 @@ export function UpdateMarketForm({ onSubmit, isLoading, error, success }: Update
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      <h2 className="text-2xl font-semibold text-white">Update Market APY Range</h2>
+    <Card className="max-w-2xl border-purple-500/20 bg-card/50 backdrop-blur-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="h-6 w-6 text-purple-500" />
+          Update Market APY Range
+        </CardTitle>
+        <CardDescription>
+          Configure APY range for a specific market across chains
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="chainId">Chain ID</Label>
+            <Input
+              id="chainId"
+              type="number"
+              required
+              value={formData.chainId}
+              onChange={(e) => setFormData({ ...formData, chainId: e.target.value })}
+              placeholder="1"
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              e.g., 1 (Ethereum), 8453 (Base), 42161 (Arbitrum)
+            </p>
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
-          Chain ID
-        </label>
-        <input
-          type="number"
-          required
-          value={formData.chainId}
-          onChange={(e) => setFormData({ ...formData, chainId: e.target.value })}
-          className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="1"
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="marketId">Market ID</Label>
+            <Input
+              id="marketId"
+              type="text"
+              required
+              value={formData.marketId}
+              onChange={(e) => setFormData({ ...formData, marketId: e.target.value })}
+              placeholder="0x..."
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              66-character hex string starting with 0x
+            </p>
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
-          Market ID (0x...)
-        </label>
-        <input
-          type="text"
-          required
-          value={formData.marketId}
-          onChange={(e) => setFormData({ ...formData, marketId: e.target.value })}
-          className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="0x..."
-        />
-      </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="minApy">Min APY (%)</Label>
+              <Input
+                id="minApy"
+                type="number"
+                step="0.1"
+                required
+                value={formData.minApy}
+                onChange={(e) => setFormData({ ...formData, minApy: e.target.value })}
+                placeholder="2.5"
+                className="font-mono"
+              />
+            </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Min APY (%)
-          </label>
-          <input
-            type="number"
-            step="0.1"
-            required
-            value={formData.minApy}
-            onChange={(e) => setFormData({ ...formData, minApy: e.target.value })}
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="2.5"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="maxApy">Max APY (%)</Label>
+              <Input
+                id="maxApy"
+                type="number"
+                step="0.1"
+                required
+                value={formData.maxApy}
+                onChange={(e) => setFormData({ ...formData, maxApy: e.target.value })}
+                placeholder="8.0"
+                className="font-mono"
+              />
+            </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Max APY (%)
-          </label>
-          <input
-            type="number"
-            step="0.1"
-            required
-            value={formData.maxApy}
-            onChange={(e) => setFormData({ ...formData, maxApy: e.target.value })}
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="8.0"
-          />
-        </div>
-      </div>
+          {error && (
+            <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+              <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">Update failed</p>
+                <p className="text-sm opacity-90 mt-1">{error.message}</p>
+              </div>
+            </div>
+          )}
 
-      {error && (
-        <div className="bg-red-900/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg">
-          {error.message}
-        </div>
-      )}
+          {success && (
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 text-green-500 px-4 py-3 rounded-lg">
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+              <p className="font-medium">Market range updated successfully!</p>
+            </div>
+          )}
 
-      {success && (
-        <div className="bg-green-900/20 border border-green-500 text-green-400 px-4 py-3 rounded-lg">
-          ✓ Market range updated successfully!
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-      >
-        {isLoading ? 'Updating...' : 'Update Market Range'}
-      </button>
-    </form>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full"
+            size="lg"
+          >
+            {isLoading ? (
+              <>
+                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                Updating...
+              </>
+            ) : (
+              'Update Market Range'
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

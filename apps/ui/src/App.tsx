@@ -1,5 +1,6 @@
-import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Activity, Settings, TrendingUp } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfigView } from './components/ConfigView'
 import { UpdateMarketForm } from './components/UpdateMarketForm'
 import { UpdateVaultForm } from './components/UpdateVaultForm'
@@ -7,13 +8,12 @@ import { UpdateStrategyForm } from './components/UpdateStrategyForm'
 import { api } from './lib/api'
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'view' | 'market' | 'vault' | 'strategy'>('view')
   const queryClient = useQueryClient()
 
   const { data: config, isLoading, error } = useQuery({
     queryKey: ['config'],
     queryFn: api.getConfig,
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 5000,
   })
 
   const updateMarketMutation = useMutation({
@@ -38,87 +38,105 @@ function App() {
   })
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Morpho Blue Reallocation Bot
-          </h1>
-          <p className="text-slate-400">
-            Manage APY ranges for vaults and markets
-          </p>
+        <header className="mb-12">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-3 bg-primary/10 rounded-lg">
+              <Activity className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
+                RE7 Morpho reallocation bot
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Manage APY ranges for vaults and markets
+              </p>
+            </div>
+          </div>
         </header>
 
         {/* Tabs */}
-        <div className="mb-6 border-b border-slate-700">
-          <nav className="flex space-x-8">
-            {[
-              { id: 'view' as const, label: 'View Config' },
-              { id: 'market' as const, label: 'Update Market' },
-              { id: 'vault' as const, label: 'Update Vault' },
-              { id: 'strategy' as const, label: 'Update Strategy' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
+        <Tabs defaultValue="view" className="space-y-6">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4 h-auto p-1">
+            <TabsTrigger value="view" className="flex items-center gap-2 py-3">
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline">View Config</span>
+            </TabsTrigger>
+            <TabsTrigger value="market" className="flex items-center gap-2 py-3">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Market</span>
+            </TabsTrigger>
+            <TabsTrigger value="vault" className="flex items-center gap-2 py-3">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Vault</span>
+            </TabsTrigger>
+            <TabsTrigger value="strategy" className="flex items-center gap-2 py-3">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Strategy</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Content */}
-        <div className="bg-slate-800 rounded-lg shadow-xl p-6">
+          {/* Loading State */}
           {isLoading && (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <p className="mt-4 text-slate-400">Loading configuration...</p>
+            <div className="flex flex-col items-center justify-center py-24 space-y-4">
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full border-4 border-muted border-t-primary animate-spin" />
+                <Activity className="h-6 w-6 text-primary absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <p className="text-muted-foreground text-lg">Loading configuration...</p>
             </div>
           )}
 
+          {/* Error State */}
           {error && (
-            <div className="bg-red-900/20 border border-red-500 text-red-400 px-4 py-3 rounded">
-              Error loading configuration: {error.message}
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-6 py-4 rounded-lg backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                <span className="font-medium">Error loading configuration</span>
+              </div>
+              <p className="mt-2 text-sm opacity-90">{error.message}</p>
             </div>
           )}
 
-          {config && activeTab === 'view' && <ConfigView config={config} />}
+          {/* Content */}
+          {config && (
+            <>
+              <TabsContent value="view" className="space-y-6">
+                <ConfigView config={config} />
+              </TabsContent>
 
-          {activeTab === 'market' && (
-            <UpdateMarketForm
-              onSubmit={(data) => updateMarketMutation.mutate(data)}
-              isLoading={updateMarketMutation.isPending}
-              error={updateMarketMutation.error}
-              success={updateMarketMutation.isSuccess}
-            />
-          )}
+              <TabsContent value="market" className="space-y-6">
+                <UpdateMarketForm
+                  onSubmit={(data) => updateMarketMutation.mutate(data)}
+                  isLoading={updateMarketMutation.isPending}
+                  error={updateMarketMutation.error}
+                  success={updateMarketMutation.isSuccess}
+                />
+              </TabsContent>
 
-          {activeTab === 'vault' && (
-            <UpdateVaultForm
-              onSubmit={(data) => updateVaultMutation.mutate(data)}
-              isLoading={updateVaultMutation.isPending}
-              error={updateVaultMutation.error}
-              success={updateVaultMutation.isSuccess}
-            />
-          )}
+              <TabsContent value="vault" className="space-y-6">
+                <UpdateVaultForm
+                  onSubmit={(data) => updateVaultMutation.mutate(data)}
+                  isLoading={updateVaultMutation.isPending}
+                  error={updateVaultMutation.error}
+                  success={updateVaultMutation.isSuccess}
+                />
+              </TabsContent>
 
-          {activeTab === 'strategy' && (
-            <UpdateStrategyForm
-              currentConfig={config?.data}
-              onSubmit={(data) => updateStrategyMutation.mutate(data)}
-              isLoading={updateStrategyMutation.isPending}
-              error={updateStrategyMutation.error}
-              success={updateStrategyMutation.isSuccess}
-            />
+              <TabsContent value="strategy" className="space-y-6">
+                <UpdateStrategyForm
+                  currentConfig={config?.data}
+                  onSubmit={(data) => updateStrategyMutation.mutate(data)}
+                  isLoading={updateStrategyMutation.isPending}
+                  error={updateStrategyMutation.error}
+                  success={updateStrategyMutation.isSuccess}
+                />
+              </TabsContent>
+            </>
           )}
-        </div>
+        </Tabs>
       </div>
     </div>
   )

@@ -1,4 +1,10 @@
 import { useState, useEffect } from 'react'
+import { CheckCircle2, AlertCircle, Settings } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import type { UpdateStrategyRequest, Configuration } from '../lib/api'
 
 interface UpdateStrategyFormProps {
@@ -36,77 +42,106 @@ export function UpdateStrategyForm({ currentConfig, onSubmit, isLoading, error, 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      <h2 className="text-2xl font-semibold text-white">Update Global Strategy</h2>
+    <Card className="max-w-2xl border-primary/20 bg-card/50 backdrop-blur-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Settings className="h-6 w-6 text-primary" />
+          Update Global Strategy
+        </CardTitle>
+        <CardDescription>
+          Configure default settings applied to all markets and vaults
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+            <div className="space-y-0.5 flex-1">
+              <Label htmlFor="idle-reallocation" className="text-base">
+                Allow Idle Reallocation
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Enable the bot to reallocate assets to idle markets
+              </p>
+            </div>
+            <Switch
+              id="idle-reallocation"
+              checked={formData.allowIdleReallocation}
+              onCheckedChange={(checked) =>
+                setFormData({ ...formData, allowIdleReallocation: checked })
+              }
+            />
+          </div>
 
-      <div className="bg-slate-700/50 rounded-lg p-4">
-        <label className="flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={formData.allowIdleReallocation}
-            onChange={(e) => setFormData({ ...formData, allowIdleReallocation: e.target.checked })}
-            className="w-5 h-5 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-          />
-          <span className="ml-3 text-slate-300">
-            Allow Idle Reallocation
-          </span>
-        </label>
-        <p className="mt-2 text-sm text-slate-400 ml-8">
-          When enabled, the bot can reallocate assets to idle markets
-        </p>
-      </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="defaultMinApy">Default Min APY (%)</Label>
+              <Input
+                id="defaultMinApy"
+                type="number"
+                step="0.1"
+                required
+                value={formData.defaultMinApy}
+                onChange={(e) => setFormData({ ...formData, defaultMinApy: e.target.value })}
+                placeholder="0"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Minimum APY threshold
+              </p>
+            </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Default Min APY (%)
-          </label>
-          <input
-            type="number"
-            step="0.1"
-            required
-            value={formData.defaultMinApy}
-            onChange={(e) => setFormData({ ...formData, defaultMinApy: e.target.value })}
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="0"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="defaultMaxApy">Default Max APY (%)</Label>
+              <Input
+                id="defaultMaxApy"
+                type="number"
+                step="0.1"
+                required
+                value={formData.defaultMaxApy}
+                onChange={(e) => setFormData({ ...formData, defaultMaxApy: e.target.value })}
+                placeholder="10"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Maximum APY threshold
+              </p>
+            </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Default Max APY (%)
-          </label>
-          <input
-            type="number"
-            step="0.1"
-            required
-            value={formData.defaultMaxApy}
-            onChange={(e) => setFormData({ ...formData, defaultMaxApy: e.target.value })}
-            className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="10"
-          />
-        </div>
-      </div>
+          {error && (
+            <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+              <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium">Update failed</p>
+                <p className="text-sm opacity-90 mt-1">{error.message}</p>
+              </div>
+            </div>
+          )}
 
-      {error && (
-        <div className="bg-red-900/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg">
-          {error.message}
-        </div>
-      )}
+          {success && (
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 text-green-500 px-4 py-3 rounded-lg">
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+              <p className="font-medium">Strategy updated successfully!</p>
+            </div>
+          )}
 
-      {success && (
-        <div className="bg-green-900/20 border border-green-500 text-green-400 px-4 py-3 rounded-lg">
-          ✓ Strategy updated successfully!
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-      >
-        {isLoading ? 'Updating...' : 'Update Strategy'}
-      </button>
-    </form>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full"
+            size="lg"
+          >
+            {isLoading ? (
+              <>
+                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                Updating...
+              </>
+            ) : (
+              'Update Strategy'
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
