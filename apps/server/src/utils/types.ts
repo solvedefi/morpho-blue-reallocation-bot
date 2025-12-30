@@ -38,7 +38,6 @@ export interface VaultMarketData {
 
 export interface VaultData {
   vaultAddress: Address;
-  // marketsData: VaultMarketData[];
   marketsData: Map<Hex, VaultMarketData>;
 }
 

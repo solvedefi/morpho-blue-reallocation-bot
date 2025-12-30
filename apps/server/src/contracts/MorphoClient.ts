@@ -49,7 +49,7 @@ export class MorphoClient {
 
     for (const marketId of marketIdsFromWithdrawQueue) {
       const marketState = await readContract(this.client, {
-        address: this.config.morpho.address,
+        address: this.config.morpho,
         abi: morphoBlueAbi,
         functionName: "market",
         args: [marketId as `0x${string}`],
@@ -65,7 +65,7 @@ export class MorphoClient {
       };
 
       const marketParams = await readContract(this.client, {
-        address: this.config.morpho.address,
+        address: this.config.morpho,
         abi: morphoBlueAbi,
         functionName: "idToMarketParams",
         args: [marketId as `0x${string}`],
@@ -80,7 +80,7 @@ export class MorphoClient {
       };
 
       const rateAtTarget = await readContract(this.client, {
-        address: this.config.adaptiveCurveIrm.address,
+        address: this.config.adaptiveCurveIrm,
         abi: adaptiveCurveIrmAbi,
         functionName: "rateAtTarget",
         args: [marketId as `0x${string}`],
@@ -96,7 +96,7 @@ export class MorphoClient {
       const supplyCap = config[0];
 
       const position = await readContract(this.client, {
-        address: this.config.morpho.address,
+        address: this.config.morpho,
         abi: morphoBlueAbi,
         functionName: "position",
         args: [marketId as `0x${string}`, vaultAddress], // marketId is bytes32, vaultAddress is the vault

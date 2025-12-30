@@ -93,6 +93,7 @@ function createVaultMarketData(
       fee: 0n,
     },
     cap,
+    loanTokenDecimals: 18,
     vaultAssets,
     rateAtTarget: isIdle ? 0n : rateAtTarget,
     apyAt100Utilization: apyAt100Utilization,

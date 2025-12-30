@@ -1,13 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono, Context } from "hono";
-import { isAddress, isHex } from "viem";
+import { isAddress, isHex, type Address, type Hex } from "viem";
 import { z } from "zod";
 
 import { DatabaseClient } from "./database";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 
-// Zod schemas for request validation
 const vaultConfigSchema = z.object({
   chainId: z.number(),
   vaultAddress: z.string().refine((val) => isAddress(val), {
@@ -103,7 +102,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         );
       }
 
-      await dbClient.upsertVaultApyRange(chainId, vaultAddress, minApy, maxApy);
+      await dbClient.upsertVaultApyRange(chainId, vaultAddress as Address, minApy, maxApy);
 
       // Trigger configuration reload
       if (onConfigChange) {
@@ -157,7 +156,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         );
       }
 
-      await dbClient.upsertMarketApyRange(chainId, marketId, minApy, maxApy);
+      await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy);
 
       // Trigger configuration reload
       if (onConfigChange) {
@@ -270,7 +269,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     try {
       const { chainId, vaultAddress } = c.req.valid("json");
 
-      await dbClient.deleteVaultApyRange(chainId, vaultAddress);
+      await dbClient.deleteVaultApyRange(chainId, vaultAddress as Address);
 
       // Trigger configuration reload
       if (onConfigChange) {
@@ -297,7 +296,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     try {
       const { chainId, marketId } = c.req.valid("json");
 
-      await dbClient.deleteMarketApyRange(chainId, marketId);
+      await dbClient.deleteMarketApyRange(chainId, marketId as Hex);
 
       // Trigger configuration reload
       if (onConfigChange) {

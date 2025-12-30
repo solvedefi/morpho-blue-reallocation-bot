@@ -10,16 +10,7 @@ export interface ChainConfig extends Config {
 
 export interface Config {
   chain: Chain;
-  morpho: {
-    address: Address;
-    startBlock: number;
-  };
-  adaptiveCurveIrm: {
-    address: Address;
-    startBlock: number;
-  };
-  metaMorphoFactories: {
-    addresses: Address[];
-    startBlock: number;
-  };
+  morpho: Address;
+  adaptiveCurveIrm: Address;
+  metaMorphoFactories: Address[];
 }
