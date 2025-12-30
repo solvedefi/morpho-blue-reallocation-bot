@@ -35,6 +35,7 @@ export class ApyRange implements Strategy {
   constructor(config: ApyConfiguration) {
     this.config = config;
   }
+
   findReallocation(vaultData: VaultData) {
     const marketsDataArray = Array.from(vaultData.marketsData.values());
 
@@ -71,6 +72,12 @@ export class ApyRange implements Strategy {
     let totalDepositableAmount = 0n;
 
     let didExceedMinApyDelta = false; // (true if *at least one* market moves enough)
+
+    // Get decimals from first market (all markets should have same loan token)
+    let loanTokenDecimals = 18;
+    if (marketsData.length > 0 && marketsData[0]) {
+      loanTokenDecimals = marketsData[0].loanTokenDecimals;
+    }
 
     for (const marketData of marketsData) {
       const apyRange = this.getApyRange(marketData.chainId, vaultData.vaultAddress, marketData.id);
@@ -182,8 +189,7 @@ export class ApyRange implements Strategy {
         const withdrawal = min(amountToWithdraw, remainingWithdrawal);
 
         // if the withdrawal is less than 1 token, then we don't need to withdraw
-        // TODO: fix decimals
-        if (withdrawal < 10n ** 18n) {
+        if (withdrawal < 10n ** BigInt(loanTokenDecimals)) {
           continue;
         }
         const buffer = (withdrawal * 1n) / 100n; // 1% buffer

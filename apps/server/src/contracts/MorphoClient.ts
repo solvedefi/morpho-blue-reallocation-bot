@@ -2,6 +2,7 @@ import { Address, type Account, type Chain, type Client, type Transport } from "
 import { readContract } from "viem/actions";
 
 import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
+import { erc20Abi } from "../../abis/ERC20.js";
 import { irmAbi } from "../../abis/IRM.js";
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
@@ -115,6 +116,13 @@ export class MorphoClient {
         accuredState.totalSupplyShares,
       );
 
+      const loanTokenDecimals = await readContract(this.client, {
+        address: marketParamsStruct.loanToken,
+        abi: erc20Abi,
+        functionName: "decimals",
+        args: [],
+      });
+
       const vaultMarketData: VaultMarketData = {
         chainId: this.config.chain.id,
         id: marketId as `0x${string}`,
@@ -124,6 +132,7 @@ export class MorphoClient {
         vaultAssets,
         rateAtTarget: accuredRateAtTarget,
         apyAt100Utilization: 0n,
+        loanTokenDecimals: Number(loanTokenDecimals),
       };
 
       vaultMarketData.apyAt100Utilization =

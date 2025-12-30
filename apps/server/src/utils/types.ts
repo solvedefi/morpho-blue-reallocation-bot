@@ -33,6 +33,7 @@ export interface VaultMarketData {
   vaultAssets: bigint;
   rateAtTarget: bigint;
   apyAt100Utilization: bigint;
+  loanTokenDecimals: number;
 }
 
 export interface VaultData {

@@ -83,11 +83,11 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       const { chainId, vaultAddress, minApy, maxApy } = c.req.valid("json");
 
       // Validate APY values
-      if (minApy < 0 || maxApy < 0) {
+      if (minApy < 0 || maxApy < 100) {
         return c.json(
           {
             success: false,
-            error: "APY values must be non-negative",
+            error: "APY values must be non-negative and max APY cant be more than 100",
           },
           400,
         );
