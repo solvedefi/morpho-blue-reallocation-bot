@@ -59,264 +59,270 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
   const app = new Hono();
 
   app.get("/config", async (c: Context) => {
-    try {
-      const config = await dbClient.loadApyConfiguration();
-      return c.json({
-        success: true,
-        data: config,
-      });
-    } catch (error) {
-      console.error("Error loading configuration:", error);
+    const configResult = await dbClient.loadApyConfiguration();
+
+    if (configResult.isErr()) {
+      console.error("Error loading configuration:", configResult.error);
       return c.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to load configuration",
+          error: "Failed to load configuration",
         },
         500,
       );
     }
+
+    return c.json({
+      success: true,
+      data: configResult.value,
+    });
   });
 
   app.post("/config/vault", zValidator("json", vaultConfigSchema), async (c) => {
-    try {
-      const { chainId, vaultAddress, minApy, maxApy } = c.req.valid("json");
+    const { chainId, vaultAddress, minApy, maxApy } = c.req.valid("json");
 
-      // Validate APY values
-      if (minApy < 0 || maxApy < 100) {
-        return c.json(
-          {
-            success: false,
-            error: "APY values must be non-negative and max APY cant be more than 100",
-          },
-          400,
-        );
-      }
-
-      if (minApy >= maxApy) {
-        return c.json(
-          {
-            success: false,
-            error: "minApy must be less than maxApy",
-          },
-          400,
-        );
-      }
-
-      await dbClient.upsertVaultApyRange(chainId, vaultAddress as Address, minApy, maxApy);
-
-      // Trigger configuration reload
-      if (onConfigChange) {
-        await onConfigChange();
-      }
-
-      return c.json({
-        success: true,
-        message: "Vault APY range configured successfully",
-        data: {
-          chainId,
-          vaultAddress,
-          minApy,
-          maxApy,
-        },
-      });
-    } catch (error) {
-      console.error("Error updating vault APY range:", error);
+    // Validate APY values
+    if (minApy < 0 || maxApy < 100) {
       return c.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to update vault APY range",
+          error: "APY values must be non-negative and max APY cant be more than 100",
+        },
+        400,
+      );
+    }
+
+    if (minApy >= maxApy) {
+      return c.json(
+        {
+          success: false,
+          error: "minApy must be less than maxApy",
+        },
+        400,
+      );
+    }
+
+    const result = await dbClient.upsertVaultApyRange(
+      chainId,
+      vaultAddress as Address,
+      minApy,
+      maxApy,
+    );
+
+    if (result.isErr()) {
+      console.error("Error updating vault APY range:", result.error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to update vault APY configuration",
         },
         500,
       );
     }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Vault APY range configured successfully",
+      data: {
+        chainId,
+        vaultAddress,
+        minApy,
+        maxApy,
+      },
+    });
   });
 
   app.post("/config/market", zValidator("json", marketConfigSchema), async (c) => {
-    try {
-      const { chainId, marketId, minApy, maxApy } = c.req.valid("json");
+    const { chainId, marketId, minApy, maxApy } = c.req.valid("json");
 
-      // Validate APY values
-      if (minApy < 0 || maxApy < 0) {
-        return c.json(
-          {
-            success: false,
-            error: "APY values must be non-negative",
-          },
-          400,
-        );
-      }
-
-      if (minApy >= maxApy) {
-        return c.json(
-          {
-            success: false,
-            error: "minApy must be less than maxApy",
-          },
-          400,
-        );
-      }
-
-      await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy);
-
-      // Trigger configuration reload
-      if (onConfigChange) {
-        await onConfigChange();
-      }
-
-      return c.json({
-        success: true,
-        message: "Market APY range configured successfully",
-        data: {
-          chainId,
-          marketId,
-          minApy,
-          maxApy,
-        },
-      });
-    } catch (error) {
-      console.error("Error updating market APY range:", error);
+    // Validate APY values
+    if (minApy < 0 || maxApy < 0) {
       return c.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to update market APY range",
+          error: "APY values must be non-negative",
+        },
+        400,
+      );
+    }
+
+    if (minApy >= maxApy) {
+      return c.json(
+        {
+          success: false,
+          error: "minApy must be less than maxApy",
+        },
+        400,
+      );
+    }
+
+    const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy);
+
+    if (result.isErr()) {
+      console.error("Error updating market APY range:", result.error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to update market APY configuration",
         },
         500,
       );
     }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Market APY range configured successfully",
+      data: {
+        chainId,
+        marketId,
+        minApy,
+        maxApy,
+      },
+    });
   });
 
   app.put("/config/strategy", zValidator("json", strategyConfigSchema), async (c) => {
-    try {
-      const { allowIdleReallocation, defaultMinApy, defaultMaxApy } = c.req.valid("json");
+    const { allowIdleReallocation, defaultMinApy, defaultMaxApy } = c.req.valid("json");
 
-      const updateData: {
-        allowIdleReallocation?: boolean;
-        defaultMinApy?: number;
-        defaultMaxApy?: number;
-      } = {};
+    const updateData: {
+      allowIdleReallocation?: boolean;
+      defaultMinApy?: number;
+      defaultMaxApy?: number;
+    } = {};
 
-      // Validate allowIdleReallocation if provided
-      if (allowIdleReallocation !== undefined) {
-        updateData.allowIdleReallocation = allowIdleReallocation;
+    // Validate allowIdleReallocation if provided
+    if (allowIdleReallocation !== undefined) {
+      updateData.allowIdleReallocation = allowIdleReallocation;
+    }
+
+    // Validate defaultMinApy if provided
+    if (defaultMinApy !== undefined) {
+      if (defaultMinApy < 0) {
+        return c.json(
+          {
+            success: false,
+            error: "defaultMinApy must be a non-negative number",
+          },
+          400,
+        );
       }
+      updateData.defaultMinApy = defaultMinApy;
+    }
 
-      // Validate defaultMinApy if provided
-      if (defaultMinApy !== undefined) {
-        if (defaultMinApy < 0) {
-          return c.json(
-            {
-              success: false,
-              error: "defaultMinApy must be a non-negative number",
-            },
-            400,
-          );
-        }
-        updateData.defaultMinApy = defaultMinApy;
+    // Validate defaultMaxApy if provided
+    if (defaultMaxApy !== undefined) {
+      if (defaultMaxApy < 0) {
+        return c.json(
+          {
+            success: false,
+            error: "defaultMaxApy must be a non-negative number",
+          },
+          400,
+        );
       }
+      updateData.defaultMaxApy = defaultMaxApy;
+    }
 
-      // Validate defaultMaxApy if provided
-      if (defaultMaxApy !== undefined) {
-        if (defaultMaxApy < 0) {
-          return c.json(
-            {
-              success: false,
-              error: "defaultMaxApy must be a non-negative number",
-            },
-            400,
-          );
-        }
-        updateData.defaultMaxApy = defaultMaxApy;
+    // Validate min < max if both are provided
+    if (updateData.defaultMinApy !== undefined && updateData.defaultMaxApy !== undefined) {
+      if (updateData.defaultMinApy >= updateData.defaultMaxApy) {
+        return c.json(
+          {
+            success: false,
+            error: "defaultMinApy must be less than defaultMaxApy",
+          },
+          400,
+        );
       }
+    }
 
-      // Validate min < max if both are provided
-      if (updateData.defaultMinApy !== undefined && updateData.defaultMaxApy !== undefined) {
-        if (updateData.defaultMinApy >= updateData.defaultMaxApy) {
-          return c.json(
-            {
-              success: false,
-              error: "defaultMinApy must be less than defaultMaxApy",
-            },
-            400,
-          );
-        }
-      }
+    const result = await dbClient.updateApyStrategyConfig(updateData);
 
-      await dbClient.updateApyStrategyConfig(updateData);
-
-      // Trigger configuration reload
-      if (onConfigChange) {
-        await onConfigChange();
-      }
-
-      return c.json({
-        success: true,
-        message: "Strategy configuration updated successfully",
-        data: updateData,
-      });
-    } catch (error) {
-      console.error("Error updating strategy configuration:", error);
+    if (result.isErr()) {
+      console.error("Error updating strategy configuration:", result.error);
       return c.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to update strategy configuration",
+          error: "Failed to update strategy configuration",
         },
         500,
       );
     }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Strategy configuration updated successfully",
+      data: updateData,
+    });
   });
 
   app.delete("/config/vault", zValidator("json", deleteVaultConfigSchema), async (c) => {
-    try {
-      const { chainId, vaultAddress } = c.req.valid("json");
+    const { chainId, vaultAddress } = c.req.valid("json");
 
-      await dbClient.deleteVaultApyRange(chainId, vaultAddress as Address);
+    const result = await dbClient.deleteVaultApyRange(chainId, vaultAddress as Address);
 
-      // Trigger configuration reload
-      if (onConfigChange) {
-        await onConfigChange();
-      }
-
-      return c.json({
-        success: true,
-        message: "Vault APY range deleted successfully",
-      });
-    } catch (error) {
-      console.error("Error deleting vault APY range:", error);
+    if (result.isErr()) {
+      console.error("Error deleting vault APY range:", result.error);
       return c.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to delete vault APY range",
+          error: "Failed to delete vault APY configuration",
         },
         500,
       );
     }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Vault APY range deleted successfully",
+    });
   });
 
   app.delete("/config/market", zValidator("json", deleteMarketConfigSchema), async (c) => {
-    try {
-      const { chainId, marketId } = c.req.valid("json");
+    const { chainId, marketId } = c.req.valid("json");
 
-      await dbClient.deleteMarketApyRange(chainId, marketId as Hex);
+    const result = await dbClient.deleteMarketApyRange(chainId, marketId as Hex);
 
-      // Trigger configuration reload
-      if (onConfigChange) {
-        await onConfigChange();
-      }
-
-      return c.json({
-        success: true,
-        message: "Market APY range deleted successfully",
-      });
-    } catch (error) {
-      console.error("Error deleting market APY range:", error);
+    if (result.isErr()) {
+      console.error("Error deleting market APY range:", result.error);
       return c.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Failed to delete market APY range",
+          error: "Failed to delete market APY configuration",
         },
         500,
       );
     }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Market APY range deleted successfully",
+    });
   });
 
   app.get("/health", (c) => {

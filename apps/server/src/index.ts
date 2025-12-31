@@ -31,7 +31,7 @@ async function getSecretsFromAWS(secretName: string): Promise<string> {
   }
 }
 
-function getRpcUrl(chainId: number, defaultRpcUrl?: string): Promise<string> {
+function getRpcUrl(chainId: number, defaultRpcUrl?: string): string {
   const rpcUrl = process.env[`RPC_URL_${String(chainId)}`] ?? defaultRpcUrl;
   if (!rpcUrl) {
     throw new Error(`No RPC URL found for chainId ${String(chainId)}`);
@@ -78,9 +78,13 @@ async function runBotInBackground(bot: ReallocationBot, executionInterval: numbe
   return new Promise<void>(() => {});
 }
 
-function logApyConfiguration(
-  apyConfig: Awaited<ReturnType<DatabaseClient["loadApyConfiguration"]>>,
-) {
+function logApyConfiguration(apyConfig: {
+  vaultRanges: Record<number, Record<string, { min: number; max: number }>>;
+  marketRanges: Record<number, Record<string, { min: number; max: number }>>;
+  allowIdleReallocation: boolean;
+  defaultMinApy: number;
+  defaultMaxApy: number;
+}) {
   const vaultChainIds = Object.keys(apyConfig.vaultRanges);
   const marketChainIds = Object.keys(apyConfig.marketRanges);
 
@@ -97,32 +101,44 @@ function logApyConfiguration(
 
 async function main() {
   const dbClient = new DatabaseClient();
-  await dbClient.connect();
 
-  let apyConfig = await dbClient.loadApyConfiguration();
+  const connectResult = await dbClient.connect();
+  if (connectResult.isErr()) {
+    console.error("Failed to connect to database:", connectResult.error.message);
+    process.exit(1);
+  }
+
+  const apyConfigResult = await dbClient.loadApyConfiguration();
+  if (apyConfigResult.isErr()) {
+    console.error("Failed to load APY configuration:", apyConfigResult.error.message);
+    process.exit(1);
+  }
+
+  let apyConfig = apyConfigResult.value;
   logApyConfiguration(apyConfig);
 
   const bots: ReallocationBot[] = [];
 
   const reloadConfiguration = async () => {
     console.log("\nConfiguration change detected. Reloading...");
-    try {
-      const newApyConfig = await dbClient.loadApyConfiguration();
-      apyConfig = newApyConfig;
+    const newApyConfigResult = await dbClient.loadApyConfiguration();
 
-      console.log("Configuration reloaded successfully");
-      logApyConfiguration(apyConfig);
-
-      // Update all bots with new strategy
-      for (const bot of bots) {
-        const newStrategy = new ApyRange(apyConfig);
-        bot.updateStrategy(newStrategy);
-      }
-
-      console.log("All bots updated with new configuration\n");
-    } catch (error) {
-      console.error("❌ Failed to reload configuration:", error);
+    if (newApyConfigResult.isErr()) {
+      console.error("❌ Failed to reload configuration:", newApyConfigResult.error.message);
+      return;
     }
+
+    apyConfig = newApyConfigResult.value;
+    console.log("Configuration reloaded successfully");
+    logApyConfiguration(apyConfig);
+
+    // Update all bots with new strategy
+    for (const bot of bots) {
+      const newStrategy = new ApyRange(apyConfig);
+      bot.updateStrategy(newStrategy);
+    }
+
+    console.log("All bots updated with new configuration\n");
   };
 
   // Start the HTTP server with configuration reload callback
@@ -141,7 +157,13 @@ async function main() {
   );
 
   // Load operational configs from database
-  const chainOperationalConfigs = await dbClient.getAllChainConfigs();
+  const chainConfigsResult = await dbClient.getAllChainConfigs();
+  if (chainConfigsResult.isErr()) {
+    console.error("Failed to load chain configs:", chainConfigsResult.error.message);
+    process.exit(1);
+  }
+
+  const chainOperationalConfigs = chainConfigsResult.value;
   console.log(`Found ${String(chainOperationalConfigs.length)} enabled chain(s):`);
   for (const opConfig of chainOperationalConfigs) {
     console.log(
@@ -170,7 +192,7 @@ async function main() {
       continue;
     }
 
-    const rpcUrl = await getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
+    const rpcUrl = getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
     const client = createWalletClient({
       chain: infraConfig.chain,
       transport: http(rpcUrl),

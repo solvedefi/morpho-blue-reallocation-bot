@@ -96,6 +96,9 @@ importers:
       hono:
         specifier: ^4.6.14
         version: 4.10.6
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
       viem:
         specifier: 2.23.2
         version: 2.23.2(typescript@5.8.3)(zod@4.2.1)
@@ -3290,6 +3293,10 @@ packages:
 
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
+
+  neverthrow@8.2.0:
+    resolution: {integrity: sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==}
+    engines: {node: '>=18'}
 
   nock@14.0.4:
     resolution: {integrity: sha512-86fh+gIKH8H02+y0/HKAOZZXn6OwgzXvl6JYwfjvKkoKxUWz54wIIDU/+w24xzMvk/R8pNVXOrvTubyl+Ml6cg==}
@@ -7521,6 +7528,10 @@ snapshots:
   napi-postinstall@0.3.4: {}
 
   natural-compare@1.4.0: {}
+
+  neverthrow@8.2.0:
+    optionalDependencies:
+      '@rollup/rollup-linux-x64-gnu': 4.40.0
 
   nock@14.0.4:
     dependencies:

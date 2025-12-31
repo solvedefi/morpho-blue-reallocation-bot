@@ -38,9 +38,29 @@ export class ReallocationBot {
 
   async run() {
     const { vaultWhitelist } = this;
-    const vaultsData = await Promise.all(
+    const vaultsDataResults = await Promise.all(
       vaultWhitelist.map((vault) => this.morphoClient.fetchVaultData(vault)),
     );
+
+    // Filter out errors and log them
+    const vaultsData = vaultsDataResults
+      .filter((result) => {
+        if (result.isErr()) {
+          console.error(
+            `Failed to fetch vault data on chain ${this.chainId.toString()}:`,
+            result.error.message,
+          );
+          return false;
+        }
+        return true;
+      })
+      .map((result) => result._unsafeUnwrap());
+
+    if (vaultsData.length === 0) {
+      console.warn(`No vault data available on chain ${this.chainId.toString()}`);
+      return;
+    }
+
     await Promise.all(
       vaultsData.map(async (vaultData) => {
         const reallocation = await this.strategy.findReallocation(vaultData);

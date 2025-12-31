@@ -196,3 +196,111 @@ VALUES (1, '0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB', 300, CURRENT_TIMESTAMP,
 -- Base vaults
 INSERT INTO "vault_strategy_thresholds" ("chain_id", "vault_address", "min_utilization_delta_bips", "created_at", "updated_at")
 VALUES (8453, '0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A', 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Insert chain configurations
+-- Ethereum (chainId: 1)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (1, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (1, '0x95EeF579155cd2C5510F312c8fA39208c3Be01a8', true, CURRENT_TIMESTAMP);
+
+-- BASE (chainId: 8453) - ACTIVE
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (8453, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (8453, '0xbb819D845b573B5D7C538F5b85057160cfb5f313', true, CURRENT_TIMESTAMP);
+
+-- Bera (chainId: 80094)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (80094, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (80094, '0x30BbA9CD9Eb8c95824aa42Faa1Bb397b07545bc1', true, CURRENT_TIMESTAMP);
+
+-- Worldchain (chainId: 480)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (480, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (480, '0xb1E80387EbE53Ff75a89736097D34dC8D9E9045B', true, CURRENT_TIMESTAMP);
+
+-- Plume (chainId: 98866)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (98866, 60, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (98866, '0xc0Df5784f28046D11813356919B869dDA5815B16', true, CURRENT_TIMESTAMP);
+
+-- Unichain (chainId: 130)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (130, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (130, '0x6af5E46456A8ac80BB53a02799965DEF99c26e52', true, CURRENT_TIMESTAMP),
+  (130, '0xa48f8A10F16bB50A588606553D9fE7338050f8Cd', true, CURRENT_TIMESTAMP),
+  (130, '0x2c0F7e917257926BA6233B20DE19d7fe3210858C', true, CURRENT_TIMESTAMP);
+
+-- Soneium (chainId: 1868)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (1868, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (1868, '0x41baa218A118FB2249CBCf836C1E8EE336d67faA', true, CURRENT_TIMESTAMP),
+  (1868, '0xbA738D34c4E278E1cd64AAA9BBd569688e8Dc5Dc', true, CURRENT_TIMESTAMP),
+  (1868, '0xEcDBE2AF33E68cf96F6716f706B078fa94e978cb', true, CURRENT_TIMESTAMP),
+  (1868, '0x04C451be70C41E4a88F7aC436AE767d64AE79049', true, CURRENT_TIMESTAMP);
+
+-- Arbitrum (chainId: 42161)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (42161, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Neon (chainId: 239)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (239, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (239, '0xC5e1bD2473811bB782326006A3c03477F7834D35', true, CURRENT_TIMESTAMP),
+  (239, '0x4183Bd253Dc1918A04Bd8a8dD546BaAD58898109', true, CURRENT_TIMESTAMP),
+  (239, '0xf49f14Cff1bA2eE7E23222A76e0C2b3D0BDE06dC', true, CURRENT_TIMESTAMP),
+  (239, '0x84BBc0be5a6f831a4E2C28a2F3b892C70AcAa5b3', true, CURRENT_TIMESTAMP),
+  (239, '0xe9BD3590A68939344953b4f912d83b7c8C2A1f77', true, CURRENT_TIMESTAMP);
+
+-- Form (chainId: 747474)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (747474, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (747474, '0x6680D2993fAadC9204Bd614a53e0c7a3f20c8ca5', true, CURRENT_TIMESTAMP),
+  (747474, '0xdc97cF490b2D367F34E5AF8a5f90d2b8FCBA8ce1', true, CURRENT_TIMESTAMP);
+
+-- Polygon (chainId: 137)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (137, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (137, '0xF91D80E43272DBC610551E8c872E0438d62C1c69', true, CURRENT_TIMESTAMP);
+
+-- Lisk (chainId: 1135)
+INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
+VALUES (1135, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO vault_whitelist (chain_id, vault_address, enabled, created_at)
+VALUES
+  (1135, '0x50cB55BE8cF05480a844642cB979820C847782aE', true, CURRENT_TIMESTAMP),
+  (1135, '0x7Cbaa98bd5e171A658FdF761ED1Db33806a0d346', true, CURRENT_TIMESTAMP),
+  (1135, '0x8258F0c79465c95AFAc325D6aB18797C9DDAcf55', true, CURRENT_TIMESTAMP),
+  (1135, '0xD92f564A29992251297980187a6B74FAa3D50699', true, CURRENT_TIMESTAMP),
+  (1135, '0xE9cB4c4d3F0798e3087D4d49D3307cDB302CEC55', true, CURRENT_TIMESTAMP),
+  (1135, '0x9cF2f0AF475398ca01F099974960adbC9cB87025', true, CURRENT_TIMESTAMP);
