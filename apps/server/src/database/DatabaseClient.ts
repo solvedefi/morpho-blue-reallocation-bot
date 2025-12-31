@@ -7,7 +7,6 @@ export interface ApyRangeConfig {
 }
 
 export type VaultApyRanges = Record<string, ApyRangeConfig>;
-
 export type MarketApyRanges = Record<string, ApyRangeConfig>;
 
 export interface ApyConfiguration {
@@ -320,7 +319,7 @@ export class DatabaseClient {
   async upsertChainConfig(
     chainId: number,
     executionInterval: number,
-    enabled: boolean = true,
+    enabled = true,
   ): Promise<void> {
     await this.prisma.chainConfig.upsert({
       where: { chainId },

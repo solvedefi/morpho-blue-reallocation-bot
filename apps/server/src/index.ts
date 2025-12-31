@@ -31,7 +31,7 @@ async function getSecretsFromAWS(secretName: string): Promise<string> {
   }
 }
 
-async function getRpcUrl(chainId: number, defaultRpcUrl?: string): Promise<string> {
+function getRpcUrl(chainId: number, defaultRpcUrl?: string): Promise<string> {
   const rpcUrl = process.env[`RPC_URL_${String(chainId)}`] ?? defaultRpcUrl;
   if (!rpcUrl) {
     throw new Error(`No RPC URL found for chainId ${String(chainId)}`);
@@ -81,56 +81,31 @@ async function runBotInBackground(bot: ReallocationBot, executionInterval: numbe
 function logApyConfiguration(
   apyConfig: Awaited<ReturnType<DatabaseClient["loadApyConfiguration"]>>,
 ) {
-  console.log("--- APY Configuration ---");
-  console.log(`Allow idle reallocation: ${String(apyConfig.allowIdleReallocation)}`);
-  console.log(
-    `Default APY range: min = ${String(apyConfig.defaultMinApy)}, max = ${String(apyConfig.defaultMaxApy)}`,
-  );
-
   const vaultChainIds = Object.keys(apyConfig.vaultRanges);
   const marketChainIds = Object.keys(apyConfig.marketRanges);
-  console.log(
-    `Vault APY ranges configured for ${String(vaultChainIds.length)} chain(s):`,
-    vaultChainIds,
-  );
+
   for (const chainId of vaultChainIds) {
     const vaults = apyConfig.vaultRanges[parseInt(chainId)];
     if (!vaults) continue;
-    console.log(`  ChainId ${chainId}:`);
-    for (const [vaultAddr, range] of Object.entries(vaults)) {
-      console.log(`    Vault ${vaultAddr}: min=${String(range.min)}, max=${String(range.max)}`);
-    }
   }
-  console.log(
-    `Market APY ranges configured for ${String(marketChainIds.length)} chain(s):`,
-    marketChainIds,
-  );
+
   for (const chainId of marketChainIds) {
     const markets = apyConfig.marketRanges[parseInt(chainId)];
     if (!markets) continue;
-    console.log(`  ChainId ${chainId}:`);
-    for (const [marketId, range] of Object.entries(markets)) {
-      console.log(`    Market ${marketId}: min=${String(range.min)}, max=${String(range.max)}`);
-    }
   }
 }
 
 async function main() {
-  // Initialize database client and load configuration
   const dbClient = new DatabaseClient();
   await dbClient.connect();
 
-  console.log("Loading APY configuration from database...");
   let apyConfig = await dbClient.loadApyConfiguration();
-  console.log("APY configuration loaded successfully");
   logApyConfiguration(apyConfig);
 
-  // Store all bots for configuration reload
   const bots: ReallocationBot[] = [];
 
-  // Create a callback function to reload configuration and update all bots
   const reloadConfiguration = async () => {
-    console.log("\n🔄 Configuration change detected. Reloading...");
+    console.log("\nConfiguration change detected. Reloading...");
     try {
       const newApyConfig = await dbClient.loadApyConfiguration();
       apyConfig = newApyConfig;
@@ -144,7 +119,7 @@ async function main() {
         bot.updateStrategy(newStrategy);
       }
 
-      console.log("✅ All bots updated with new configuration\n");
+      console.log("All bots updated with new configuration\n");
     } catch (error) {
       console.error("❌ Failed to reload configuration:", error);
     }
@@ -166,7 +141,6 @@ async function main() {
   );
 
   // Load operational configs from database
-  console.log("\nLoading chain operational configs from database...");
   const chainOperationalConfigs = await dbClient.getAllChainConfigs();
   console.log(`Found ${String(chainOperationalConfigs.length)} enabled chain(s):`);
   for (const opConfig of chainOperationalConfigs) {
@@ -177,7 +151,7 @@ async function main() {
 
   if (chainOperationalConfigs.length === 0) {
     console.warn(
-      "⚠️  No chain configs found in database. Please add chain configs before running the bot.",
+      "No chain configs found in database. Please add chain configs before running the bot.",
     );
     return;
   }
@@ -188,16 +162,15 @@ async function main() {
   const botTasks: Promise<void>[] = [];
 
   for (const opConfig of chainOperationalConfigs) {
-    // Get chain infrastructure config from code
     const infraConfig: Config | undefined = chainConfigs[opConfig.chainId];
     if (!infraConfig) {
-      console.warn(`⚠️  No infrastructure config found for chainId ${String(opConfig.chainId)}, skipping...`);
+      console.warn(
+        `No infrastructure config found for chainId ${String(opConfig.chainId)}, skipping...`,
+      );
       continue;
     }
 
-    // Get RPC URL from env
     const rpcUrl = await getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
-
     const client = createWalletClient({
       chain: infraConfig.chain,
       transport: http(rpcUrl),
@@ -218,15 +191,14 @@ async function main() {
     // Store bot reference for configuration updates
     bots.push(bot);
 
-    console.log(`\n🤖 Starting bot for chain ${String(opConfig.chainId)}...`);
-    // Run on startup.
+    console.log(`\nStarting bot for chain ${String(opConfig.chainId)}...`);
     void bot.run();
 
     const botTask = runBotInBackground(bot, opConfig.executionInterval);
     botTasks.push(botTask);
   }
 
-  console.log("\n✅ All bots started successfully!\n");
+  console.log("\nAll bots started successfully!\n");
 
   await Promise.all(botTasks);
 }
