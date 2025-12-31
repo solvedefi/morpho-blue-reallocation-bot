@@ -1,5 +1,6 @@
 import { Address, Hex, encodeAbiParameters, keccak256, maxUint256, zeroAddress } from "viem";
 
+// eslint-disable-next-line import-x/order
 import { ApyConfiguration } from "../../database/DatabaseClient";
 
 // Strategy threshold default - can be moved to database later
