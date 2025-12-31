@@ -1,7 +1,9 @@
 import { Address, Hex, encodeAbiParameters, keccak256, maxUint256, zeroAddress } from "viem";
 
-import { DEFAULT_MIN_APY_DELTA_BIPS } from "../../config";
 import { ApyConfiguration } from "../../database/DatabaseClient";
+
+// Strategy threshold default - can be moved to database later
+const DEFAULT_MIN_APY_DELTA_BIPS = 50;
 import {
   apyToRate,
   getDepositableAmount,

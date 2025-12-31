@@ -50,3 +50,57 @@ model ApyStrategyConfig {
 
   @@map("apy_strategy_config")
 }
+
+// Chain operational configuration
+model ChainConfig {
+  id                Int              @id @default(autoincrement())
+  chainId           Int              @unique @map("chain_id")
+  executionInterval Int              @map("execution_interval") // in seconds
+  enabled           Boolean          @default(true)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  vaultWhitelist    VaultWhitelist[]
+
+  @@map("chain_config")
+}
+
+// Vault whitelist per chain
+model VaultWhitelist {
+  id           Int         @id @default(autoincrement())
+  chainId      Int         @map("chain_id")
+  vaultAddress String      @map("vault_address") @db.VarChar(42)
+  enabled      Boolean     @default(true)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  chainConfig  ChainConfig @relation(fields: [chainId], references: [chainId], onDelete: Cascade)
+
+  @@unique([chainId, vaultAddress])
+  @@index([chainId])
+  @@map("vault_whitelist")
+}
+
+// Strategy threshold configuration
+model StrategyThresholds {
+  id                             Int      @id @default(autoincrement())
+  defaultMinApyDeltaBips         Int      @default(50) @map("default_min_apy_delta_bips")
+  defaultMinUtilizationDeltaBips Int      @default(25) @map("default_min_utilization_delta_bips")
+  defaultMinAprDeltaBips         Int      @default(0) @map("default_min_apr_delta_bips")
+  updatedAt                      DateTime @updatedAt @map("updated_at")
+
+  @@map("strategy_thresholds")
+}
+
+// Vault-specific strategy threshold overrides
+model VaultStrategyThresholds {
+  id                      Int      @id @default(autoincrement())
+  chainId                 Int      @map("chain_id")
+  vaultAddress            String   @map("vault_address") @db.VarChar(42)
+  minApyDeltaBips         Int?     @map("min_apy_delta_bips")
+  minUtilizationDeltaBips Int?     @map("min_utilization_delta_bips")
+  minAprDeltaBips         Int?     @map("min_apr_delta_bips")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@unique([chainId, vaultAddress])
+  @@index([chainId])
+  @@map("vault_strategy_thresholds")
+}

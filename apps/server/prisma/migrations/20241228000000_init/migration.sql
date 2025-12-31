@@ -117,3 +117,82 @@ INSERT INTO "market_apy_config" ("chain_id", "market_id", "min_apy", "max_apy", 
 (480, '0x45f3b5688e7ba25071f78d1ce51d1b893faa3c86897b12204cdff3af6b3611f8', 7.5, 8.5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 -- Berachain markets (chain_id: 80084)
 (80084, '0x1ba7904c73d337c39cb88b00180dffb215fc334a6ff47bbe829cd9ee2af00c97', 2.5, 3.5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- CreateTable
+CREATE TABLE "chain_config" (
+    "id" SERIAL NOT NULL,
+    "chain_id" INTEGER NOT NULL,
+    "execution_interval" INTEGER NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "chain_config_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "vault_whitelist" (
+    "id" SERIAL NOT NULL,
+    "chain_id" INTEGER NOT NULL,
+    "vault_address" VARCHAR(42) NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "vault_whitelist_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "strategy_thresholds" (
+    "id" SERIAL NOT NULL,
+    "default_min_apy_delta_bips" INTEGER NOT NULL DEFAULT 50,
+    "default_min_utilization_delta_bips" INTEGER NOT NULL DEFAULT 25,
+    "default_min_apr_delta_bips" INTEGER NOT NULL DEFAULT 0,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "strategy_thresholds_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "vault_strategy_thresholds" (
+    "id" SERIAL NOT NULL,
+    "chain_id" INTEGER NOT NULL,
+    "vault_address" VARCHAR(42) NOT NULL,
+    "min_apy_delta_bips" INTEGER,
+    "min_utilization_delta_bips" INTEGER,
+    "min_apr_delta_bips" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "vault_strategy_thresholds_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "chain_config_chain_id_key" ON "chain_config"("chain_id");
+
+-- CreateIndex
+CREATE INDEX "vault_whitelist_chain_id_idx" ON "vault_whitelist"("chain_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "vault_whitelist_chain_id_vault_address_key" ON "vault_whitelist"("chain_id", "vault_address");
+
+-- CreateIndex
+CREATE INDEX "vault_strategy_thresholds_chain_id_idx" ON "vault_strategy_thresholds"("chain_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "vault_strategy_thresholds_chain_id_vault_address_key" ON "vault_strategy_thresholds"("chain_id", "vault_address");
+
+-- AddForeignKey
+ALTER TABLE "vault_whitelist" ADD CONSTRAINT "vault_whitelist_chain_id_fkey" FOREIGN KEY ("chain_id") REFERENCES "chain_config"("chain_id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Insert default strategy thresholds
+INSERT INTO "strategy_thresholds" ("default_min_apy_delta_bips", "default_min_utilization_delta_bips", "default_min_apr_delta_bips", "updated_at")
+VALUES (50, 25, 0, CURRENT_TIMESTAMP);
+
+-- Insert vault strategy threshold overrides
+-- Mainnet vaults
+INSERT INTO "vault_strategy_thresholds" ("chain_id", "vault_address", "min_utilization_delta_bips", "created_at", "updated_at")
+VALUES (1, '0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB', 300, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Base vaults
+INSERT INTO "vault_strategy_thresholds" ("chain_id", "vault_address", "min_utilization_delta_bips", "created_at", "updated_at")
+VALUES (8453, '0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A', 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

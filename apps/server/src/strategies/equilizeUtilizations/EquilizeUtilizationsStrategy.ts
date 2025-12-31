@@ -1,6 +1,16 @@
 import { Address, maxUint256, zeroAddress } from "viem";
 
-import { DEFAULT_MIN_UTILIZATION_DELTA_BIPS, vaultsMinUtilizationDeltaBips } from "../../config";
+// Strategy threshold defaults - can be moved to database later
+const DEFAULT_MIN_UTILIZATION_DELTA_BIPS = 25;
+// Vault-specific overrides - TODO: load from database
+const vaultsMinUtilizationDeltaBips: Record<number, Record<string, number>> = {
+  1: {
+    "0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB": 300,
+  },
+  8453: {
+    "0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A": 100,
+  },
+};
 import {
   getDepositableAmount,
   getWithdrawableAmount,

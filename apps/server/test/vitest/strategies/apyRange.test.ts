@@ -3,8 +3,7 @@ import { mainnet } from "viem/chains";
 import { describe, expect, it } from "vitest";
 
 import { ApyRange } from "../../../../server/src/strategies/apyRange/ApyRangeStrategy.js";
-import { type Range } from "../../../src/config";
-import { ApyConfiguration } from "../../../src/database/index.js";
+import { ApyConfiguration, type ApyRangeConfig as Range } from "../../../src/database/index.js";
 import {
   apyToRate,
   calculateBorrowRate,

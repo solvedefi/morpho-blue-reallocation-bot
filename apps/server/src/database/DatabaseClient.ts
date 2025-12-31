@@ -18,6 +18,19 @@ export interface ApyConfiguration {
   defaultMaxApy: number;
 }
 
+export interface ChainOperationalConfig {
+  chainId: number;
+  executionInterval: number; // in seconds
+  vaultWhitelist: Address[];
+  enabled: boolean;
+}
+
+export interface StrategyThresholds {
+  defaultMinApyDeltaBips: number;
+  defaultMinUtilizationDeltaBips: number;
+  defaultMinAprDeltaBips: number;
+}
+
 export class DatabaseClient {
   private prisma: PrismaClient;
 
@@ -255,5 +268,175 @@ export class DatabaseClient {
         },
       },
     });
+  }
+
+  /**
+   * Get operational configuration for a chain (execution interval and vault whitelist)
+   */
+  async getChainConfig(chainId: number): Promise<ChainOperationalConfig | null> {
+    const config = await this.prisma.chainConfig.findUnique({
+      where: { chainId },
+      include: {
+        vaultWhitelist: {
+          where: { enabled: true },
+        },
+      },
+    });
+
+    if (!config) return null;
+
+    return {
+      chainId: config.chainId,
+      executionInterval: config.executionInterval,
+      enabled: config.enabled,
+      vaultWhitelist: config.vaultWhitelist.map((v) => v.vaultAddress as Address),
+    };
+  }
+
+  /**
+   * Get all enabled chain configs
+   */
+  async getAllChainConfigs(): Promise<ChainOperationalConfig[]> {
+    const configs = await this.prisma.chainConfig.findMany({
+      where: { enabled: true },
+      include: {
+        vaultWhitelist: {
+          where: { enabled: true },
+        },
+      },
+    });
+
+    return configs.map((config) => ({
+      chainId: config.chainId,
+      executionInterval: config.executionInterval,
+      enabled: config.enabled,
+      vaultWhitelist: config.vaultWhitelist.map((v) => v.vaultAddress as Address),
+    }));
+  }
+
+  /**
+   * Upsert chain configuration
+   */
+  async upsertChainConfig(
+    chainId: number,
+    executionInterval: number,
+    enabled: boolean = true,
+  ): Promise<void> {
+    await this.prisma.chainConfig.upsert({
+      where: { chainId },
+      create: {
+        chainId,
+        executionInterval,
+        enabled,
+      },
+      update: {
+        executionInterval,
+        enabled,
+      },
+    });
+  }
+
+  /**
+   * Add vault to whitelist
+   */
+  async addVaultToWhitelist(chainId: number, vaultAddress: Address): Promise<void> {
+    await this.prisma.vaultWhitelist.upsert({
+      where: {
+        chainId_vaultAddress: {
+          chainId,
+          vaultAddress,
+        },
+      },
+      create: {
+        chainId,
+        vaultAddress,
+        enabled: true,
+      },
+      update: {
+        enabled: true,
+      },
+    });
+  }
+
+  /**
+   * Remove vault from whitelist (soft delete by setting enabled = false)
+   */
+  async removeVaultFromWhitelist(chainId: number, vaultAddress: Address): Promise<void> {
+    await this.prisma.vaultWhitelist.update({
+      where: {
+        chainId_vaultAddress: {
+          chainId,
+          vaultAddress,
+        },
+      },
+      data: {
+        enabled: false,
+      },
+    });
+  }
+
+  /**
+   * Get strategy thresholds
+   */
+  async getStrategyThresholds(): Promise<StrategyThresholds> {
+    const config = await this.prisma.strategyThresholds.findFirst();
+
+    if (!config) {
+      return {
+        defaultMinApyDeltaBips: 50,
+        defaultMinUtilizationDeltaBips: 25,
+        defaultMinAprDeltaBips: 0,
+      };
+    }
+
+    return {
+      defaultMinApyDeltaBips: config.defaultMinApyDeltaBips,
+      defaultMinUtilizationDeltaBips: config.defaultMinUtilizationDeltaBips,
+      defaultMinAprDeltaBips: config.defaultMinAprDeltaBips,
+    };
+  }
+
+  /**
+   * Update strategy thresholds
+   */
+  async updateStrategyThresholds(thresholds: Partial<StrategyThresholds>): Promise<void> {
+    let existing = await this.prisma.strategyThresholds.findFirst();
+
+    if (!existing) {
+      existing = await this.prisma.strategyThresholds.create({
+        data: {
+          defaultMinApyDeltaBips: thresholds.defaultMinApyDeltaBips ?? 50,
+          defaultMinUtilizationDeltaBips: thresholds.defaultMinUtilizationDeltaBips ?? 25,
+          defaultMinAprDeltaBips: thresholds.defaultMinAprDeltaBips ?? 0,
+        },
+      });
+    } else {
+      await this.prisma.strategyThresholds.update({
+        where: { id: existing.id },
+        data: thresholds,
+      });
+    }
+  }
+
+  /**
+   * Get vault-specific strategy threshold overrides
+   */
+  async getVaultStrategyThresholds(chainId: number, vaultAddress: Address) {
+    const config = await this.prisma.vaultStrategyThresholds.findUnique({
+      where: {
+        chainId_vaultAddress: {
+          chainId,
+          vaultAddress,
+        },
+      },
+    });
+
+    if (!config) return null;
+
+    return {
+      minApyDeltaBips: config.minApyDeltaBips,
+      minUtilizationDeltaBips: config.minUtilizationDeltaBips,
+      minAprDeltaBips: config.minAprDeltaBips,
+    };
   }
 }

@@ -1,13 +1,8 @@
-import type { Address, Chain, Hex } from "viem";
+import type { Address, Chain } from "viem";
 
-export interface ChainConfig extends Config {
-  chainId: number;
-  rpcUrl: string;
-  vaultWhitelist: Address[];
-  reallocatorPrivateKey: Hex;
-  executionInterval: number;
-}
-
+/**
+ * Chain infrastructure configuration - addresses of deployed contracts
+ */
 export interface Config {
   chain: Chain;
   morpho: Address;

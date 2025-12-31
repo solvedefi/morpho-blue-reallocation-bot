@@ -1,13 +1,68 @@
+import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { serve } from "@hono/node-server";
+import { config as dotenvConfig } from "dotenv";
 import { type Hono } from "hono";
-import { createWalletClient, http } from "viem";
+import { createWalletClient, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { ReallocationBot } from "./bot";
-import { chainConfig, chainConfigs, type Config } from "./config";
+import { chainConfigs, type Config } from "./config";
 import { DatabaseClient } from "./database";
 import { createServer } from "./server";
 import { ApyRange } from "./strategies";
+
+dotenvConfig();
+
+async function getSecretsFromAWS(secretName: string): Promise<string> {
+  const client = new SecretsManagerClient({
+    region: "eu-west-2",
+  });
+
+  try {
+    const command = new GetSecretValueCommand({
+      SecretId: secretName,
+    });
+
+    const response = await client.send(command);
+    return response.SecretString ?? "";
+  } catch (error) {
+    console.error("Error retrieving secret:", error);
+    throw error;
+  }
+}
+
+async function getRpcUrl(chainId: number, defaultRpcUrl?: string): Promise<string> {
+  const rpcUrl = process.env[`RPC_URL_${String(chainId)}`] ?? defaultRpcUrl;
+  if (!rpcUrl) {
+    throw new Error(`No RPC URL found for chainId ${String(chainId)}`);
+  }
+  return rpcUrl;
+}
+
+async function getPrivateKey(): Promise<Hex> {
+  const useAWSSecretManager = process.env.USE_AWS_SECRETS ?? false;
+
+  let reallocatorPrivateKey: string;
+  if (useAWSSecretManager) {
+    const reallocatorPrivateKeySecretName = process.env.REALLOCATOR_PRIVATE_KEY;
+    if (!reallocatorPrivateKeySecretName) {
+      throw new Error("No reallocator private key secret name found");
+    }
+
+    reallocatorPrivateKey = await getSecretsFromAWS(reallocatorPrivateKeySecretName);
+    if (!reallocatorPrivateKey) {
+      throw new Error(`No reallocator private key found for ${reallocatorPrivateKeySecretName}`);
+    }
+  } else {
+    reallocatorPrivateKey = process.env.REALLOCATOR_PRIVATE_KEY ?? "";
+  }
+
+  if (!reallocatorPrivateKey) {
+    throw new Error("No reallocator private key found");
+  }
+
+  return reallocatorPrivateKey as Hex;
+}
 
 async function runBotInBackground(bot: ReallocationBot, executionInterval: number): Promise<void> {
   setInterval(() => {
@@ -110,36 +165,68 @@ async function main() {
     },
   );
 
+  // Load operational configs from database
+  console.log("\nLoading chain operational configs from database...");
+  const chainOperationalConfigs = await dbClient.getAllChainConfigs();
+  console.log(`Found ${String(chainOperationalConfigs.length)} enabled chain(s):`);
+  for (const opConfig of chainOperationalConfigs) {
+    console.log(
+      `  Chain ${String(opConfig.chainId)}: ${String(opConfig.vaultWhitelist.length)} vault(s), interval: ${String(opConfig.executionInterval)}s`,
+    );
+  }
+
+  if (chainOperationalConfigs.length === 0) {
+    console.warn(
+      "⚠️  No chain configs found in database. Please add chain configs before running the bot.",
+    );
+    return;
+  }
+
+  // Get private key (shared across all chains)
+  const privateKey = await getPrivateKey();
+
   const botTasks: Promise<void>[] = [];
 
-  for (const chainId of Object.keys(chainConfigs)) {
-    const conf: Config | undefined = chainConfigs[chainId as unknown as number];
-    if (!conf) {
-      throw new Error("Chain config not found for chainId " + chainId);
+  for (const opConfig of chainOperationalConfigs) {
+    // Get chain infrastructure config from code
+    const infraConfig: Config | undefined = chainConfigs[opConfig.chainId];
+    if (!infraConfig) {
+      console.warn(`⚠️  No infrastructure config found for chainId ${String(opConfig.chainId)}, skipping...`);
+      continue;
     }
 
-    const config = await chainConfig(conf.chain.id);
+    // Get RPC URL from env
+    const rpcUrl = await getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
 
     const client = createWalletClient({
-      chain: conf.chain,
-      transport: http(config.rpcUrl),
-      account: privateKeyToAccount(config.reallocatorPrivateKey),
+      chain: infraConfig.chain,
+      transport: http(rpcUrl),
+      account: privateKeyToAccount(privateKey),
     });
 
     // Create strategy with database configuration
     const strategy = new ApyRange(apyConfig);
 
-    const bot = new ReallocationBot(config.chainId, client, config.vaultWhitelist, strategy, conf);
+    const bot = new ReallocationBot(
+      opConfig.chainId,
+      client,
+      opConfig.vaultWhitelist,
+      strategy,
+      infraConfig,
+    );
 
     // Store bot reference for configuration updates
     bots.push(bot);
 
+    console.log(`\n🤖 Starting bot for chain ${String(opConfig.chainId)}...`);
     // Run on startup.
     void bot.run();
 
-    const botTask = runBotInBackground(bot, config.executionInterval);
+    const botTask = runBotInBackground(bot, opConfig.executionInterval);
     botTasks.push(botTask);
   }
+
+  console.log("\n✅ All bots started successfully!\n");
 
   await Promise.all(botTasks);
 }
