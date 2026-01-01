@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { Result, ok, err } from "neverthrow";
 import { Address, Hex } from "viem";
 
@@ -355,7 +355,9 @@ export class DatabaseClient {
         chainId: config.chainId,
         executionInterval: config.executionInterval,
         enabled: config.enabled,
-        vaultWhitelist: config.vaultWhitelist.map((v) => v.vaultAddress as Address),
+        vaultWhitelist: config.vaultWhitelist.map(
+          (v: { vaultAddress: string }) => v.vaultAddress as Address,
+        ),
       });
     } catch (error) {
       return err(
@@ -379,12 +381,20 @@ export class DatabaseClient {
       });
 
       return ok(
-        configs.map((config) => ({
-          chainId: config.chainId,
-          executionInterval: config.executionInterval,
-          enabled: config.enabled,
-          vaultWhitelist: config.vaultWhitelist.map((v) => v.vaultAddress as Address),
-        })),
+        configs.map(
+          (
+            config: Prisma.ChainConfigGetPayload<{
+              include: { vaultWhitelist: true };
+            }>,
+          ) => ({
+            chainId: config.chainId,
+            executionInterval: config.executionInterval,
+            enabled: config.enabled,
+            vaultWhitelist: config.vaultWhitelist.map(
+              (v: { vaultAddress: string }) => v.vaultAddress as Address,
+            ),
+          }),
+        ),
       );
     } catch (error) {
       return err(new Error(`Failed to get all chain configs: ${String(error)}`));
