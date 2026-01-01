@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Settings, TrendingUp } from "lucide-react";
+import { Activity, Settings, TrendingUp, Network, Wallet } from "lucide-react";
 
+import { ChainManagement } from "./components/ChainManagement";
 import { ConfigView } from "./components/ConfigView";
 import { UpdateMarketForm } from "./components/UpdateMarketForm";
 import { UpdateStrategyForm } from "./components/UpdateStrategyForm";
 import { UpdateVaultForm } from "./components/UpdateVaultForm";
+import { VaultWhitelistManagement } from "./components/VaultWhitelistManagement";
 import { api } from "./lib/api";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,10 +65,18 @@ function App() {
 
         {/* Tabs */}
         <Tabs defaultValue="view" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4 h-auto p-1">
+          <TabsList className="grid w-full max-w-4xl grid-cols-3 md:grid-cols-6 h-auto p-1">
             <TabsTrigger value="view" className="flex items-center gap-2 py-3">
               <Activity className="h-4 w-4" />
-              <span className="hidden sm:inline">View Config</span>
+              <span className="hidden sm:inline">Config</span>
+            </TabsTrigger>
+            <TabsTrigger value="chains" className="flex items-center gap-2 py-3">
+              <Network className="h-4 w-4" />
+              <span className="hidden sm:inline">Chains</span>
+            </TabsTrigger>
+            <TabsTrigger value="vaults" className="flex items-center gap-2 py-3">
+              <Wallet className="h-4 w-4" />
+              <span className="hidden sm:inline">Vaults</span>
             </TabsTrigger>
             <TabsTrigger value="market" className="flex items-center gap-2 py-3">
               <TrendingUp className="h-4 w-4" />
@@ -74,7 +84,7 @@ function App() {
             </TabsTrigger>
             <TabsTrigger value="vault" className="flex items-center gap-2 py-3">
               <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">Vault</span>
+              <span className="hidden sm:inline">Vault APY</span>
             </TabsTrigger>
             <TabsTrigger value="strategy" className="flex items-center gap-2 py-3">
               <Settings className="h-4 w-4" />
@@ -109,6 +119,14 @@ function App() {
             <>
               <TabsContent value="view" className="space-y-6">
                 <ConfigView config={config} />
+              </TabsContent>
+
+              <TabsContent value="chains" className="space-y-6">
+                <ChainManagement />
+              </TabsContent>
+
+              <TabsContent value="vaults" className="space-y-6">
+                <VaultWhitelistManagement />
               </TabsContent>
 
               <TabsContent value="market" className="space-y-6">

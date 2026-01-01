@@ -1,9 +1,26 @@
-import { CheckCircle2, XCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { CheckCircle2, XCircle, Network, Activity } from "lucide-react";
 
 import type { ConfigResponse } from "../lib/api";
+import { api } from "../lib/api";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+const CHAIN_NAMES: Record<number, string> = {
+  1: "Ethereum",
+  8453: "Base",
+  80094: "Bera",
+  480: "Worldchain",
+  98866: "Plume",
+  130: "Unichain",
+  1868: "Soneium",
+  42161: "Arbitrum",
+  239: "Neon",
+  747474: "Form",
+  137: "Polygon",
+  1135: "Lisk",
+};
 
 interface ConfigViewProps {
   config: ConfigResponse;
@@ -12,8 +29,72 @@ interface ConfigViewProps {
 export function ConfigView({ config }: ConfigViewProps) {
   const { data } = config;
 
+  const { data: chainsData } = useQuery({
+    queryKey: ["chains"],
+    queryFn: api.getChains,
+    refetchInterval: 5000,
+  });
+
+  const chains = chainsData?.data || [];
+  const activeChains = chains.filter((c) => c.enabled);
+  const totalVaults = chains.reduce((acc, chain) => acc + chain.vaultWhitelist.length, 0);
+  const activeVaults = chains.reduce(
+    (acc, chain) => acc + chain.vaultWhitelist.filter((v) => v.enabled).length,
+    0,
+  );
+
   return (
     <div className="space-y-6">
+      {/* Operational Status Overview */}
+      {chains.length > 0 && (
+        <Card className="border-green-500/20 bg-card/50 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-green-500" />
+              Operational Status
+            </CardTitle>
+            <CardDescription>Real-time bot monitoring and chain status</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div className="p-4 rounded-lg bg-muted/50 space-y-1">
+              <div className="flex items-center gap-2">
+                <Network className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Active Chains</p>
+              </div>
+              <p className="text-3xl font-bold font-mono">
+                {activeChains.length}
+                <span className="text-lg text-muted-foreground">/{chains.length}</span>
+              </p>
+            </div>
+            <div className="p-4 rounded-lg bg-muted/50 space-y-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Active Vaults</p>
+              </div>
+              <p className="text-3xl font-bold font-mono">
+                {activeVaults}
+                <span className="text-lg text-muted-foreground">/{totalVaults}</span>
+              </p>
+            </div>
+            <div className="p-4 rounded-lg bg-muted/50 space-y-1">
+              <p className="text-xs text-muted-foreground">Active Chains</p>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {activeChains.slice(0, 4).map((chain) => (
+                  <Badge key={chain.chainId} variant="default" className="text-xs">
+                    {CHAIN_NAMES[chain.chainId] || chain.chainId}
+                  </Badge>
+                ))}
+                {activeChains.length > 4 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{activeChains.length - 4}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Strategy Settings */}
       <Card className="border-primary/20 bg-card/50 backdrop-blur-sm">
         <CardHeader>

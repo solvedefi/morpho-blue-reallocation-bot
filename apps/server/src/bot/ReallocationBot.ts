@@ -1,5 +1,8 @@
 import { type Account, type Address, type Chain, type Client, type Transport } from "viem";
+import { estimateGas, writeContract } from "viem/actions";
+import { encodeFunctionData } from "viem/utils";
 
+import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
 import { MorphoClient } from "../contracts/MorphoClient.js";
 import { Strategy } from "../strategies/strategy.js";
@@ -75,36 +78,36 @@ export class ReallocationBot {
         console.log(`Reallocating on ${vaultData.vaultAddress}`);
 
         try {
-          // /// TX SIMULATION
-          // const populatedTx = {
-          //   to: vaultData.vaultAddress,
-          //   data: encodeFunctionData({
-          //     abi: metaMorphoAbi,
-          //     functionName: "reallocate",
-          //     args: [reallocation],
-          //   }),
-          //   value: 0n, // TODO: find a way to get encoder value
-          // };
-          // await estimateGas(this.client, populatedTx);
-          // // TX EXECUTION
-          // await writeContract(this.client, {
-          //   address: vaultData.vaultAddress,
-          //   abi: metaMorphoAbi,
-          //   functionName: "reallocate",
-          //   args: [
-          //     reallocation as unknown as readonly {
-          //       marketParams: {
-          //         loanToken: `0x${string}`;
-          //         collateralToken: `0x${string}`;
-          //         oracle: `0x${string}`;
-          //         irm: `0x${string}`;
-          //         lltv: bigint;
-          //       };
-          //       assets: bigint;
-          //     }[],
-          //   ],
-          // });
-          // console.log(`Reallocated on ${vaultData.vaultAddress}`);
+          /// TX SIMULATION
+          const populatedTx = {
+            to: vaultData.vaultAddress,
+            data: encodeFunctionData({
+              abi: metaMorphoAbi,
+              functionName: "reallocate",
+              args: [reallocation],
+            }),
+            value: 0n, // TODO: find a way to get encoder value
+          };
+          await estimateGas(this.client, populatedTx);
+          // TX EXECUTION
+          await writeContract(this.client, {
+            address: vaultData.vaultAddress,
+            abi: metaMorphoAbi,
+            functionName: "reallocate",
+            args: [
+              reallocation as unknown as readonly {
+                marketParams: {
+                  loanToken: `0x${string}`;
+                  collateralToken: `0x${string}`;
+                  oracle: `0x${string}`;
+                  irm: `0x${string}`;
+                  lltv: bigint;
+                };
+                assets: bigint;
+              }[],
+            ],
+          });
+          console.log(`Reallocated on ${vaultData.vaultAddress}`);
         } catch (error) {
           console.log(`Failed to reallocate on ${vaultData.vaultAddress}`);
           console.error("reallocation error", error);

@@ -475,6 +475,69 @@ export class DatabaseClient {
   }
 
   /**
+   * Update chain enabled status
+   */
+  async updateChainEnabled(chainId: number, enabled: boolean): Promise<Result<null, Error>> {
+    try {
+      await this.prisma.chainConfig.update({
+        where: { chainId },
+        data: { enabled },
+      });
+      return ok(null);
+    } catch (error) {
+      return err(
+        new Error(`Failed to update chain ${String(chainId)} enabled status: ${String(error)}`),
+      );
+    }
+  }
+
+  /**
+   * Update chain execution interval
+   */
+  async updateChainExecutionInterval(
+    chainId: number,
+    executionInterval: number,
+  ): Promise<Result<null, Error>> {
+    try {
+      await this.prisma.chainConfig.update({
+        where: { chainId },
+        data: { executionInterval },
+      });
+      return ok(null);
+    } catch (error) {
+      return err(
+        new Error(`Failed to update chain ${String(chainId)} execution interval: ${String(error)}`),
+      );
+    }
+  }
+
+  /**
+   * Update vault enabled status
+   */
+  async updateVaultEnabled(
+    chainId: number,
+    vaultAddress: Address,
+    enabled: boolean,
+  ): Promise<Result<null, Error>> {
+    try {
+      await this.prisma.vaultWhitelist.update({
+        where: {
+          chainId_vaultAddress: {
+            chainId,
+            vaultAddress,
+          },
+        },
+        data: { enabled },
+      });
+      return ok(null);
+    } catch (error) {
+      return err(
+        new Error(`Failed to update vault ${vaultAddress} enabled status: ${String(error)}`),
+      );
+    }
+  }
+
+  /**
    * Get strategy thresholds
    */
   async getStrategyThresholds(): Promise<Result<StrategyThresholds, Error>> {

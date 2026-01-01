@@ -55,6 +55,25 @@ const deleteMarketConfigSchema = z.object({
   }),
 });
 
+const updateChainSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    executionInterval: z.number().positive().optional(),
+  })
+  .refine((data) => data.enabled !== undefined || data.executionInterval !== undefined, {
+    message: "At least one field must be provided",
+  });
+
+const addVaultToWhitelistSchema = z.object({
+  vaultAddress: z.string().refine((val) => isAddress(val), {
+    message: "Invalid Ethereum address",
+  }),
+});
+
+const updateVaultSchema = z.object({
+  enabled: z.boolean(),
+});
+
 export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfigChangeCallback) {
   const app = new Hono();
 
@@ -324,6 +343,225 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       message: "Market APY range deleted successfully",
     });
   });
+
+  // Chain management endpoints
+  app.get("/chains", async (c: Context) => {
+    const chainsResult = await dbClient.getAllChainConfigs();
+
+    if (chainsResult.isErr()) {
+      console.error("Error loading chains:", chainsResult.error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to load chains",
+        },
+        500,
+      );
+    }
+
+    return c.json({
+      success: true,
+      data: chainsResult.value,
+    });
+  });
+
+  app.patch("/chains/:chainId", zValidator("json", updateChainSchema), async (c) => {
+    const chainId = parseInt(c.req.param("chainId"));
+    const { enabled, executionInterval } = c.req.valid("json");
+
+    if (isNaN(chainId)) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid chain ID",
+        },
+        400,
+      );
+    }
+
+    // Update enabled status if provided
+    if (enabled !== undefined) {
+      const result = await dbClient.updateChainEnabled(chainId, enabled);
+      if (result.isErr()) {
+        console.error("Error updating chain enabled status:", result.error);
+        return c.json(
+          {
+            success: false,
+            error: "Failed to update chain status",
+          },
+          500,
+        );
+      }
+    }
+
+    // Update execution interval if provided
+    if (executionInterval !== undefined) {
+      const result = await dbClient.updateChainExecutionInterval(chainId, executionInterval);
+      if (result.isErr()) {
+        console.error("Error updating chain execution interval:", result.error);
+        return c.json(
+          {
+            success: false,
+            error: "Failed to update chain execution interval",
+          },
+          500,
+        );
+      }
+    }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Chain configuration updated successfully",
+    });
+  });
+
+  app.post("/chains/:chainId/vaults", zValidator("json", addVaultToWhitelistSchema), async (c) => {
+    const chainId = parseInt(c.req.param("chainId"));
+    const { vaultAddress } = c.req.valid("json");
+
+    if (isNaN(chainId)) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid chain ID",
+        },
+        400,
+      );
+    }
+
+    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address);
+
+    if (result.isErr()) {
+      console.error("Error adding vault to whitelist:", result.error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to add vault to whitelist",
+        },
+        500,
+      );
+    }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Vault added to whitelist successfully",
+      data: {
+        chainId,
+        vaultAddress,
+      },
+    });
+  });
+
+  app.delete("/chains/:chainId/vaults/:vaultAddress", async (c) => {
+    const chainId = parseInt(c.req.param("chainId"));
+    const vaultAddress = c.req.param("vaultAddress");
+
+    if (isNaN(chainId)) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid chain ID",
+        },
+        400,
+      );
+    }
+
+    if (!isAddress(vaultAddress)) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid vault address",
+        },
+        400,
+      );
+    }
+
+    const result = await dbClient.removeVaultFromWhitelist(chainId, vaultAddress);
+
+    if (result.isErr()) {
+      console.error("Error removing vault from whitelist:", result.error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to remove vault from whitelist",
+        },
+        500,
+      );
+    }
+
+    // Trigger configuration reload
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Vault removed from whitelist successfully",
+    });
+  });
+
+  app.patch(
+    "/chains/:chainId/vaults/:vaultAddress",
+    zValidator("json", updateVaultSchema),
+    async (c) => {
+      const chainId = parseInt(c.req.param("chainId"));
+      const vaultAddress = c.req.param("vaultAddress");
+      const { enabled } = c.req.valid("json");
+
+      if (isNaN(chainId)) {
+        return c.json(
+          {
+            success: false,
+            error: "Invalid chain ID",
+          },
+          400,
+        );
+      }
+
+      if (!isAddress(vaultAddress)) {
+        return c.json(
+          {
+            success: false,
+            error: "Invalid vault address",
+          },
+          400,
+        );
+      }
+
+      const result = await dbClient.updateVaultEnabled(chainId, vaultAddress, enabled);
+
+      if (result.isErr()) {
+        console.error("Error updating vault enabled status:", result.error);
+        return c.json(
+          {
+            success: false,
+            error: "Failed to update vault status",
+          },
+          500,
+        );
+      }
+
+      // Trigger configuration reload
+      if (onConfigChange) {
+        await onConfigChange();
+      }
+
+      return c.json({
+        success: true,
+        message: "Vault status updated successfully",
+      });
+    },
+  );
 
   app.get("/health", (c) => {
     return c.json({ status: "ok", timestamp: new Date().toISOString() });
