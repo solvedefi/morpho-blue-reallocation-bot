@@ -39,8 +39,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build config package
-        run: pnpm build:config
+      - name: Build packages
+        run: |
+          pnpm build:server
+          pnpm build:ui
 
       # Stage 1: Format Check
       - name: 📝 Check formatting
