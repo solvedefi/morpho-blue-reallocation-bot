@@ -21,7 +21,6 @@
     "prepare": "husky"
   },
   "lint-staged": {
-
     "*.ts": [
       "prettier --write",
       "eslint --fix --max-warnings=0"
@@ -29,7 +28,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.864.0",
-
     "ponder": "^0.10.13",
     "tsx": "^4.19.3",
     "viem": "^2.23.2"

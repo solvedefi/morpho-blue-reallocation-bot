@@ -132,6 +132,7 @@ Ranges can be defined at the global level, at the vaults level, or/and at the ma
 ### Database Configuration
 
 The APY ranges are now stored in a PostgreSQL database with three tables:
+
 - `vault_apy_config`: Vault-specific APY ranges
 - `market_apy_config`: Market-specific APY ranges
 - `apy_strategy_config`: Global strategy configuration
@@ -141,11 +142,13 @@ See [apps/server/prisma/README.md](apps/server/prisma/README.md) for detailed da
 #### Quick Start with Database
 
 1. **Start PostgreSQL** (included in docker-compose.yml):
+
    ```bash
    docker compose up -d postgres
    ```
 
 2. **Run migrations**:
+
    ```bash
    pnpm db:migrate
    ```
@@ -190,6 +193,7 @@ pnpm start
 ```
 
 This command will:
+
 1. Start the HTTP API server on port 3000
 2. Initialize the database connection
 3. Load configuration from the database
@@ -197,6 +201,7 @@ This command will:
 5. Run reallocations at the configured intervals
 
 The server includes:
+
 - **Bot processes**: Automated reallocations for each chain
 - **HTTP API**: Configuration management endpoints
 - **Health checks**: Monitor bot status at `/health`

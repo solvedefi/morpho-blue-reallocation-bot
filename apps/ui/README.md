@@ -44,6 +44,7 @@ The UI will be available at **http://localhost:3001**
 ### View Current Configuration
 
 The "View Config" tab shows:
+
 - Global strategy settings (allow idle reallocation, default APY ranges)
 - All vault APY configurations organized by chain
 - All market APY configurations organized by chain

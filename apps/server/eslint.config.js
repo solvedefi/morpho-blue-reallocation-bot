@@ -58,5 +58,5 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",
     },
-  }
+  },
 );

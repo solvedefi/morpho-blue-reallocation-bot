@@ -165,6 +165,7 @@ curl -X PUT http://localhost:3000/config/strategy \
 ### APY Range Strategy
 
 Maintains market APY within configured ranges:
+
 - Deposits assets when APY > max (lower utilization)
 - Withdraws assets when APY < min (increase utilization)
 - Handles Adaptive IRM curve shifts for markets below target
@@ -195,10 +196,12 @@ pnpm test:watch
 ## Deployment
 
 The server can be deployed as a single service that handles both:
+
 - HTTP API for configuration management
 - Background bot processes for each chain
 
 Recommended deployment:
+
 - Docker container with PostgreSQL
 - Health check endpoint: `GET /health`
 - Environment variables for secrets
