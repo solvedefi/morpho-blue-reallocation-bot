@@ -62,8 +62,16 @@ export interface AddVaultRequest {
   vaultAddress: string;
 }
 
-export interface UpdateVaultRequest {
+export interface UpdateVaultStatusRequest {
   enabled: boolean;
+}
+
+interface ErrorResponse {
+  error?: string;
+}
+
+interface SuccessResponse {
+  success: boolean;
 }
 
 export const api = {
@@ -72,46 +80,46 @@ export const api = {
     if (!response.ok) {
       throw new Error("Failed to fetch configuration");
     }
-    return response.json();
+    return response.json() as Promise<ConfigResponse>;
   },
 
-  async updateMarketRange(data: UpdateMarketRequest) {
+  async updateMarketRange(data: UpdateMarketRequest): Promise<SuccessResponse> {
     const response = await fetch("/config/market", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to update market range");
+      const error = (await response.json()) as ErrorResponse;
+      throw new Error(error.error ?? "Failed to update market range");
     }
-    return response.json();
+    return response.json() as Promise<SuccessResponse>;
   },
 
-  async updateVaultRange(data: UpdateVaultRequest) {
+  async updateVaultRange(data: UpdateVaultRequest): Promise<SuccessResponse> {
     const response = await fetch("/config/vault", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to update vault range");
+      const error = (await response.json()) as ErrorResponse;
+      throw new Error(error.error ?? "Failed to update vault range");
     }
-    return response.json();
+    return response.json() as Promise<SuccessResponse>;
   },
 
-  async updateStrategy(data: UpdateStrategyRequest) {
+  async updateStrategy(data: UpdateStrategyRequest): Promise<SuccessResponse> {
     const response = await fetch("/config/strategy", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to update strategy");
+      const error = (await response.json()) as ErrorResponse;
+      throw new Error(error.error ?? "Failed to update strategy");
     }
-    return response.json();
+    return response.json() as Promise<SuccessResponse>;
   },
 
   async getChains(): Promise<ChainsResponse> {
@@ -119,56 +127,60 @@ export const api = {
     if (!response.ok) {
       throw new Error("Failed to fetch chains");
     }
-    return response.json();
+    return response.json() as Promise<ChainsResponse>;
   },
 
-  async updateChain(chainId: number, data: UpdateChainRequest) {
-    const response = await fetch(`/chains/${chainId}`, {
+  async updateChain(chainId: number, data: UpdateChainRequest): Promise<SuccessResponse> {
+    const response = await fetch(`/chains/${String(chainId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to update chain");
+      const error = (await response.json()) as ErrorResponse;
+      throw new Error(error.error ?? "Failed to update chain");
     }
-    return response.json();
+    return response.json() as Promise<SuccessResponse>;
   },
 
-  async addVaultToWhitelist(chainId: number, data: AddVaultRequest) {
-    const response = await fetch(`/chains/${chainId}/vaults`, {
+  async addVaultToWhitelist(chainId: number, data: AddVaultRequest): Promise<SuccessResponse> {
+    const response = await fetch(`/chains/${String(chainId)}/vaults`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to add vault");
+      const error = (await response.json()) as ErrorResponse;
+      throw new Error(error.error ?? "Failed to add vault");
     }
-    return response.json();
+    return response.json() as Promise<SuccessResponse>;
   },
 
-  async removeVaultFromWhitelist(chainId: number, vaultAddress: string) {
-    const response = await fetch(`/chains/${chainId}/vaults/${vaultAddress}`, {
+  async removeVaultFromWhitelist(chainId: number, vaultAddress: string): Promise<SuccessResponse> {
+    const response = await fetch(`/chains/${String(chainId)}/vaults/${vaultAddress}`, {
       method: "DELETE",
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to remove vault");
+      const error = (await response.json()) as ErrorResponse;
+      throw new Error(error.error ?? "Failed to remove vault");
     }
-    return response.json();
+    return response.json() as Promise<SuccessResponse>;
   },
 
-  async updateVaultStatus(chainId: number, vaultAddress: string, data: UpdateVaultRequest) {
-    const response = await fetch(`/chains/${chainId}/vaults/${vaultAddress}`, {
+  async updateVaultStatus(
+    chainId: number,
+    vaultAddress: string,
+    data: UpdateVaultStatusRequest,
+  ): Promise<SuccessResponse> {
+    const response = await fetch(`/chains/${String(chainId)}/vaults/${vaultAddress}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to update vault status");
+      const error = (await response.json()) as ErrorResponse;
+      throw new Error(error.error ?? "Failed to update vault status");
     }
-    return response.json();
+    return response.json() as Promise<SuccessResponse>;
   },
 };
