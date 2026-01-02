@@ -223,13 +223,13 @@ export function ChainManagement() {
                 <div className="pt-2 border-t border-border/50">
                   <p className="text-xs text-muted-foreground mb-2">Configured Vaults:</p>
                   <div className="flex flex-wrap gap-2">
-                    {chain.vaultWhitelist.slice(0, 3).map((vault) => (
+                    {chain.vaultWhitelist.slice(0, 3).map((vaultAddress) => (
                       <Badge
-                        key={vault.vaultAddress}
-                        variant={vault.enabled ? "default" : "secondary"}
+                        key={vaultAddress}
+                        variant="default"
                         className="font-mono text-xs"
                       >
-                        {vault.vaultAddress.slice(0, 6)}...{vault.vaultAddress.slice(-4)}
+                        {vaultAddress.slice(0, 6)}...{vaultAddress.slice(-4)}
                       </Badge>
                     ))}
                     {chain.vaultWhitelist.length > 3 && (

@@ -24,10 +24,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      - USE_AWS_SECRETS=true
-      - AWS_REGION=eu-west-2
-      - DATABASE_URL=postgresql://morpho_user:morpho_password@postgres:5432/morpho_bot
+    ports:
+      - "3000:3000"
     volumes:
       - ~/.aws:/root/.aws:ro
     depends_on:

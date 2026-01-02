@@ -22,6 +22,15 @@ export default defineConfig({
         target: "http://localhost:3000",
         changeOrigin: true,
       },
+      "/chains": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
     },
+  },
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+    minify: "esbuild",
   },
 });

@@ -1,3 +1,7 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import { serveStatic } from "@hono/node-server/serve-static";
 import { zValidator } from "@hono/zod-validator";
 import { Hono, Context } from "hono";
 import { isAddress, isHex, type Address, type Hex } from "viem";
@@ -565,6 +569,26 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
 
   app.get("/health", (c) => {
     return c.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Serve static assets (CSS, JS, images) from UI build
+  // Server runs from /app/apps/server/, so UI is at ../ui/dist/
+  app.get("/assets/*", serveStatic({ root: "../ui/dist" }));
+  app.get("/vite.svg", serveStatic({ path: "../ui/dist/vite.svg" }));
+
+  // Fallback to index.html for SPA client-side routing
+  app.get("*", async (c) => {
+    try {
+      // Server runs from /app/apps/server/ (where package.json is)
+      // UI is at /app/apps/ui/dist/
+      // So we need to go up one level: ../ui/dist/index.html
+      const indexPath = join(process.cwd(), "../ui/dist/index.html");
+      const html = await readFile(indexPath, "utf-8");
+      return c.html(html);
+    } catch (error) {
+      console.error("Error serving index.html:", error);
+      return c.text("UI not found. Error: " + String(error), 404);
+    }
   });
 
   return app;

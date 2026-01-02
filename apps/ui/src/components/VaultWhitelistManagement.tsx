@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle, Trash2, Plus, Loader2, Wallet } from "lucide-react";
+import { Trash2, Plus, Loader2, Wallet } from "lucide-react";
 import { useState } from "react";
 
 import type { ChainConfig } from "../lib/api";
@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum",
@@ -60,21 +59,6 @@ export function VaultWhitelistManagement() {
     },
   });
 
-  const updateVaultStatusMutation = useMutation({
-    mutationFn: ({
-      chainId,
-      vaultAddress,
-      enabled,
-    }: {
-      chainId: number;
-      vaultAddress: string;
-      enabled: boolean;
-    }) => api.updateVaultStatus(chainId, vaultAddress, { enabled }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chains"] });
-    },
-  });
-
   const handleAddVault = () => {
     if (selectedChainId && newVaultAddress) {
       addVaultMutation.mutate({
@@ -82,14 +66,6 @@ export function VaultWhitelistManagement() {
         vaultAddress: newVaultAddress,
       });
     }
-  };
-
-  const handleToggleVault = (chainId: number, vaultAddress: string, currentEnabled: boolean) => {
-    updateVaultStatusMutation.mutate({
-      chainId,
-      vaultAddress,
-      enabled: !currentEnabled,
-    });
   };
 
   const handleRemoveVault = (chainId: number, vaultAddress: string) => {
@@ -231,36 +207,23 @@ export function VaultWhitelistManagement() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {chain.vaultWhitelist.map((vault) => (
+                  {chain.vaultWhitelist.map((vaultAddress) => (
                     <div
-                      key={vault.vaultAddress}
+                      key={vaultAddress}
                       className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-primary/20"
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          {vault.enabled ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                          )}
-                        </div>
+                        <Wallet className="h-4 w-4 text-primary flex-shrink-0" />
                         <span className="font-mono text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate">
-                          {vault.vaultAddress}
+                          {vaultAddress}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Switch
-                          checked={vault.enabled}
-                          onCheckedChange={() =>
-                            handleToggleVault(chain.chainId, vault.vaultAddress, vault.enabled)
-                          }
-                          disabled={updateVaultStatusMutation.isPending}
-                        />
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleRemoveVault(chain.chainId, vault.vaultAddress)}
+                          onClick={() => handleRemoveVault(chain.chainId, vaultAddress)}
                           disabled={removeVaultMutation.isPending}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -275,15 +238,13 @@ export function VaultWhitelistManagement() {
         </CardContent>
       </Card>
 
-      {(removeVaultMutation.isError || updateVaultStatusMutation.isError) && (
+      {removeVaultMutation.isError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
-          <p className="text-sm">
-            {removeVaultMutation.error?.message || updateVaultStatusMutation.error?.message}
-          </p>
+          <p className="text-sm">{removeVaultMutation.error?.message}</p>
         </div>
       )}
 
-      {(removeVaultMutation.isSuccess || updateVaultStatusMutation.isSuccess) && (
+      {removeVaultMutation.isSuccess && (
         <div className="bg-green-500/10 border border-green-500/20 text-green-500 px-4 py-3 rounded-lg">
           <p className="text-sm">Vault updated successfully!</p>
         </div>

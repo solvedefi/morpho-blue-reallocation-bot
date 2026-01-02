@@ -38,10 +38,7 @@ export function ConfigView({ config }: ConfigViewProps) {
   const chains = chainsData?.data || [];
   const activeChains = chains.filter((c) => c.enabled);
   const totalVaults = chains.reduce((acc, chain) => acc + chain.vaultWhitelist.length, 0);
-  const activeVaults = chains.reduce(
-    (acc, chain) => acc + chain.vaultWhitelist.filter((v) => v.enabled).length,
-    0,
-  );
+  const activeVaults = totalVaults; // All vaults in whitelist are considered active
 
   return (
     <div className="space-y-6">

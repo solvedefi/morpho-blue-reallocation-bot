@@ -36,16 +36,11 @@ export interface UpdateStrategyRequest {
   defaultMaxApy?: number;
 }
 
-export interface VaultWhitelist {
-  vaultAddress: string;
-  enabled: boolean;
-}
-
 export interface ChainConfig {
   chainId: number;
   executionInterval: number;
   enabled: boolean;
-  vaultWhitelist: VaultWhitelist[];
+  vaultWhitelist: string[]; // Array of vault addresses
 }
 
 export interface ChainsResponse {

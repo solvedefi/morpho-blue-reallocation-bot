@@ -13,6 +13,7 @@
     "lint": "pnpm --filter '@morpho-blue-reallocation-bot/*' lint",
     "build:server": "pnpm --filter @morpho-blue-reallocation-bot/server build",
     "build:ui": "pnpm --filter @morpho-blue-reallocation-bot/ui build",
+    "build:all": "pnpm build:ui && pnpm build:server",
     "db:generate": "cd apps/server && dotenv -e ../../.env -- pnpm prisma generate",
     "db:migrate": "cd apps/server && dotenv -e ../../.env -- pnpm prisma migrate deploy",
     "db:migrate:dev": "cd apps/server && dotenv -e ../../.env -- pnpm prisma migrate dev",
