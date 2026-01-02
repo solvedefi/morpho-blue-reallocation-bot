@@ -263,7 +263,7 @@ VALUES
 INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
 VALUES (42161, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
--- Neon (chainId: 239)
+-- TAC (chainId: 239)
 INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
 VALUES (239, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
@@ -275,7 +275,7 @@ VALUES
   (239, '0x84BBc0be5a6f831a4E2C28a2F3b892C70AcAa5b3', true, CURRENT_TIMESTAMP),
   (239, '0xe9BD3590A68939344953b4f912d83b7c8C2A1f77', true, CURRENT_TIMESTAMP);
 
--- Form (chainId: 747474)
+-- Katana (chainId: 747474)
 INSERT INTO chain_config (chain_id, execution_interval, enabled, created_at, updated_at)
 VALUES (747474, 300, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 

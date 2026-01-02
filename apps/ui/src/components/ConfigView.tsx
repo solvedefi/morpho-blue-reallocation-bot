@@ -16,8 +16,8 @@ const CHAIN_NAMES: Record<number, string> = {
   130: "Unichain",
   1868: "Soneium",
   42161: "Arbitrum",
-  239: "Neon",
-  747474: "Form",
+  239: "TAC",
+  747474: "Katana",
   137: "Polygon",
   1135: "Lisk",
 };
