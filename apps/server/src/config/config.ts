@@ -1,5 +1,5 @@
 import { defineChain } from "viem";
-import { base } from "viem/chains";
+import { base, mainnet, berachain, worldchain } from "viem/chains";
 
 import type { Config } from "./types";
 
@@ -36,33 +36,33 @@ export const plume = defineChain({
 });
 
 export const chainConfigs: Record<number, Config> = {
-  // [berachain.id]: {
-  //   chain: berachain,
-  //   morpho: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
-  //   adaptiveCurveIrm: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
-  //   metaMorphoFactories: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
-  // },
-  // [mainnet.id]: {
-  //   chain: mainnet,
-  //   morpho: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
-  //   adaptiveCurveIrm: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC",
-  //   metaMorphoFactories: [
-  //     "0x1897A8997241C1cD4bD0698647e4EB7213535c24",
-  //     "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
-  //   ],
-  // },
-  // [98866]: {
-  //   chain: plume,
-  //   morpho: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
-  //   adaptiveCurveIrm: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
-  //   metaMorphoFactories: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
-  // },
-  // [worldchain.id]: {
-  //   chain: worldchain,
-  //   morpho: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
-  //   adaptiveCurveIrm: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
-  //   metaMorphoFactories: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
-  // },
+  [berachain.id]: {
+    chain: berachain,
+    morpho: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
+    adaptiveCurveIrm: "0xcf247Df3A2322Dea0D408f011c194906E77a6f62",
+    metaMorphoFactories: ["0x5EDd48C6ACBd565Eeb31702FD9fa9Cbc86fbE616"],
+  },
+  [mainnet.id]: {
+    chain: mainnet,
+    morpho: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
+    adaptiveCurveIrm: "0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC",
+    metaMorphoFactories: [
+      "0x1897A8997241C1cD4bD0698647e4EB7213535c24",
+      "0xA9c3D3a366466Fa809d1Ae982Fb2c46E5fC41101",
+    ],
+  },
+  [98866]: {
+    chain: plume,
+    morpho: "0x42b18785CE0Aed7BF7Ca43a39471ED4C0A3e0bB5",
+    adaptiveCurveIrm: "0x7420302Ddd469031Cd2282cd64225cCd46F581eA",
+    metaMorphoFactories: ["0x2525D453D9BA13921D5aB5D8c12F9202b0e19456"],
+  },
+  [worldchain.id]: {
+    chain: worldchain,
+    morpho: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
+    adaptiveCurveIrm: "0x34E99D604751a72cF8d0CFDf87069292d82De472",
+    metaMorphoFactories: ["0x4DBB3a642a2146d5413750Cca3647086D9ba5F12"],
+  },
   [base.id]: {
     chain: base,
     morpho: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
