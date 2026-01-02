@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// For vault-level APY configurations
+model VaultApyConfig {
+  id           Int      @id @default(autoincrement())
+  chainId      Int      @map("chain_id")
+  vaultAddress String   @map("vault_address") @db.VarChar(42)
+  minApy       Decimal  @map("min_apy") @db.Decimal(10, 4)
+  maxApy       Decimal  @map("max_apy") @db.Decimal(10, 4)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([chainId, vaultAddress], name: "unique_vault_config")
+  @@index([chainId])
+  @@map("vault_apy_config")
+}
+
+// For market-level APY configurations
+model MarketApyConfig {
+  id        Int      @id @default(autoincrement())
+  chainId   Int      @map("chain_id")
+  marketId  String   @map("market_id") @db.VarChar(66)
+  minApy    Decimal  @map("min_apy") @db.Decimal(10, 4)
+  maxApy    Decimal  @map("max_apy") @db.Decimal(10, 4)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([chainId, marketId], name: "unique_market_config")
+  @@index([chainId])
+  @@map("market_apy_config")
+}
+
+// For global APY strategy configuration
+model ApyStrategyConfig {
+  id                    Int      @id @default(autoincrement())
+  allowIdleReallocation Boolean  @default(true) @map("allow_idle_reallocation")
+  defaultMinApy         Decimal  @default(0) @map("default_min_apy") @db.Decimal(10, 4)
+  defaultMaxApy         Decimal  @default(10) @map("default_max_apy") @db.Decimal(10, 4)
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("apy_strategy_config")
+}
+
+// Chain operational configuration
+model ChainConfig {
+  id                Int              @id @default(autoincrement())
+  chainId           Int              @unique @map("chain_id")
+  executionInterval Int              @map("execution_interval") // in seconds
+  enabled           Boolean          @default(true)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  vaultWhitelist    VaultWhitelist[]
+
+  @@map("chain_config")
+}
+
+// Vault whitelist per chain
+model VaultWhitelist {
+  id           Int         @id @default(autoincrement())
+  chainId      Int         @map("chain_id")
+  vaultAddress String      @map("vault_address") @db.VarChar(42)
+  enabled      Boolean     @default(true)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  chainConfig  ChainConfig @relation(fields: [chainId], references: [chainId], onDelete: Cascade)
+
+  @@unique([chainId, vaultAddress])
+  @@index([chainId])
+  @@map("vault_whitelist")
+}
+
+// Strategy threshold configuration
+model StrategyThresholds {
+  id                             Int      @id @default(autoincrement())
+  defaultMinApyDeltaBips         Int      @default(50) @map("default_min_apy_delta_bips")
+  defaultMinUtilizationDeltaBips Int      @default(25) @map("default_min_utilization_delta_bips")
+  defaultMinAprDeltaBips         Int      @default(0) @map("default_min_apr_delta_bips")
+  updatedAt                      DateTime @updatedAt @map("updated_at")
+
+  @@map("strategy_thresholds")
+}
+
+// Vault-specific strategy threshold overrides
+model VaultStrategyThresholds {
+  id                      Int      @id @default(autoincrement())
+  chainId                 Int      @map("chain_id")
+  vaultAddress            String   @map("vault_address") @db.VarChar(42)
+  minApyDeltaBips         Int?     @map("min_apy_delta_bips")
+  minUtilizationDeltaBips Int?     @map("min_utilization_delta_bips")
+  minAprDeltaBips         Int?     @map("min_apr_delta_bips")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@unique([chainId, vaultAddress])
+  @@index([chainId])
+  @@map("vault_strategy_thresholds")
+}

@@ -39,8 +39,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build config package
-        run: pnpm build:config
+      - name: Generate Prisma client
+        run: cd apps/server && pnpm prisma generate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+      - name: Build packages
+        run: |
+          pnpm build:server
+          pnpm build:ui
 
       # Stage 1: Format Check
       - name: 📝 Check formatting

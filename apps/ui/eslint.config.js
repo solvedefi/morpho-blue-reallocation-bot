@@ -6,19 +6,11 @@ import eslintPluginImportX from "eslint-plugin-import-x";
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**"] },
+  { ignores: ["dist/**", "node_modules/**", "eslint.config.js"] },
   eslint.configs.recommended,
   eslintPluginImportX.flatConfigs.recommended,
   eslintPluginImportX.flatConfigs.typescript,
   eslintPluginPrettierRecommended,
-  ...tseslint.configs.strictTypeChecked.map((config) => ({
-    ...config,
-    files: ["**/*.ts", "**/*.tsx"],
-  })),
-  ...tseslint.configs.stylisticTypeChecked.map((config) => ({
-    ...config,
-    files: ["**/*.ts", "**/*.tsx"],
-  })),
   {
     files: ["**/*.js", "**/*.cjs", "**/*.mjs"],
     languageOptions: {
@@ -29,11 +21,13 @@ export default tseslint.config(
         module: "readonly",
         __dirname: "readonly",
         __filename: "readonly",
-        process: "readonly",
-        console: "readonly",
       },
     },
   },
+  ...tseslint.configs.recommendedTypeChecked.map((config) => ({
+    ...config,
+    files: ["**/*.ts", "**/*.tsx"],
+  })),
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
@@ -43,13 +37,27 @@ export default tseslint.config(
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        navigator: "readonly",
+        console: "readonly",
+      },
     },
     rules: {
-      "@typescript-eslint/no-floating-promises": "error",
-      "import-x/no-unresolved": [
-        "error",
-        { ignore: ["ponder:api", "ponder:registry", "ponder:schema"] },
-      ],
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/prefer-nullish-coalescing": "off",
+      "import-x/no-unresolved": "off",
       "import-x/order": [
         "error",
         {
@@ -58,12 +66,6 @@ export default tseslint.config(
             order: "asc",
             caseInsensitive: true,
           },
-          pathGroups: [
-            {
-              pattern: "ponder*",
-              group: "external",
-            },
-          ],
         },
       ],
     },

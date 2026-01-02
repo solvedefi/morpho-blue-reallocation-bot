@@ -1,4 +1,59 @@
+# Node modules
 node_modules/
-.husky/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+
+# Development files
+.git/
 .github/
-.claude/
+.vscode/
+.idea/
+
+# Environment files (will be provided at runtime)
+.env
+.env.local
+.env.*.local
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+test/
+**/test/
+**/__tests__/
+coverage/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Prisma (will be generated in container)
+apps/server/node_modules/.prisma/
+apps/server/prisma/migrations/*.sql
+
+# Assets
+assets/
