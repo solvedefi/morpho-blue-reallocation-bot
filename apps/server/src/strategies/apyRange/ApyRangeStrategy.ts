@@ -283,6 +283,7 @@ export class ApyRange implements Strategy {
     } catch (error) {
       //console log all params for debugging
       for (const market of vaultData.marketsData.values()) {
+        console.log();
         console.log("chainId", market.chainId);
         console.log("id", market.id);
         console.log("params.loanToken", market.params.loanToken);
@@ -301,6 +302,7 @@ export class ApyRange implements Strategy {
         console.log("apyAt100Utilization", market.apyAt100Utilization);
         console.log("cap", market.cap);
         console.log("loanTokenDecimals", market.loanTokenDecimals);
+        console.log();
       }
 
       return err(
