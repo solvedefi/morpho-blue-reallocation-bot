@@ -269,10 +269,6 @@ export class ApyRange implements Strategy {
       return undefined;
     }
 
-    for (const reallocation of reallocationFilteredByCap) {
-      console.log(reallocation.marketParams.collateralToken, reallocation.assets);
-    }
-
     return reallocationFilteredByCap;
   }
 
