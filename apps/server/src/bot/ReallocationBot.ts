@@ -4,6 +4,7 @@ import { encodeFunctionData } from "viem/utils";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
+import { getChainName } from "../constants.js";
 import { MorphoClient } from "../contracts/MorphoClient.js";
 import { Strategy } from "../strategies/strategy.js";
 
@@ -36,7 +37,7 @@ export class ReallocationBot {
    */
   updateStrategy(strategy: Strategy) {
     this.strategy = strategy;
-    console.log(`Strategy updated for bot on chain ${this.chainId.toString()}`);
+    console.log(`Strategy updated for bot on chain ${getChainName(this.chainId)}`);
   }
 
   async run() {
@@ -50,7 +51,7 @@ export class ReallocationBot {
       .filter((result) => {
         if (result.isErr()) {
           console.error(
-            `Failed to fetch vault data on chain ${this.chainId.toString()}:`,
+            `Failed to fetch vault data on chain ${getChainName(this.chainId)}:`,
             result.error.message,
           );
           return false;
@@ -60,7 +61,7 @@ export class ReallocationBot {
       .map((result) => result._unsafeUnwrap());
 
     if (vaultsData.length === 0) {
-      console.warn(`No vault data available on chain ${this.chainId.toString()}`);
+      console.warn(`No vault data available on chain ${getChainName(this.chainId)}`);
       return;
     }
 
@@ -70,7 +71,7 @@ export class ReallocationBot {
 
         if (!reallocation) {
           console.log(
-            `No reallocation found on ${vaultData.vaultAddress} on chain ${this.chainId.toString()}`,
+            `No reallocation found on ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}`,
           );
           return;
         }
@@ -90,7 +91,7 @@ export class ReallocationBot {
           };
           await estimateGas(this.client, populatedTx);
           // TX EXECUTION
-          await writeContract(this.client, {
+          const txHash = await writeContract(this.client, {
             address: vaultData.vaultAddress,
             abi: metaMorphoAbi,
             functionName: "reallocate",
@@ -107,7 +108,10 @@ export class ReallocationBot {
               }[],
             ],
           });
-          console.log(`Reallocated on ${vaultData.vaultAddress}`);
+
+          console.log(
+            `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
+          );
         } catch (error) {
           console.log(`Failed to reallocate on ${vaultData.vaultAddress}`);
           console.error("reallocation error", error);
