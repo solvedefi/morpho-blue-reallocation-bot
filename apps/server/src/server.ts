@@ -350,7 +350,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
 
   // Chain management endpoints
   app.get("/chains", async (c: Context) => {
-    const chainsResult = await dbClient.getAllChainConfigs();
+    const chainsResult = await dbClient.getAllChainConfigsForUI();
 
     if (chainsResult.isErr()) {
       console.error("Error loading chains:", chainsResult.error);

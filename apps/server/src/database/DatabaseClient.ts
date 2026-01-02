@@ -367,7 +367,42 @@ export class DatabaseClient {
   }
 
   /**
-   * Get all enabled chain configs
+   * Get all chain configs (including disabled ones) - for UI display
+   */
+  async getAllChainConfigsForUI(): Promise<Result<ChainOperationalConfig[], Error>> {
+    try {
+      const configs = await this.prisma.chainConfig.findMany({
+        // No where clause - get all chains
+        include: {
+          vaultWhitelist: {
+            where: { enabled: true },
+          },
+        },
+      });
+
+      return ok(
+        configs.map(
+          (
+            config: Prisma.ChainConfigGetPayload<{
+              include: { vaultWhitelist: true };
+            }>,
+          ) => ({
+            chainId: config.chainId,
+            executionInterval: config.executionInterval,
+            enabled: config.enabled,
+            vaultWhitelist: config.vaultWhitelist.map(
+              (v: { vaultAddress: string }) => v.vaultAddress as Address,
+            ),
+          }),
+        ),
+      );
+    } catch (error) {
+      return err(new Error(`Failed to get all chain configs: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Get all enabled chain configs - for bot execution
    */
   async getAllChainConfigs(): Promise<Result<ChainOperationalConfig[], Error>> {
     try {

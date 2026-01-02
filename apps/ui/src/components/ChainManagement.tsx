@@ -218,26 +218,20 @@ export function ChainManagement() {
                 </div>
               </div>
 
-              {/* Vaults Summary */}
+              {/* Vaults List */}
               {chain.vaultWhitelist.length > 0 && (
                 <div className="pt-2 border-t border-border/50">
                   <p className="text-xs text-muted-foreground mb-2">Configured Vaults:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {chain.vaultWhitelist.slice(0, 3).map((vaultAddress) => (
-                      <Badge
+                  <ul className="space-y-1">
+                    {chain.vaultWhitelist.map((vaultAddress) => (
+                      <li
                         key={vaultAddress}
-                        variant="default"
-                        className="font-mono text-xs"
+                        className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors pl-2"
                       >
-                        {vaultAddress.slice(0, 6)}...{vaultAddress.slice(-4)}
-                      </Badge>
+                        • {vaultAddress}
+                      </li>
                     ))}
-                    {chain.vaultWhitelist.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{chain.vaultWhitelist.length - 3} more
-                      </Badge>
-                    )}
-                  </div>
+                  </ul>
                 </div>
               )}
             </div>
