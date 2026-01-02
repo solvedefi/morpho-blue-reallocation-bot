@@ -1,3 +1,4 @@
+import { Result } from "neverthrow";
 import { MaybePromise } from "viem";
 
 import { MarketAllocation, VaultData } from "../utils/types";
@@ -8,5 +9,7 @@ import { MarketAllocation, VaultData } from "../utils/types";
  * All strategies must implement this interface.
  */
 export interface Strategy {
-  findReallocation(vaultData: VaultData): MaybePromise<MarketAllocation[] | undefined>;
+  findReallocation(
+    vaultData: VaultData,
+  ): MaybePromise<Result<MarketAllocation[] | undefined, Error>>;
 }

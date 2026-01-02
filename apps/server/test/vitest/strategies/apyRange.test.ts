@@ -263,8 +263,12 @@ describe("apyRange strategy - unit tests", () => {
       vaultMarketData_WSTETH_EUSD,
       vaultMarketDataIdle,
     ]);
-    const result = strategy.findReallocation(vaultData);
+    const reallocationResult = strategy.findReallocation(vaultData);
 
+    expect(reallocationResult.isOk()).toBe(true);
+    if (reallocationResult.isErr()) return;
+
+    const result = reallocationResult.value;
     expect(result).toBeDefined();
     if (!result) return;
 
@@ -406,8 +410,12 @@ describe("apyRange strategy - unit tests", () => {
       vaultMarketData_WSTETH_EUSD,
       vaultMarketDataIdle,
     ]);
-    const result = strategy.findReallocation(vaultData);
+    const reallocationResult = strategy.findReallocation(vaultData);
 
+    expect(reallocationResult.isOk()).toBe(true);
+    if (reallocationResult.isErr()) return;
+
+    const result = reallocationResult.value;
     expect(result).toBeDefined();
     if (!result) return;
 
@@ -518,9 +526,12 @@ describe("apyRange strategy - unit tests", () => {
       vaultMarketData_BSDETH_EUSD,
       vaultMarketData_WSTETH_EUSD,
     ]);
-    const result = strategy.findReallocation(vaultData);
+    const reallocationResult = strategy.findReallocation(vaultData);
 
-    expect(result).toBeUndefined();
+    expect(reallocationResult.isOk()).toBe(true);
+    if (reallocationResult.isErr()) return;
+
+    expect(reallocationResult.value).toBeUndefined();
   });
 
   it("should deposit to market above upper utilization bound", () => {
@@ -565,8 +576,12 @@ describe("apyRange strategy - unit tests", () => {
       vaultMarketData_BSDETH_EUSD,
       vaultMarketData_IDLE,
     ]);
-    const result = strategy.findReallocation(vaultData);
+    const reallocationResult = strategy.findReallocation(vaultData);
 
+    expect(reallocationResult.isOk()).toBe(true);
+    if (reallocationResult.isErr()) return;
+
+    const result = reallocationResult.value;
     expect(result).toBeDefined();
     if (!result) return;
 
@@ -676,8 +691,12 @@ describe("apyRange strategy - unit tests", () => {
       vaultMarketData_WSTETH_EUSD,
       vaultMarketData_IDLE,
     ]);
-    const result = strategy.findReallocation(vaultData);
+    const reallocationResult = strategy.findReallocation(vaultData);
 
+    expect(reallocationResult.isOk()).toBe(true);
+    if (reallocationResult.isErr()) return;
+
+    const result = reallocationResult.value;
     expect(result).toBeDefined();
     if (!result) return;
 

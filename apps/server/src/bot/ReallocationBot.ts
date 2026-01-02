@@ -67,7 +67,21 @@ export class ReallocationBot {
 
     await Promise.all(
       vaultsData.map(async (vaultData) => {
-        const reallocation = await this.strategy.findReallocation(vaultData);
+        const reallocationResult = await this.strategy.findReallocation(vaultData);
+
+        // Handle error case - filter out errors
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        if (reallocationResult.isErr()) {
+          console.error(
+            `Failed to find reallocation for vault ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}:`,
+          );
+          console.error(reallocationResult.error);
+          return;
+        }
+
+        // Extract reallocation (safe after isErr() check)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const reallocation = reallocationResult.value;
 
         if (!reallocation) {
           console.log(
