@@ -442,12 +442,17 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
 
     if (result.isErr()) {
       console.error("Error adding vault to whitelist:", result.error);
+
+      // Check if it's a duplicate vault error
+      const errorMessage = result.error.message;
+      const isDuplicateError = errorMessage.includes("already whitelisted");
+
       return c.json(
         {
           success: false,
-          error: "Failed to add vault to whitelist",
+          error: isDuplicateError ? errorMessage : "Failed to add vault to whitelist",
         },
-        500,
+        isDuplicateError ? 400 : 500,
       );
     }
 

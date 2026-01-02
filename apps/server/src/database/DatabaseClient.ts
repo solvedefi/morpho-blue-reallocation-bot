@@ -470,6 +470,20 @@ export class DatabaseClient {
    */
   async addVaultToWhitelist(chainId: number, vaultAddress: Address): Promise<Result<void, Error>> {
     try {
+      // Check if the vault already exists and is enabled
+      const existingVault = await this.prisma.vaultWhitelist.findUnique({
+        where: {
+          chainId_vaultAddress: {
+            chainId,
+            vaultAddress,
+          },
+        },
+      });
+
+      if (existingVault && existingVault.enabled) {
+        return err(new Error(`Vault ${vaultAddress} is already whitelisted on this chain`));
+      }
+
       await this.prisma.vaultWhitelist.upsert({
         where: {
           chainId_vaultAddress: {
