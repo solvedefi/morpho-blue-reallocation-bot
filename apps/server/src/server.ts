@@ -105,7 +105,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
     const { chainId, vaultAddress, minApy, maxApy } = c.req.valid("json");
 
     // Validate APY values
-    if (minApy > 0 || maxApy > 100) {
+    if (minApy > 0 || maxApy < 100) {
       return c.json(
         {
           success: false,
