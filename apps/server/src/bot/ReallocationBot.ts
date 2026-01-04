@@ -10,7 +10,8 @@ import { Strategy } from "../strategies/strategy.js";
 
 export class ReallocationBot {
   private chainId: number;
-  private client: Client<Transport, Chain, Account>;
+  private publicClient: Client<Transport, Chain>;
+  private walletClient: Client<Transport, Chain, Account>;
   private vaultWhitelist: Address[];
   private strategy: Strategy;
   private morphoClient: MorphoClient;
@@ -18,18 +19,19 @@ export class ReallocationBot {
 
   constructor(
     chainId: number,
-    client: Client<Transport, Chain, Account>,
+    publicClient: Client<Transport, Chain>,
+    walletClient: Client<Transport, Chain, Account>,
     vaultWhitelist: Address[],
     strategy: Strategy,
     config: Config,
   ) {
     this.chainId = chainId;
-    this.client = client;
+    this.publicClient = publicClient;
+    this.walletClient = walletClient;
     this.vaultWhitelist = vaultWhitelist;
     this.strategy = strategy;
-    this.morphoClient = new MorphoClient(client, config);
+    this.morphoClient = new MorphoClient(publicClient, config);
     this.config = config;
-    this.client = client;
   }
 
   /**
@@ -70,7 +72,7 @@ export class ReallocationBot {
         const reallocationResult = await this.strategy.findReallocation(vaultData);
 
         // Handle error case - filter out errors
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
         if (reallocationResult.isErr()) {
           console.error(
             `Failed to find reallocation for vault ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}:`,
@@ -80,7 +82,7 @@ export class ReallocationBot {
         }
 
         // Extract reallocation (safe after isErr() check)
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
         const reallocation = reallocationResult.value;
 
         if (!reallocation) {
@@ -103,9 +105,9 @@ export class ReallocationBot {
             }),
             value: 0n, // TODO: find a way to get encoder value
           };
-          await estimateGas(this.client, populatedTx);
+          await estimateGas(this.walletClient, populatedTx);
           // TX EXECUTION
-          const txHash = await writeContract(this.client, {
+          const txHash = await writeContract(this.walletClient, {
             address: vaultData.vaultAddress,
             abi: metaMorphoAbi,
             functionName: "reallocate",

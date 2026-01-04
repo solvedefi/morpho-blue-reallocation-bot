@@ -115,15 +115,49 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       );
     }
 
-    if (minApy > maxApy) {
+    if (minApy >= maxApy) {
       return c.json(
         {
           success: false,
-          error: "Min APY cannot be greater than max APY",
+          error: "Min APY must be less than max APY",
         },
         400,
       );
     }
+
+    const result = await dbClient.upsertVaultApyRange(
+      chainId,
+      vaultAddress as Address,
+      minApy,
+      maxApy,
+    );
+
+    if (result.isErr()) {
+      console.error("Error updating vault APY range:", result.error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to update vault APY configuration",
+        },
+        500,
+      );
+    }
+
+    // Trigger configuration reload and restart bots
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      message: "Vault APY range configured successfully",
+      data: {
+        chainId,
+        vaultAddress,
+        minApy,
+        maxApy,
+      },
+    });
   });
 
   app.post("/config/market", zValidator("json", marketConfigSchema), async (c) => {
@@ -140,21 +174,11 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       );
     }
 
-    if (minApy > maxApy) {
-      return c.json(
-        {
-          success: false,
-          error: "Min APY cannot be greater than max APY",
-        },
-        400,
-      );
-    }
-
     if (minApy >= maxApy) {
       return c.json(
         {
           success: false,
-          error: "minApy must be less than maxApy",
+          error: "Min APY must be less than max APY",
         },
         400,
       );

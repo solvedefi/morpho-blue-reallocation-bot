@@ -2,11 +2,12 @@ import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-sec
 import { serve } from "@hono/node-server";
 import { config as dotenvConfig } from "dotenv";
 import { type Hono } from "hono";
-import { createWalletClient, http, type Hex } from "viem";
+import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { ReallocationBot } from "./bot";
 import { chainConfigs, type Config } from "./config";
+import { getChainName } from "./constants";
 import { DatabaseClient } from "./database";
 import { createServer } from "./server";
 import { ApyRange } from "./strategies";
@@ -64,8 +65,12 @@ async function getPrivateKey(): Promise<Hex> {
   return reallocatorPrivateKey as Hex;
 }
 
-async function runBotInBackground(bot: ReallocationBot, executionInterval: number): Promise<void> {
-  setInterval(() => {
+async function runBotInBackgroundWithAbort(
+  bot: ReallocationBot,
+  executionInterval: number,
+  abortController: AbortController,
+): Promise<void> {
+  const intervalId = setInterval(() => {
     try {
       void bot.run();
     } catch (err) {
@@ -73,9 +78,18 @@ async function runBotInBackground(bot: ReallocationBot, executionInterval: numbe
     }
   }, executionInterval * 1000);
 
-  // Keep the promise pending forever
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  return new Promise<void>(() => {});
+  // Listen for abort signal
+  abortController.signal.addEventListener("abort", () => {
+    clearInterval(intervalId);
+    console.log("Bot execution stopped");
+  });
+
+  // Keep the promise pending until aborted
+  return new Promise<void>((resolve) => {
+    abortController.signal.addEventListener("abort", () => {
+      resolve();
+    });
+  });
 }
 
 function logApyConfiguration(apyConfig: {
@@ -117,7 +131,11 @@ async function main() {
   let apyConfig = apyConfigResult.value;
   logApyConfiguration(apyConfig);
 
-  const bots: ReallocationBot[] = [];
+  // Track running bots and their abort controllers
+  const runningBots = new Map<
+    number,
+    { bot: ReallocationBot; abortController: AbortController; task: Promise<void> }
+  >();
 
   const reloadConfiguration = async () => {
     console.log("\nConfiguration change detected. Reloading...");
@@ -133,12 +151,101 @@ async function main() {
     logApyConfiguration(apyConfig);
 
     // Update all bots with new strategy
-    for (const bot of bots) {
+    for (const botInfo of runningBots.values()) {
       const newStrategy = new ApyRange(apyConfig);
-      bot.updateStrategy(newStrategy);
+      botInfo.bot.updateStrategy(newStrategy);
+    }
+
+    // Reload chain configs to handle enabled/disabled changes
+    const chainConfigsResult = await dbClient.getAllChainConfigs();
+    if (chainConfigsResult.isErr()) {
+      console.error("❌ Failed to reload chain configs:", chainConfigsResult.error.message);
+      return;
+    }
+
+    const enabledChainIds = new Set(chainConfigsResult.value.map((c) => c.chainId));
+
+    // Stop bots for disabled chains
+    for (const [botChainId, botInfo] of runningBots) {
+      if (!enabledChainIds.has(botChainId)) {
+        console.log(`Stopping bot for disabled chain ${getChainName(botChainId)}...`);
+        botInfo.abortController.abort();
+        runningBots.delete(botChainId);
+      }
+    }
+
+    // Start bots for newly enabled chains
+    for (const opConfig of chainConfigsResult.value) {
+      if (!runningBots.has(opConfig.chainId)) {
+        console.log(`Starting bot for newly enabled chain ${getChainName(opConfig.chainId)}...`);
+        startBotForChain(opConfig, privateKey, apyConfig);
+      }
     }
 
     console.log("All bots updated with new configuration\n");
+  };
+
+  const startBotForChain = (
+    opConfig: {
+      chainId: number;
+      executionInterval: number;
+      vaultWhitelist: Address[];
+      enabled: boolean;
+    },
+    pk: Hex,
+    config: typeof apyConfig,
+  ) => {
+    const infraConfig: Config | undefined = chainConfigs[opConfig.chainId];
+    if (!infraConfig) {
+      console.warn(
+        `No infrastructure config found for chainId ${String(opConfig.chainId)}, skipping...`,
+      );
+      return;
+    }
+
+    const rpcUrl = getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
+
+    // Create public client for reading contract data
+    const publicClient = createPublicClient({
+      chain: infraConfig.chain,
+      transport: http(rpcUrl, {
+        timeout: 60_000, // 60 second timeout
+        retryCount: 3, // Retry failed requests 3 times
+        retryDelay: 1000, // Wait 1 second between retries
+      }),
+    });
+
+    // Create wallet client for writing transactions
+    const walletClient = createWalletClient({
+      chain: infraConfig.chain,
+      transport: http(rpcUrl, {
+        timeout: 60_000,
+        retryCount: 3,
+        retryDelay: 1000,
+      }),
+      account: privateKeyToAccount(pk),
+    });
+
+    const strategy = new ApyRange(config);
+    const bot = new ReallocationBot(
+      opConfig.chainId,
+      publicClient,
+      walletClient,
+      opConfig.vaultWhitelist,
+      strategy,
+      infraConfig,
+    );
+
+    const abortController = new AbortController();
+    void bot.run();
+
+    const botTask = runBotInBackgroundWithAbort(bot, opConfig.executionInterval, abortController);
+
+    runningBots.set(opConfig.chainId, {
+      bot,
+      abortController,
+      task: botTask,
+    });
   };
 
   // Start the HTTP server with configuration reload callback
@@ -181,48 +288,18 @@ async function main() {
   // Get private key (shared across all chains)
   const privateKey = await getPrivateKey();
 
-  const botTasks: Promise<void>[] = [];
-
+  // Start bots for all enabled chains
   for (const opConfig of chainOperationalConfigs) {
-    const infraConfig: Config | undefined = chainConfigs[opConfig.chainId];
-    if (!infraConfig) {
-      console.warn(
-        `No infrastructure config found for chainId ${String(opConfig.chainId)}, skipping...`,
-      );
-      continue;
-    }
-
-    const rpcUrl = getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
-    const client = createWalletClient({
-      chain: infraConfig.chain,
-      transport: http(rpcUrl),
-      account: privateKeyToAccount(privateKey),
-    });
-
-    // Create strategy with database configuration
-    const strategy = new ApyRange(apyConfig);
-
-    const bot = new ReallocationBot(
-      opConfig.chainId,
-      client,
-      opConfig.vaultWhitelist,
-      strategy,
-      infraConfig,
-    );
-
-    // Store bot reference for configuration updates
-    bots.push(bot);
-
-    console.log(`\nStarting bot for chain ${String(opConfig.chainId)}...`);
-    void bot.run();
-
-    const botTask = runBotInBackground(bot, opConfig.executionInterval);
-    botTasks.push(botTask);
+    console.log(`\nStarting bot for chain ${getChainName(opConfig.chainId)}...`);
+    startBotForChain(opConfig, privateKey, apyConfig);
   }
 
   console.log("\nAll bots started successfully!\n");
 
-  await Promise.all(botTasks);
+  // Keep the process running
+  await new Promise(() => {
+    // This promise never resolves, keeping the process alive
+  });
 }
 
 main().catch(console.error);

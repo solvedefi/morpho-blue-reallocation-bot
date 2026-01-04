@@ -1,6 +1,6 @@
 import { Result, ok, err } from "neverthrow";
-import { Address, type Account, type Chain, type Client, type Transport } from "viem";
-import { readContract } from "viem/actions";
+import { Address, type Chain, type Client, type Transport } from "viem";
+import { multicall, readContract } from "viem/actions";
 
 import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
 import { erc20Abi } from "../../abis/ERC20.js";
@@ -14,16 +14,17 @@ import { MarketParams, MarketState, VaultData, VaultMarketData } from "../utils/
 import { accrueInterest, toAssetsDown } from "./helpers";
 
 export class MorphoClient {
-  private client: Client<Transport, Chain, Account>;
+  private client: Client<Transport, Chain>;
   private config: Config;
 
-  constructor(client: Client<Transport, Chain, Account>, config: Config) {
+  constructor(client: Client<Transport, Chain>, config: Config) {
     this.config = config;
     this.client = client;
   }
 
   async fetchVaultData(vaultAddress: Address): Promise<Result<VaultData, Error>> {
     try {
+      // Step 1: Get withdraw queue length
       const withdrawQueueLength = await readContract(this.client, {
         address: vaultAddress,
         abi: metaMorphoAbi,
@@ -31,31 +32,134 @@ export class MorphoClient {
         args: [],
       });
 
-      const withdrawQueueCalls: Promise<string>[] = [];
+      // Step 2: Get all market IDs from withdraw queue using multicall
+      const withdrawQueueCalls = [];
       for (let i = 0; i < Number(withdrawQueueLength); i++) {
-        withdrawQueueCalls.push(
-          readContract(this.client, {
+        withdrawQueueCalls.push({
+          address: vaultAddress,
+          abi: metaMorphoAbi,
+          functionName: "withdrawQueue",
+          args: [BigInt(i)],
+        } as const);
+      }
+
+      const marketIdsResults = await multicall(this.client, {
+        contracts: withdrawQueueCalls,
+        allowFailure: false,
+      });
+
+      const marketIds = marketIdsResults as `0x${string}`[];
+
+      // Step 3: Batch all market data calls using multicall
+      const allMarketCalls = [];
+      for (const marketId of marketIds) {
+        allMarketCalls.push(
+          // market state
+          {
+            address: this.config.morpho,
+            abi: morphoBlueAbi,
+            functionName: "market",
+            args: [marketId],
+          } as const,
+          // market params
+          {
+            address: this.config.morpho,
+            abi: morphoBlueAbi,
+            functionName: "idToMarketParams",
+            args: [marketId],
+          } as const,
+          // rate at target
+          {
+            address: this.config.adaptiveCurveIrm,
+            abi: adaptiveCurveIrmAbi,
+            functionName: "rateAtTarget",
+            args: [marketId],
+          } as const,
+          // config (supply cap)
+          {
             address: vaultAddress,
             abi: metaMorphoAbi,
-            functionName: "withdrawQueue",
-            args: [BigInt(i)],
-          }),
+            functionName: "config",
+            args: [marketId],
+          } as const,
+          // position (supply shares)
+          {
+            address: this.config.morpho,
+            abi: morphoBlueAbi,
+            functionName: "position",
+            args: [marketId, vaultAddress],
+          } as const,
         );
       }
 
-      const marketIdsFromWithdrawQueue = await Promise.all(withdrawQueueCalls);
+      const allMarketResults = await multicall(this.client, {
+        contracts: allMarketCalls,
+        allowFailure: false,
+      });
+
+      // Step 4: Get decimals for all unique loan tokens using multicall
+      const loanTokens = new Set<Address>();
+      for (let i = 0; i < marketIds.length; i++) {
+        const marketParamsIndex = i * 5 + 1;
+        const marketParams = allMarketResults[marketParamsIndex] as readonly [
+          Address,
+          Address,
+          Address,
+          Address,
+          bigint,
+        ];
+        loanTokens.add(marketParams[0]);
+      }
+
+      const decimalsCalls = Array.from(loanTokens).map(
+        (token) =>
+          ({
+            address: token,
+            abi: erc20Abi,
+            functionName: "decimals",
+            args: [],
+          }) as const,
+      );
+
+      const decimalsResults = await multicall(this.client, {
+        contracts: decimalsCalls,
+        allowFailure: false,
+      });
+
+      const decimalsMap = new Map<Address, number>();
+      Array.from(loanTokens).forEach((token, index) => {
+        decimalsMap.set(token, Number(decimalsResults[index]));
+      });
+
+      // Step 5: Process results
       const result: VaultData = {
         vaultAddress,
         marketsData: new Map<`0x${string}`, VaultMarketData>(),
       };
 
-      for (const marketId of marketIdsFromWithdrawQueue) {
-        const marketState = await readContract(this.client, {
-          address: this.config.morpho,
-          abi: morphoBlueAbi,
-          functionName: "market",
-          args: [marketId as `0x${string}`],
-        });
+      for (let i = 0; i < marketIds.length; i++) {
+        const marketId = marketIds[i];
+        if (!marketId) continue;
+        const baseIndex = i * 5;
+
+        const marketState = allMarketResults[baseIndex] as readonly [
+          bigint,
+          bigint,
+          bigint,
+          bigint,
+          bigint,
+          bigint,
+        ];
+        const marketParams = allMarketResults[baseIndex + 1] as readonly [
+          Address,
+          Address,
+          Address,
+          Address,
+          bigint,
+        ];
+        const rateAtTarget = allMarketResults[baseIndex + 2] as bigint;
+        const config = allMarketResults[baseIndex + 3] as readonly [bigint, boolean, bigint];
+        const position = allMarketResults[baseIndex + 4] as readonly [bigint, bigint, bigint];
 
         const marketStateStruct: MarketState = {
           totalSupplyAssets: marketState[0],
@@ -66,13 +170,6 @@ export class MorphoClient {
           fee: marketState[5],
         };
 
-        const marketParams = await readContract(this.client, {
-          address: this.config.morpho,
-          abi: morphoBlueAbi,
-          functionName: "idToMarketParams",
-          args: [marketId as `0x${string}`],
-        });
-
         const marketParamsStruct: MarketParams = {
           loanToken: marketParams[0],
           collateralToken: marketParams[1],
@@ -81,29 +178,7 @@ export class MorphoClient {
           lltv: marketParams[4],
         };
 
-        const rateAtTarget = await readContract(this.client, {
-          address: this.config.adaptiveCurveIrm,
-          abi: adaptiveCurveIrmAbi,
-          functionName: "rateAtTarget",
-          args: [marketId as `0x${string}`],
-        });
-
-        const config = await readContract(this.client, {
-          address: vaultAddress,
-          abi: metaMorphoAbi,
-          functionName: "config",
-          args: [marketId as `0x${string}`],
-        });
-
         const supplyCap = config[0];
-
-        const position = await readContract(this.client, {
-          address: this.config.morpho,
-          abi: morphoBlueAbi,
-          functionName: "position",
-          args: [marketId as `0x${string}`, vaultAddress],
-        });
-
         const supplyShares = position[0];
 
         const { marketState: accuredState, rateAtTarget: accuredRateAtTarget } = accrueInterest(
@@ -118,32 +193,27 @@ export class MorphoClient {
           accuredState.totalSupplyShares,
         );
 
-        const loanTokenDecimals = await readContract(this.client, {
-          address: marketParamsStruct.loanToken,
-          abi: erc20Abi,
-          functionName: "decimals",
-          args: [],
-        });
+        const loanTokenDecimals = decimalsMap.get(marketParamsStruct.loanToken) ?? 18;
 
         const vaultMarketData: VaultMarketData = {
           chainId: this.config.chain.id,
-          id: marketId as `0x${string}`,
+          id: marketId,
           params: marketParamsStruct,
           state: accuredState,
           cap: BigInt(supplyCap),
           vaultAssets,
           rateAtTarget: accuredRateAtTarget,
           apyAt100Utilization: 0n,
-          loanTokenDecimals: Number(loanTokenDecimals),
+          loanTokenDecimals,
         };
 
         const apyResult = await this.calculateAPYAt100Utilization(vaultMarketData);
         if (apyResult.isErr()) {
-          return err(apyResult.error);
+          throw apyResult.error;
         }
         vaultMarketData.apyAt100Utilization = apyResult.value;
 
-        result.marketsData.set(marketId as `0x${string}`, vaultMarketData);
+        result.marketsData.set(marketId, vaultMarketData);
       }
 
       return ok(result);
