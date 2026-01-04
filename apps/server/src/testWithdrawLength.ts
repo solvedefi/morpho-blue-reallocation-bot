@@ -26,7 +26,7 @@ async function testWithdrawQueueLength() {
   }
 
   console.log(`Using RPC URL: ${rpcUrl}`);
-  console.log(`Chain: ${mainnet.name} (${String(mainnet.id)})\n`);
+  console.log(`Chain: ${mainnet.name} (${mainnet.id.toString()})\n`);
 
   // Create public client with the same configuration as in index.ts
   const publicClient = createPublicClient({

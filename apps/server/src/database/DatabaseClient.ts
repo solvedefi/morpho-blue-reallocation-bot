@@ -480,7 +480,7 @@ export class DatabaseClient {
         },
       });
 
-      if (existingVault && existingVault.enabled) {
+      if (existingVault?.enabled) {
         return err(new Error(`Vault ${vaultAddress} is already whitelisted on this chain`));
       }
 

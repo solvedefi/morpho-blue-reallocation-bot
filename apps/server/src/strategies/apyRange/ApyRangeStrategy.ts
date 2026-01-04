@@ -100,6 +100,13 @@ export class ApyRange implements Strategy {
           marketData.rateAtTarget,
         );
 
+        // TODO: add liquidity to shift the irm curve down so that new rates can appear
+        // Skip if utilization bounds are invalid (0 means the APY range is below what the IRM can provide)
+        // This can happen when the market's rateAtTarget is very low
+        if (upperUtilizationBound === 0n || lowerUtilizationBound === 0n) {
+          continue;
+        }
+
         // Check if we need to push to 100% utilization to trigger Adaptive IRM curve shift.
         // This happens when even at 100% utilization, the current APY would be below our target range.
         if (marketData.apyAt100Utilization < apyRange.max) {
@@ -185,6 +192,13 @@ export class ApyRange implements Strategy {
           apyToRate(apyRange.min),
           marketData.rateAtTarget,
         );
+
+        // Skip if utilization bounds are invalid (0 means the APY range is below what the IRM can provide)
+        // This can happen when the market's rateAtTarget is very low
+        if (upperUtilizationBound === 0n || lowerUtilizationBound === 0n) {
+          continue;
+        }
+
         const utilization = getUtilization(marketData.state);
 
         const apyAt100Utilization = marketData.apyAt100Utilization;
