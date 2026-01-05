@@ -215,7 +215,9 @@ export class ApyRange implements Strategy {
 
           const withdrawal = min(amountToWithdraw, remainingWithdrawal);
 
-          // if the withdrawal is less than 1 token, then we don't need to withdraw
+          // TODO: for a small market reallocations can be as small as 1 token
+          // TODO: what should we do in this case?
+          // if the withdrawal is lessothan 1 token, then we don't need to withdraw
           if (withdrawal < 10n ** BigInt(loanTokenDecimals)) {
             continue;
           }

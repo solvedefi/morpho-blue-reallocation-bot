@@ -1,5 +1,5 @@
 import { type Account, type Address, type Chain, type Client, type Transport } from "viem";
-import { estimateGas, writeContract } from "viem/actions";
+import { estimateGas, waitForTransactionReceipt, writeContract } from "viem/actions";
 import { encodeFunctionData } from "viem/utils";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
@@ -126,7 +126,15 @@ export class ReallocationBot {
           });
 
           console.log(
-            `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
+            `Transaction sent for ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
+          );
+
+          const receipt = await waitForTransactionReceipt(this.publicClient, {
+            hash: txHash,
+          });
+
+          console.log(
+            `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
           );
         } catch (error) {
           console.log(`Failed to reallocate on ${vaultData.vaultAddress}`);
