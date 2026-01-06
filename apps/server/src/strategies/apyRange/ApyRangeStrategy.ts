@@ -265,7 +265,11 @@ export class ApyRange implements Strategy {
         if (idleWithdrawal > 0n) {
           withdrawals.push({
             marketParams: idleMarket.params,
-            assets: idleWithdrawal,
+            // TODO: specifies how much we should reallocated and not how much we should leave in the market
+            // assets: idleWithdrawal,
+
+            // TODO: how much we should leave in the market
+            assets: idleMarket.vaultAssets - idleWithdrawal,
           });
         }
 
