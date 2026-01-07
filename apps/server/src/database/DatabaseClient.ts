@@ -7,8 +7,18 @@ export interface ApyRangeConfig {
   max: number;
 }
 
-export type VaultApyRanges = Record<string, ApyRangeConfig>;
-export type MarketApyRanges = Record<string, ApyRangeConfig>;
+export interface VaultApyRangeWithMeta extends ApyRangeConfig {
+  vaultName?: string | null;
+}
+
+export interface MarketApyRangeWithMeta extends ApyRangeConfig {
+  collateralSymbol?: string | null;
+  loanSymbol?: string | null;
+  vaultAddress?: string | null;
+}
+
+export type VaultApyRanges = Record<string, VaultApyRangeWithMeta>;
+export type MarketApyRanges = Record<string, MarketApyRangeWithMeta>;
 
 export interface ApyConfiguration {
   vaultRanges: Record<number, VaultApyRanges>; // chainId -> vault address -> range
@@ -76,6 +86,7 @@ export class DatabaseClient {
         vaultRanges[config.chainId]![config.vaultAddress] = {
           min: parseFloat(config.minApy.toString()),
           max: parseFloat(config.maxApy.toString()),
+          vaultName: config.vaultName,
         };
       }
 
@@ -87,6 +98,9 @@ export class DatabaseClient {
         marketRanges[config.chainId]![config.marketId] = {
           min: parseFloat(config.minApy.toString()),
           max: parseFloat(config.maxApy.toString()),
+          collateralSymbol: config.collateralSymbol,
+          loanSymbol: config.loanSymbol,
+          vaultAddress: config.vaultAddress,
         };
       }
 
@@ -202,6 +216,7 @@ export class DatabaseClient {
     vaultAddress: Address,
     minApy: number,
     maxApy: number,
+    vaultName?: string,
   ): Promise<Result<void, Error>> {
     try {
       await this.prisma.vaultApyConfig.upsert({
@@ -216,16 +231,46 @@ export class DatabaseClient {
           vaultAddress,
           minApy,
           maxApy,
+          vaultName,
         },
         update: {
           minApy,
           maxApy,
+          ...(vaultName !== undefined && { vaultName }),
         },
       });
       return ok(undefined);
     } catch (error) {
       return err(
         new Error(`Failed to upsert vault APY range for ${vaultAddress}: ${String(error)}`),
+      );
+    }
+  }
+
+  /**
+   * Update vault metadata only (name)
+   */
+  async updateVaultMetadata(
+    chainId: number,
+    vaultAddress: Address,
+    vaultName: string,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultApyConfig.update({
+        where: {
+          unique_vault_config: {
+            chainId,
+            vaultAddress,
+          },
+        },
+        data: {
+          vaultName,
+        },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(`Failed to update vault metadata for ${vaultAddress}: ${String(error)}`),
       );
     }
   }
@@ -238,6 +283,11 @@ export class DatabaseClient {
     marketId: Hex,
     minApy: number,
     maxApy: number,
+    metadata?: {
+      collateralSymbol?: string;
+      loanSymbol?: string;
+      vaultAddress?: string;
+    },
   ): Promise<Result<void, Error>> {
     try {
       await this.prisma.marketApyConfig.upsert({
@@ -252,15 +302,47 @@ export class DatabaseClient {
           marketId,
           minApy,
           maxApy,
+          ...metadata,
         },
         update: {
           minApy,
           maxApy,
+          ...(metadata && metadata),
         },
       });
       return ok(undefined);
     } catch (error) {
       return err(new Error(`Failed to upsert market APY range for ${marketId}: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Update market metadata only
+   */
+  async updateMarketMetadata(
+    chainId: number,
+    marketId: Hex,
+    metadata: {
+      collateralSymbol?: string;
+      loanSymbol?: string;
+      vaultAddress?: string;
+    },
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.marketApyConfig.update({
+        where: {
+          unique_market_config: {
+            chainId,
+            marketId,
+          },
+        },
+        data: metadata,
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(`Failed to update market metadata for ${marketId}: ${String(error)}`),
+      );
     }
   }
 

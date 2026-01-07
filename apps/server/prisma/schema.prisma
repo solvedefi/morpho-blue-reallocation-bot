@@ -15,6 +15,7 @@ model VaultApyConfig {
   id           Int      @id @default(autoincrement())
   chainId      Int      @map("chain_id")
   vaultAddress String   @map("vault_address") @db.VarChar(42)
+  vaultName    String?  @map("vault_name") @db.VarChar(100)
   minApy       Decimal  @map("min_apy") @db.Decimal(10, 4)
   maxApy       Decimal  @map("max_apy") @db.Decimal(10, 4)
   createdAt    DateTime @default(now()) @map("created_at")
@@ -27,13 +28,16 @@ model VaultApyConfig {
 
 // For market-level APY configurations
 model MarketApyConfig {
-  id        Int      @id @default(autoincrement())
-  chainId   Int      @map("chain_id")
-  marketId  String   @map("market_id") @db.VarChar(66)
-  minApy    Decimal  @map("min_apy") @db.Decimal(10, 4)
-  maxApy    Decimal  @map("max_apy") @db.Decimal(10, 4)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id               Int      @id @default(autoincrement())
+  chainId          Int      @map("chain_id")
+  marketId         String   @map("market_id") @db.VarChar(66)
+  collateralSymbol String?  @map("collateral_symbol") @db.VarChar(20)
+  loanSymbol       String?  @map("loan_symbol") @db.VarChar(20)
+  vaultAddress     String?  @map("vault_address") @db.VarChar(42)
+  minApy           Decimal  @map("min_apy") @db.Decimal(10, 4)
+  maxApy           Decimal  @map("max_apy") @db.Decimal(10, 4)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@unique([chainId, marketId], name: "unique_market_config")
   @@index([chainId])

@@ -3,9 +3,19 @@ export interface ApyRangeConfig {
   max: number;
 }
 
+export interface VaultApyRangeWithMeta extends ApyRangeConfig {
+  vaultName?: string | null;
+}
+
+export interface MarketApyRangeWithMeta extends ApyRangeConfig {
+  collateralSymbol?: string | null;
+  loanSymbol?: string | null;
+  vaultAddress?: string | null;
+}
+
 export interface Configuration {
-  vaultRanges: Record<number, Record<string, ApyRangeConfig>>;
-  marketRanges: Record<number, Record<string, ApyRangeConfig>>;
+  vaultRanges: Record<number, Record<string, VaultApyRangeWithMeta>>;
+  marketRanges: Record<number, Record<string, MarketApyRangeWithMeta>>;
   allowIdleReallocation: boolean;
   defaultMinApy: number;
   defaultMaxApy: number;

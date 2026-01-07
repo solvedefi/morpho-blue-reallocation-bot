@@ -171,9 +171,16 @@ export function ConfigView({ config }: ConfigViewProps) {
                         key={address}
                         className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-blue-500/20"
                       >
-                        <span className="font-mono text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate flex-1">
-                          {address}
-                        </span>
+                        <div className="flex flex-col gap-1 flex-1 min-w-0">
+                          {range.vaultName && (
+                            <span className="font-medium text-sm text-foreground">
+                              {range.vaultName}
+                            </span>
+                          )}
+                          <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors truncate">
+                            {address}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-2 ml-4">
                           <Badge variant="secondary" className="font-mono">
                             {range.min}% - {range.max}%
@@ -219,21 +226,47 @@ export function ConfigView({ config }: ConfigViewProps) {
                     </span>
                   </div>
                   <div className="space-y-2">
-                    {Object.entries(markets).map(([marketId, range]) => (
-                      <div
-                        key={marketId}
-                        className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-purple-500/20"
-                      >
-                        <span className="font-mono text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate flex-1">
-                          {marketId}
-                        </span>
-                        <div className="flex items-center gap-2 ml-4">
-                          <Badge variant="secondary" className="font-mono">
-                            {range.min}% - {range.max}%
-                          </Badge>
+                    {Object.entries(markets).map(([marketId, range]) => {
+                      const marketName = range.collateralSymbol && range.loanSymbol
+                        ? `${range.collateralSymbol}/${range.loanSymbol}`
+                        : null;
+                      // Look up vault name from vaultRanges using market's vaultAddress
+                      const vaultName = range.vaultAddress
+                        ? data.vaultRanges[Number(chainId)]?.[range.vaultAddress]?.vaultName
+                        : null;
+                      return (
+                        <div
+                          key={marketId}
+                          className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-purple-500/20"
+                        >
+                          <div className="flex flex-col gap-1 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {marketName && (
+                                <span className="font-medium text-sm text-foreground">
+                                  {marketName}
+                                </span>
+                              )}
+                              {vaultName && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/30"
+                                >
+                                  {vaultName}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors truncate">
+                              {marketId}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <Badge variant="secondary" className="font-mono">
+                              {range.min}% - {range.max}%
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
