@@ -1,2 +1,2 @@
 export { MetadataService } from "./MetadataService";
-export type { VaultMetadata, MarketMetadata, MarketParams } from "./MetadataService";
+export type { MarketMetadata, MarketParams } from "./MetadataService";
