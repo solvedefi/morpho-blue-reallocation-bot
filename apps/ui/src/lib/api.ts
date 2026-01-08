@@ -6,8 +6,8 @@ export interface ApyRangeConfig {
 export type VaultApyRangeWithMeta = ApyRangeConfig;
 
 export interface MarketApyRangeWithMeta extends ApyRangeConfig {
-  collateralSymbol?: string | null;
-  loanSymbol?: string | null;
+  collateralSymbol: string;
+  loanSymbol: string;
 }
 
 export interface Configuration {
@@ -45,7 +45,7 @@ export interface UpdateStrategyRequest {
 
 export interface WhitelistedVault {
   address: string;
-  name?: string | null;
+  name: string;
 }
 
 export interface ChainConfig {

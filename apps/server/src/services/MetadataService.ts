@@ -32,8 +32,9 @@ export class MetadataService {
    * Get or create a public client for a chain
    */
   private getClient(chainId: number): PublicClient | null {
-    if (this.clients.has(chainId)) {
-      return this.clients.get(chainId);
+    const existingClient = this.clients.get(chainId);
+    if (existingClient) {
+      return existingClient;
     }
 
     const chainConfig = chainConfigs[chainId];

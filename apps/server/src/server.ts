@@ -189,7 +189,7 @@ export function createServer(
       );
     }
 
-    // Fetch market metadata (token symbols) from blockchain
+    // Fetch market metadata (token symbols) from blockchain - this is mandatory
     const marketMetadata = await metadataService.fetchMarketMetadata(chainId, marketId as Hex);
     console.log(
       `Fetched market metadata for ${marketId} on chain ${String(chainId)}:`,
@@ -198,9 +198,20 @@ export function createServer(
       marketMetadata.loanSymbol ?? "unknown",
     );
 
+    // Market metadata is required - reject if we couldn't fetch token symbols
+    if (!marketMetadata.collateralSymbol || !marketMetadata.loanSymbol) {
+      return c.json(
+        {
+          success: false,
+          error: `Could not fetch market metadata for ${marketId}. The market may not exist on chain ${String(chainId)} or the chain RPC may be unavailable.`,
+        },
+        400,
+      );
+    }
+
     const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy, {
-      collateralSymbol: marketMetadata.collateralSymbol ?? undefined,
-      loanSymbol: marketMetadata.loanSymbol ?? undefined,
+      collateralSymbol: marketMetadata.collateralSymbol,
+      loanSymbol: marketMetadata.loanSymbol,
     });
 
     if (result.isErr()) {
@@ -457,12 +468,23 @@ export function createServer(
       );
     }
 
-    // Fetch vault name from blockchain
+    // Fetch vault name from blockchain - this is mandatory
     const vaultMetadata = await metadataService.fetchVaultName(chainId, vaultAddress as Address);
     console.log(
       `Fetched vault metadata for ${vaultAddress} on chain ${String(chainId)}:`,
       vaultMetadata.name ?? "no name found",
     );
+
+    // Vault name is required - reject if we couldn't fetch it
+    if (!vaultMetadata.name) {
+      return c.json(
+        {
+          success: false,
+          error: `Could not fetch vault name for ${vaultAddress}. The address may not be a valid MetaMorpho vault or the chain RPC may be unavailable.`,
+        },
+        400,
+      );
+    }
 
     const result = await dbClient.addVaultToWhitelist(
       chainId,

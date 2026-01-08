@@ -1,7 +1,7 @@
--- Add metadata columns to vault_whitelist (vault name belongs here, not in apy config)
+-- Add metadata columns to vault_whitelist (vault name is mandatory)
 ALTER TABLE "vault_whitelist" ADD COLUMN "vault_name" VARCHAR(100);
 
--- Add metadata columns to market_apy_config
+-- Add metadata columns to market_apy_config (symbols are mandatory)
 ALTER TABLE "market_apy_config" ADD COLUMN "collateral_symbol" VARCHAR(20);
 ALTER TABLE "market_apy_config" ADD COLUMN "loan_symbol" VARCHAR(20);
 
@@ -46,7 +46,7 @@ UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDT' WHERE "chain_id" = 239 AN
 UPDATE "vault_whitelist" SET "vault_name" = 'Re7 cbBTC' WHERE "chain_id" = 239 AND "vault_address" = '0xf49f14Cff1bA2eE7E23222A76e0C2b3D0BDE06dC';
 UPDATE "vault_whitelist" SET "vault_name" = 'Re7 TON' WHERE "chain_id" = 239 AND "vault_address" = '0x84BBc0be5a6f831a4E2C28a2F3b892C70AcAa5b3';
 UPDATE "vault_whitelist" SET "vault_name" = 'Re7 LBTC' WHERE "chain_id" = 239 AND "vault_address" = '0xe9BD3590A68939344953b4f912d83b7c8C2A1f77';
--- Note: vault 0x341193ED21711472e71aECa4A942123452bd0ddA on TAC has no name function
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 TAC Vault' WHERE "chain_id" = 239 AND "vault_address" = '0x341193ED21711472e71aECa4A942123452bd0ddA';
 
 -- Katana vaults (chain_id: 747474)
 UPDATE "vault_whitelist" SET "vault_name" = 'Re7 uSOL' WHERE "chain_id" = 747474 AND "vault_address" = '0x6680D2993fAadC9204Bd614a53e0c7a3f20c8ca5';
@@ -122,3 +122,8 @@ DELETE FROM "market_apy_config" WHERE "chain_id" = 480 AND "market_id" = '0x45f3
 
 -- Berachain markets (chain_id: 80094)
 UPDATE "market_apy_config" SET "collateral_symbol" = 'sUSDe', "loan_symbol" = 'HONEY' WHERE "chain_id" = 80094 AND "market_id" = '0x1ba7904c73d337c39cb88b00180dffb215fc334a6ff47bbe829cd9ee2af00c97';
+
+-- Now add NOT NULL constraints after all data is populated
+ALTER TABLE "vault_whitelist" ALTER COLUMN "vault_name" SET NOT NULL;
+ALTER TABLE "market_apy_config" ALTER COLUMN "collateral_symbol" SET NOT NULL;
+ALTER TABLE "market_apy_config" ALTER COLUMN "loan_symbol" SET NOT NULL;

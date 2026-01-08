@@ -10,8 +10,8 @@ export interface ApyRangeConfig {
 export type VaultApyRangeWithMeta = ApyRangeConfig;
 
 export interface MarketApyRangeWithMeta extends ApyRangeConfig {
-  collateralSymbol?: string | null;
-  loanSymbol?: string | null;
+  collateralSymbol: string;
+  loanSymbol: string;
 }
 
 export type VaultApyRanges = Record<string, VaultApyRangeWithMeta>;
@@ -278,9 +278,9 @@ export class DatabaseClient {
     marketId: Hex,
     minApy: number,
     maxApy: number,
-    metadata?: {
-      collateralSymbol?: string;
-      loanSymbol?: string;
+    metadata: {
+      collateralSymbol: string;
+      loanSymbol: string;
     },
   ): Promise<Result<void, Error>> {
     try {
@@ -296,12 +296,14 @@ export class DatabaseClient {
           marketId,
           minApy,
           maxApy,
-          ...metadata,
+          collateralSymbol: metadata.collateralSymbol,
+          loanSymbol: metadata.loanSymbol,
         },
         update: {
           minApy,
           maxApy,
-          ...(metadata && metadata),
+          collateralSymbol: metadata.collateralSymbol,
+          loanSymbol: metadata.loanSymbol,
         },
       });
       return ok(undefined);
@@ -317,8 +319,8 @@ export class DatabaseClient {
     chainId: number,
     marketId: Hex,
     metadata: {
-      collateralSymbol?: string;
-      loanSymbol?: string;
+      collateralSymbol: string;
+      loanSymbol: string;
     },
   ): Promise<Result<void, Error>> {
     try {
@@ -553,7 +555,7 @@ export class DatabaseClient {
   async addVaultToWhitelist(
     chainId: number,
     vaultAddress: Address,
-    vaultName?: string | null,
+    vaultName: string,
   ): Promise<Result<void, Error>> {
     try {
       // Check if the vault already exists and is enabled
@@ -580,13 +582,12 @@ export class DatabaseClient {
         create: {
           chainId,
           vaultAddress,
-          vaultName: vaultName ?? null,
+          vaultName,
           enabled: true,
         },
         update: {
           enabled: true,
-          // Also update name if provided and vault is being re-enabled
-          ...(vaultName && { vaultName }),
+          vaultName,
         },
       });
       return ok(undefined);
