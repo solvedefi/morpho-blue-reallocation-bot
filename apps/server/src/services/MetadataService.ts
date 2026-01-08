@@ -1,3 +1,4 @@
+import { Result, err, ok } from "neverthrow";
 import { createPublicClient, http, type Address, type Hex, type PublicClient } from "viem";
 
 import { erc20Abi } from "../../abis/ERC20";
@@ -5,13 +6,9 @@ import { metaMorphoAbi } from "../../abis/MetaMorpho";
 import { morphoBlueAbi } from "../../abis/MorphoBlue";
 import { chainConfigs } from "../config";
 
-export interface VaultMetadata {
-  name: string | null;
-}
-
 export interface MarketMetadata {
-  collateralSymbol: string | null;
-  loanSymbol: string | null;
+  collateralSymbol: string;
+  loanSymbol: string;
 }
 
 export interface MarketParams {
@@ -69,10 +66,10 @@ export class MetadataService {
   /**
    * Fetch vault name from MetaMorpho contract
    */
-  async fetchVaultName(chainId: number, vaultAddress: Address): Promise<VaultMetadata> {
+  async fetchVaultName(chainId: number, vaultAddress: Address): Promise<Result<string, Error>> {
     const client = this.getClient(chainId);
     if (!client) {
-      return { name: null };
+      return err(new Error(`No client available for chainId ${String(chainId)}`));
     }
 
     try {
@@ -81,28 +78,28 @@ export class MetadataService {
         abi: metaMorphoAbi,
         functionName: "name",
       });
-      return { name: name };
+      return ok(name);
     } catch (error) {
-      console.warn(
-        `Failed to fetch vault name for ${vaultAddress} on chain ${String(chainId)}:`,
-        error,
+      return err(
+        new Error(
+          `Failed to fetch vault name for ${vaultAddress} on chain ${String(chainId)}: ${String(error)}`,
+        ),
       );
-      return { name: null };
     }
   }
 
   /**
    * Fetch market params from Morpho Blue contract
    */
-  async fetchMarketParams(chainId: number, marketId: Hex): Promise<MarketParams | null> {
+  async fetchMarketParams(chainId: number, marketId: Hex): Promise<Result<MarketParams, Error>> {
     const client = this.getClient(chainId);
     if (!client) {
-      return null;
+      return err(new Error(`No client available for chainId ${String(chainId)}`));
     }
 
     const chainConfig = chainConfigs[chainId];
     if (!chainConfig) {
-      return null;
+      return err(new Error(`No chain config found for chainId ${String(chainId)}`));
     }
 
     try {
@@ -122,34 +119,34 @@ export class MetadataService {
         bigint,
       ];
 
-      return {
+      return ok({
         loanToken,
         collateralToken,
         oracle,
         irm,
         lltv,
-      };
+      });
     } catch (error) {
-      console.warn(
-        `Failed to fetch market params for ${marketId} on chain ${String(chainId)}:`,
-        error,
+      return err(
+        new Error(
+          `Failed to fetch market params for ${marketId} on chain ${String(chainId)}: ${String(error)}`,
+        ),
       );
-      return null;
     }
   }
 
   /**
    * Fetch token symbol from ERC20 contract
    */
-  async fetchTokenSymbol(chainId: number, tokenAddress: Address): Promise<string | null> {
+  async fetchTokenSymbol(chainId: number, tokenAddress: Address): Promise<Result<string, Error>> {
     // Skip zero address (used for idle markets)
     if (tokenAddress === "0x0000000000000000000000000000000000000000") {
-      return null;
+      return err(new Error("Cannot fetch symbol for zero address (idle market)"));
     }
 
     const client = this.getClient(chainId);
     if (!client) {
-      return null;
+      return err(new Error(`No client available for chainId ${String(chainId)}`));
     }
 
     try {
@@ -158,34 +155,47 @@ export class MetadataService {
         abi: erc20Abi,
         functionName: "symbol",
       });
-      return symbol;
+      return ok(symbol);
     } catch (error) {
-      console.warn(
-        `Failed to fetch token symbol for ${tokenAddress} on chain ${String(chainId)}:`,
-        error,
+      return err(
+        new Error(
+          `Failed to fetch token symbol for ${tokenAddress} on chain ${String(chainId)}: ${String(error)}`,
+        ),
       );
-      return null;
     }
   }
 
   /**
    * Fetch market metadata (collateral and loan token symbols)
    */
-  async fetchMarketMetadata(chainId: number, marketId: Hex): Promise<MarketMetadata> {
-    const marketParams = await this.fetchMarketParams(chainId, marketId);
-    if (!marketParams) {
-      return { collateralSymbol: null, loanSymbol: null };
+  async fetchMarketMetadata(
+    chainId: number,
+    marketId: Hex,
+  ): Promise<Result<MarketMetadata, Error>> {
+    const marketParamsResult = await this.fetchMarketParams(chainId, marketId);
+    if (marketParamsResult.isErr()) {
+      return err(marketParamsResult.error);
     }
 
+    const marketParams = marketParamsResult.value;
+
     // Fetch both symbols in parallel
-    const [collateralSymbol, loanSymbol] = await Promise.all([
+    const [collateralSymbolResult, loanSymbolResult] = await Promise.all([
       this.fetchTokenSymbol(chainId, marketParams.collateralToken),
       this.fetchTokenSymbol(chainId, marketParams.loanToken),
     ]);
 
-    return {
-      collateralSymbol,
-      loanSymbol,
-    };
+    if (collateralSymbolResult.isErr()) {
+      return err(collateralSymbolResult.error);
+    }
+
+    if (loanSymbolResult.isErr()) {
+      return err(loanSymbolResult.error);
+    }
+
+    return ok({
+      collateralSymbol: collateralSymbolResult.value,
+      loanSymbol: loanSymbolResult.value,
+    });
   }
 }

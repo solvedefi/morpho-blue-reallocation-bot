@@ -190,16 +190,16 @@ export function createServer(
     }
 
     // Fetch market metadata (token symbols) from blockchain - this is mandatory
-    const marketMetadata = await metadataService.fetchMarketMetadata(chainId, marketId as Hex);
-    console.log(
-      `Fetched market metadata for ${marketId} on chain ${String(chainId)}:`,
-      marketMetadata.collateralSymbol ?? "unknown",
-      "/",
-      marketMetadata.loanSymbol ?? "unknown",
+    const marketMetadataResult = await metadataService.fetchMarketMetadata(
+      chainId,
+      marketId as Hex,
     );
 
-    // Market metadata is required - reject if we couldn't fetch token symbols
-    if (!marketMetadata.collateralSymbol || !marketMetadata.loanSymbol) {
+    if (marketMetadataResult.isErr()) {
+      console.error(
+        `Failed to fetch market metadata for ${marketId} on chain ${String(chainId)}:`,
+        marketMetadataResult.error.message,
+      );
       return c.json(
         {
           success: false,
@@ -208,6 +208,14 @@ export function createServer(
         400,
       );
     }
+
+    const marketMetadata = marketMetadataResult.value;
+    console.log(
+      `Fetched market metadata for ${marketId} on chain ${String(chainId)}:`,
+      marketMetadata.collateralSymbol,
+      "/",
+      marketMetadata.loanSymbol,
+    );
 
     const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy, {
       collateralSymbol: marketMetadata.collateralSymbol,
@@ -469,14 +477,13 @@ export function createServer(
     }
 
     // Fetch vault name from blockchain - this is mandatory
-    const vaultMetadata = await metadataService.fetchVaultName(chainId, vaultAddress as Address);
-    console.log(
-      `Fetched vault metadata for ${vaultAddress} on chain ${String(chainId)}:`,
-      vaultMetadata.name ?? "no name found",
-    );
+    const vaultNameResult = await metadataService.fetchVaultName(chainId, vaultAddress as Address);
 
-    // Vault name is required - reject if we couldn't fetch it
-    if (!vaultMetadata.name) {
+    if (vaultNameResult.isErr()) {
+      console.error(
+        `Failed to fetch vault name for ${vaultAddress} on chain ${String(chainId)}:`,
+        vaultNameResult.error.message,
+      );
       return c.json(
         {
           success: false,
@@ -486,11 +493,10 @@ export function createServer(
       );
     }
 
-    const result = await dbClient.addVaultToWhitelist(
-      chainId,
-      vaultAddress as Address,
-      vaultMetadata.name,
-    );
+    const vaultName = vaultNameResult.value;
+    console.log(`Fetched vault name for ${vaultAddress} on chain ${String(chainId)}:`, vaultName);
+
+    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address, vaultName);
 
     if (result.isErr()) {
       console.error("Error adding vault to whitelist:", result.error);
@@ -519,7 +525,7 @@ export function createServer(
       data: {
         chainId,
         vaultAddress,
-        vaultName: vaultMetadata.name,
+        vaultName,
       },
     });
   });
