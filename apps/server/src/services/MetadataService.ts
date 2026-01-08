@@ -82,7 +82,10 @@ export class MetadataService {
       });
       return { name: name };
     } catch (error) {
-      console.warn(`Failed to fetch vault name for ${vaultAddress} on chain ${chainId}:`, error);
+      console.warn(
+        `Failed to fetch vault name for ${vaultAddress} on chain ${String(chainId)}:`,
+        error,
+      );
       return { name: null };
     }
   }
@@ -126,7 +129,10 @@ export class MetadataService {
         lltv,
       };
     } catch (error) {
-      console.warn(`Failed to fetch market params for ${marketId} on chain ${chainId}:`, error);
+      console.warn(
+        `Failed to fetch market params for ${marketId} on chain ${String(chainId)}:`,
+        error,
+      );
       return null;
     }
   }
@@ -153,7 +159,10 @@ export class MetadataService {
       });
       return symbol;
     } catch (error) {
-      console.warn(`Failed to fetch token symbol for ${tokenAddress} on chain ${chainId}:`, error);
+      console.warn(
+        `Failed to fetch token symbol for ${tokenAddress} on chain ${String(chainId)}:`,
+        error,
+      );
       return null;
     }
   }

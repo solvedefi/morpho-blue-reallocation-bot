@@ -266,9 +266,7 @@ export class DatabaseClient {
       });
       return ok(undefined);
     } catch (error) {
-      return err(
-        new Error(`Failed to update vault name for ${vaultAddress}: ${String(error)}`),
-      );
+      return err(new Error(`Failed to update vault name for ${vaultAddress}: ${String(error)}`));
     }
   }
 

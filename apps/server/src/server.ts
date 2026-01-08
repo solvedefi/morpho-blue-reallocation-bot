@@ -192,7 +192,7 @@ export function createServer(
     // Fetch market metadata (token symbols) from blockchain
     const marketMetadata = await metadataService.fetchMarketMetadata(chainId, marketId as Hex);
     console.log(
-      `Fetched market metadata for ${marketId} on chain ${chainId}:`,
+      `Fetched market metadata for ${marketId} on chain ${String(chainId)}:`,
       marketMetadata.collateralSymbol ?? "unknown",
       "/",
       marketMetadata.loanSymbol ?? "unknown",
@@ -460,7 +460,7 @@ export function createServer(
     // Fetch vault name from blockchain
     const vaultMetadata = await metadataService.fetchVaultName(chainId, vaultAddress as Address);
     console.log(
-      `Fetched vault metadata for ${vaultAddress} on chain ${chainId}:`,
+      `Fetched vault metadata for ${vaultAddress} on chain ${String(chainId)}:`,
       vaultMetadata.name ?? "no name found",
     );
 

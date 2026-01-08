@@ -1,8 +1,5 @@
 import { type Account, type Address, type Chain, type Client, type Transport } from "viem";
-import { estimateGas, waitForTransactionReceipt, writeContract } from "viem/actions";
-import { encodeFunctionData } from "viem/utils";
 
-import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
 import { getChainName } from "../constants.js";
 import { MorphoClient } from "../contracts/MorphoClient.js";
