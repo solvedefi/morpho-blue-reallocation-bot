@@ -207,15 +207,22 @@ export function VaultWhitelistManagement() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {chain.vaultWhitelist.map((vaultAddress) => (
+                  {chain.vaultWhitelist.map((vault) => (
                     <div
-                      key={vaultAddress}
+                      key={vault.address}
                       className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-primary/20"
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <Wallet className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span className="font-mono text-sm text-muted-foreground group-hover:text-foreground transition-colors truncate">
-                          {vaultAddress}
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <Wallet className="h-4 w-4 text-primary flex-shrink-0" />
+                          {vault.name && (
+                            <span className="font-medium text-sm text-foreground">
+                              {vault.name}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors truncate pl-7">
+                          {vault.address}
                         </span>
                       </div>
 
@@ -223,7 +230,7 @@ export function VaultWhitelistManagement() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleRemoveVault(chain.chainId, vaultAddress)}
+                          onClick={() => handleRemoveVault(chain.chainId, vault.address)}
                           disabled={removeVaultMutation.isPending}
                         >
                           <Trash2 className="h-4 w-4" />

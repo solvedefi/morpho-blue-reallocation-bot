@@ -3,9 +3,16 @@ export interface ApyRangeConfig {
   max: number;
 }
 
+export type VaultApyRangeWithMeta = ApyRangeConfig;
+
+export interface MarketApyRangeWithMeta extends ApyRangeConfig {
+  collateralSymbol: string;
+  loanSymbol: string;
+}
+
 export interface Configuration {
-  vaultRanges: Record<number, Record<string, ApyRangeConfig>>;
-  marketRanges: Record<number, Record<string, ApyRangeConfig>>;
+  vaultRanges: Record<number, Record<string, VaultApyRangeWithMeta>>;
+  marketRanges: Record<number, Record<string, MarketApyRangeWithMeta>>;
   allowIdleReallocation: boolean;
   defaultMinApy: number;
   defaultMaxApy: number;
@@ -36,11 +43,16 @@ export interface UpdateStrategyRequest {
   defaultMaxApy?: number;
 }
 
+export interface WhitelistedVault {
+  address: string;
+  name: string;
+}
+
 export interface ChainConfig {
   chainId: number;
   executionInterval: number;
   enabled: boolean;
-  vaultWhitelist: string[]; // Array of vault addresses
+  vaultWhitelist: WhitelistedVault[];
 }
 
 export interface ChainsResponse {

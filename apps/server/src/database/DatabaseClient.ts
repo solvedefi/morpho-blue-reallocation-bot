@@ -7,8 +7,15 @@ export interface ApyRangeConfig {
   max: number;
 }
 
-export type VaultApyRanges = Record<string, ApyRangeConfig>;
-export type MarketApyRanges = Record<string, ApyRangeConfig>;
+export type VaultApyRangeWithMeta = ApyRangeConfig;
+
+export interface MarketApyRangeWithMeta extends ApyRangeConfig {
+  collateralSymbol: string;
+  loanSymbol: string;
+}
+
+export type VaultApyRanges = Record<string, VaultApyRangeWithMeta>;
+export type MarketApyRanges = Record<string, MarketApyRangeWithMeta>;
 
 export interface ApyConfiguration {
   vaultRanges: Record<number, VaultApyRanges>; // chainId -> vault address -> range
@@ -18,10 +25,15 @@ export interface ApyConfiguration {
   defaultMaxApy: number;
 }
 
+export interface WhitelistedVault {
+  address: Address;
+  name?: string | null;
+}
+
 export interface ChainOperationalConfig {
   chainId: number;
   executionInterval: number; // in seconds
-  vaultWhitelist: Address[];
+  vaultWhitelist: WhitelistedVault[];
   enabled: boolean;
 }
 
@@ -87,6 +99,8 @@ export class DatabaseClient {
         marketRanges[config.chainId]![config.marketId] = {
           min: parseFloat(config.minApy.toString()),
           max: parseFloat(config.maxApy.toString()),
+          collateralSymbol: config.collateralSymbol,
+          loanSymbol: config.loanSymbol,
         };
       }
 
@@ -231,6 +245,32 @@ export class DatabaseClient {
   }
 
   /**
+   * Update vault name in whitelist
+   */
+  async updateVaultName(
+    chainId: number,
+    vaultAddress: Address,
+    vaultName: string,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultWhitelist.update({
+        where: {
+          chainId_vaultAddress: {
+            chainId,
+            vaultAddress,
+          },
+        },
+        data: {
+          vaultName,
+        },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(new Error(`Failed to update vault name for ${vaultAddress}: ${String(error)}`));
+    }
+  }
+
+  /**
    * Create or update APY range for a market
    */
   async upsertMarketApyRange(
@@ -238,6 +278,10 @@ export class DatabaseClient {
     marketId: Hex,
     minApy: number,
     maxApy: number,
+    metadata: {
+      collateralSymbol: string;
+      loanSymbol: string;
+    },
   ): Promise<Result<void, Error>> {
     try {
       await this.prisma.marketApyConfig.upsert({
@@ -252,15 +296,46 @@ export class DatabaseClient {
           marketId,
           minApy,
           maxApy,
+          collateralSymbol: metadata.collateralSymbol,
+          loanSymbol: metadata.loanSymbol,
         },
         update: {
           minApy,
           maxApy,
+          collateralSymbol: metadata.collateralSymbol,
+          loanSymbol: metadata.loanSymbol,
         },
       });
       return ok(undefined);
     } catch (error) {
       return err(new Error(`Failed to upsert market APY range for ${marketId}: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Update market metadata only
+   */
+  async updateMarketMetadata(
+    chainId: number,
+    marketId: Hex,
+    metadata: {
+      collateralSymbol: string;
+      loanSymbol: string;
+    },
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.marketApyConfig.update({
+        where: {
+          unique_market_config: {
+            chainId,
+            marketId,
+          },
+        },
+        data: metadata,
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(new Error(`Failed to update market metadata for ${marketId}: ${String(error)}`));
     }
   }
 
@@ -356,7 +431,10 @@ export class DatabaseClient {
         executionInterval: config.executionInterval,
         enabled: config.enabled,
         vaultWhitelist: config.vaultWhitelist.map(
-          (v: { vaultAddress: string }) => v.vaultAddress as Address,
+          (v: { vaultAddress: string; vaultName: string | null }) => ({
+            address: v.vaultAddress as Address,
+            name: v.vaultName,
+          }),
         ),
       });
     } catch (error) {
@@ -391,7 +469,10 @@ export class DatabaseClient {
             executionInterval: config.executionInterval,
             enabled: config.enabled,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string }) => v.vaultAddress as Address,
+              (v: { vaultAddress: string; vaultName: string | null }) => ({
+                address: v.vaultAddress as Address,
+                name: v.vaultName,
+              }),
             ),
           }),
         ),
@@ -426,7 +507,10 @@ export class DatabaseClient {
             executionInterval: config.executionInterval,
             enabled: config.enabled,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string }) => v.vaultAddress as Address,
+              (v: { vaultAddress: string; vaultName: string | null }) => ({
+                address: v.vaultAddress as Address,
+                name: v.vaultName,
+              }),
             ),
           }),
         ),
@@ -468,7 +552,11 @@ export class DatabaseClient {
   /**
    * Add vault to whitelist
    */
-  async addVaultToWhitelist(chainId: number, vaultAddress: Address): Promise<Result<void, Error>> {
+  async addVaultToWhitelist(
+    chainId: number,
+    vaultAddress: Address,
+    vaultName: string,
+  ): Promise<Result<void, Error>> {
     try {
       // Check if the vault already exists and is enabled
       const existingVault = await this.prisma.vaultWhitelist.findUnique({
@@ -494,10 +582,12 @@ export class DatabaseClient {
         create: {
           chainId,
           vaultAddress,
+          vaultName,
           enabled: true,
         },
         update: {
           enabled: true,
+          vaultName,
         },
       });
       return ok(undefined);

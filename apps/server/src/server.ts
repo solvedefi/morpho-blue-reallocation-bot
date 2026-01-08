@@ -8,6 +8,7 @@ import { isAddress, isHex, type Address, type Hex } from "viem";
 import { z } from "zod";
 
 import { DatabaseClient } from "./database";
+import { MetadataService } from "./services/MetadataService";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 
@@ -78,7 +79,11 @@ const updateVaultSchema = z.object({
   enabled: z.boolean(),
 });
 
-export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfigChangeCallback) {
+export function createServer(
+  dbClient: DatabaseClient,
+  metadataService: MetadataService,
+  onConfigChange?: OnConfigChangeCallback,
+) {
   const app = new Hono();
 
   app.get("/config", async (c: Context) => {
@@ -184,7 +189,38 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       );
     }
 
-    const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy);
+    // Fetch market metadata (token symbols) from blockchain - this is mandatory
+    const marketMetadataResult = await metadataService.fetchMarketMetadata(
+      chainId,
+      marketId as Hex,
+    );
+
+    if (marketMetadataResult.isErr()) {
+      console.error(
+        `Failed to fetch market metadata for ${marketId} on chain ${String(chainId)}:`,
+        marketMetadataResult.error.message,
+      );
+      return c.json(
+        {
+          success: false,
+          error: `Could not fetch market metadata for ${marketId}. The market may not exist on chain ${String(chainId)} or the chain RPC may be unavailable.`,
+        },
+        400,
+      );
+    }
+
+    const marketMetadata = marketMetadataResult.value;
+    console.log(
+      `Fetched market metadata for ${marketId} on chain ${String(chainId)}:`,
+      marketMetadata.collateralSymbol,
+      "/",
+      marketMetadata.loanSymbol,
+    );
+
+    const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy, {
+      collateralSymbol: marketMetadata.collateralSymbol,
+      loanSymbol: marketMetadata.loanSymbol,
+    });
 
     if (result.isErr()) {
       console.error("Error updating market APY range:", result.error);
@@ -210,6 +246,8 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         marketId,
         minApy,
         maxApy,
+        collateralSymbol: marketMetadata.collateralSymbol,
+        loanSymbol: marketMetadata.loanSymbol,
       },
     });
   });
@@ -438,7 +476,27 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       );
     }
 
-    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address);
+    // Fetch vault name from blockchain - this is mandatory
+    const vaultNameResult = await metadataService.fetchVaultName(chainId, vaultAddress as Address);
+
+    if (vaultNameResult.isErr()) {
+      console.error(
+        `Failed to fetch vault name for ${vaultAddress} on chain ${String(chainId)}:`,
+        vaultNameResult.error.message,
+      );
+      return c.json(
+        {
+          success: false,
+          error: `Could not fetch vault name for ${vaultAddress}. The address may not be a valid MetaMorpho vault or the chain RPC may be unavailable.`,
+        },
+        400,
+      );
+    }
+
+    const vaultName = vaultNameResult.value;
+    console.log(`Fetched vault name for ${vaultAddress} on chain ${String(chainId)}:`, vaultName);
+
+    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address, vaultName);
 
     if (result.isErr()) {
       console.error("Error adding vault to whitelist:", result.error);
@@ -467,6 +525,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       data: {
         chainId,
         vaultAddress,
+        vaultName,
       },
     });
   });

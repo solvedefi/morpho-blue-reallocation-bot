@@ -10,6 +10,7 @@ import { chainConfigs, type Config } from "./config";
 import { getChainName } from "./constants";
 import { DatabaseClient } from "./database";
 import { createServer } from "./server";
+import { MetadataService } from "./services/MetadataService";
 import { ApyRange } from "./strategies";
 
 dotenvConfig();
@@ -189,7 +190,7 @@ async function main() {
     opConfig: {
       chainId: number;
       executionInterval: number;
-      vaultWhitelist: Address[];
+      vaultWhitelist: { address: Address; name?: string | null }[];
       enabled: boolean;
     },
     pk: Hex,
@@ -226,12 +227,15 @@ async function main() {
       account: privateKeyToAccount(pk),
     });
 
+    // Extract addresses from vault whitelist
+    const vaultAddresses = opConfig.vaultWhitelist.map((v) => v.address);
+
     const strategy = new ApyRange(config);
     const bot = new ReallocationBot(
       opConfig.chainId,
       publicClient,
       walletClient,
-      opConfig.vaultWhitelist,
+      vaultAddresses,
       strategy,
       infraConfig,
     );
@@ -249,7 +253,8 @@ async function main() {
   };
 
   // Start the HTTP server with configuration reload callback
-  const server: Hono = createServer(dbClient, reloadConfiguration);
+  const metadataService = new MetadataService();
+  const server: Hono = createServer(dbClient, metadataService, reloadConfiguration);
   const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   console.log(`Starting HTTP server on port ${String(port)}...`);

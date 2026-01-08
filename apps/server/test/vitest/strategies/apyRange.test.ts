@@ -54,6 +54,8 @@ class StrategyMock extends ApyRange {
         apyConfig.marketRanges[Number(chainId)]![marketId] = {
           min: range.min,
           max: range.max,
+          collateralSymbol: "TEST",
+          loanSymbol: "TEST",
         };
       }
     }

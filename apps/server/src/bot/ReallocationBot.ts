@@ -1,6 +1,12 @@
-import { type Account, type Address, type Chain, type Client, type Transport } from "viem";
-import { estimateGas, waitForTransactionReceipt, writeContract } from "viem/actions";
-import { encodeFunctionData } from "viem/utils";
+import {
+  encodeFunctionData,
+  type Account,
+  type Address,
+  type Chain,
+  type Client,
+  type Transport,
+} from "viem";
+import { estimateGas, sendTransaction, waitForTransactionReceipt } from "viem/actions";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
@@ -95,50 +101,36 @@ export class ReallocationBot {
         console.log(`Reallocating on ${vaultData.vaultAddress}`);
 
         try {
-          /// TX SIMULATION
-          const populatedTx = {
-            to: vaultData.vaultAddress,
-            data: encodeFunctionData({
-              abi: metaMorphoAbi,
-              functionName: "reallocate",
-              args: [reallocation],
-            }),
-            value: 0n, // TODO: find a way to get encoder value
-          };
-          await estimateGas(this.walletClient, populatedTx);
-          // TX EXECUTION
-          const txHash = await writeContract(this.walletClient, {
-            address: vaultData.vaultAddress,
+          // Simulate transaction first to catch errors before sending
+          const calldata = encodeFunctionData({
             abi: metaMorphoAbi,
             functionName: "reallocate",
-            args: [
-              reallocation as unknown as readonly {
-                marketParams: {
-                  loanToken: `0x${string}`;
-                  collateralToken: `0x${string}`;
-                  oracle: `0x${string}`;
-                  irm: `0x${string}`;
-                  lltv: bigint;
-                };
-                assets: bigint;
-              }[],
-            ],
+            args: [reallocation],
+          });
+
+          await estimateGas(this.walletClient, {
+            to: vaultData.vaultAddress,
+            data: calldata,
+          });
+
+          // Execute transaction - use calldata directly to avoid type inference issues with writeContract
+          const txHash = await sendTransaction(this.walletClient, {
+            to: vaultData.vaultAddress,
+            data: calldata,
           });
 
           console.log(
             `Transaction sent for ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
           );
-
           const receipt = await waitForTransactionReceipt(this.publicClient, {
             hash: txHash,
           });
-
           console.log(
             `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
           );
-        } catch (error) {
+        } catch (err) {
           console.log(`Failed to reallocate on ${vaultData.vaultAddress}`);
-          console.error("reallocation error", error);
+          console.error("reallocation error", err);
         }
       }),
     );
