@@ -1,14 +1,67 @@
--- Add metadata columns to vault_apy_config
-ALTER TABLE "vault_apy_config" ADD COLUMN "vault_name" VARCHAR(100);
+-- Add metadata columns to vault_whitelist (vault name belongs here, not in apy config)
+ALTER TABLE "vault_whitelist" ADD COLUMN "vault_name" VARCHAR(100);
 
 -- Add metadata columns to market_apy_config
 ALTER TABLE "market_apy_config" ADD COLUMN "collateral_symbol" VARCHAR(20);
 ALTER TABLE "market_apy_config" ADD COLUMN "loan_symbol" VARCHAR(20);
-ALTER TABLE "market_apy_config" ADD COLUMN "vault_address" VARCHAR(42);
 
--- Vault name updates
-UPDATE "vault_apy_config" SET "vault_name" = 'Re7 USDC' WHERE "chain_id" = 480 AND "vault_address" = '0xb1e80387ebe53ff75a89736097d34dc8d9e9045b';
-UPDATE "vault_apy_config" SET "vault_name" = 'Re7 EURC' WHERE "chain_id" = 480 AND "vault_address" = '0xdaa79e066dee8c8c15ffb37b1157f7eb8e0d1b37';
+-- Vault name updates (in vault_whitelist table)
+-- Mainnet vaults (chain_id: 1)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDT' WHERE "chain_id" = 1 AND "vault_address" = '0x95EeF579155cd2C5510F312c8fA39208c3Be01a8';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 WETH' WHERE "chain_id" = 1 AND "vault_address" = '0x78Fc2c2eD1A4cDb5402365934aE5648aDAd094d0';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 cbBTC' WHERE "chain_id" = 1 AND "vault_address" = '0xA02F5E93f783baF150Aa1F8b341Ae90fe0a772f7';
+UPDATE "vault_whitelist" SET "vault_name" = 'f(x) Protocol Morpho USDC' WHERE "chain_id" = 1 AND "vault_address" = '0x4F460bb11cf958606C69A963B4A17f9DaEEea8b6';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 Falcon USDf' WHERE "chain_id" = 1 AND "vault_address" = '0x4d52545235A3dF246a8928c583E47AE7eeC4aCfE';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDC Prime' WHERE "chain_id" = 1 AND "vault_address" = '0x64964E162Aa18d32f91eA5B24a09529f811AEB8e';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 FRAX' WHERE "chain_id" = 1 AND "vault_address" = '0xBE40491F3261Fd42724F1AEb465796eb11c06ddF';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 WBTC' WHERE "chain_id" = 1 AND "vault_address" = '0xE0C98605f279e4D7946d25B75869c69802823763';
+
+-- Base vault (chain_id: 8453)
+UPDATE "vault_whitelist" SET "vault_name" = 'Morpho eUSD' WHERE "chain_id" = 8453 AND "vault_address" = '0xbb819D845b573B5D7C538F5b85057160cfb5f313';
+
+-- Berachain vault (chain_id: 80094)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 HONEY' WHERE "chain_id" = 80094 AND "vault_address" = '0x30BbA9CD9Eb8c95824aa42Faa1Bb397b07545bc1';
+
+-- Worldchain vaults (chain_id: 480)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDC' WHERE "chain_id" = 480 AND "vault_address" = '0xb1E80387EbE53Ff75a89736097D34dC8D9E9045B';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 EURC' WHERE "chain_id" = 480 AND "vault_address" = '0xdaa79e066dee8c8c15ffb37b1157f7eb8e0d1b37';
+
+-- Plume vault (chain_id: 98866)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 pUSD' WHERE "chain_id" = 98866 AND "vault_address" = '0xc0Df5784f28046D11813356919B869dDA5815B16';
+
+-- Unichain vaults (chain_id: 130)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 WETH' WHERE "chain_id" = 130 AND "vault_address" = '0x6af5E46456A8ac80BB53a02799965DEF99c26e52';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDC' WHERE "chain_id" = 130 AND "vault_address" = '0xa48f8A10F16bB50A588606553D9fE7338050f8Cd';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDT0' WHERE "chain_id" = 130 AND "vault_address" = '0x2c0F7e917257926BA6233B20DE19d7fe3210858C';
+
+-- Soneium vaults (chain_id: 1868)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 WETH' WHERE "chain_id" = 1868 AND "vault_address" = '0x41baa218A118FB2249CBCf836C1E8EE336d67faA';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 ASTR' WHERE "chain_id" = 1868 AND "vault_address" = '0xbA738D34c4E278E1cd64AAA9BBd569688e8Dc5Dc';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDC' WHERE "chain_id" = 1868 AND "vault_address" = '0xEcDBE2AF33E68cf96F6716f706B078fa94e978cb';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 WBTC' WHERE "chain_id" = 1868 AND "vault_address" = '0x04C451be70C41E4a88F7aC436AE767d64AE79049';
+
+-- TAC vaults (chain_id: 239)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 WETH' WHERE "chain_id" = 239 AND "vault_address" = '0xC5e1bD2473811bB782326006A3c03477F7834D35';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDT' WHERE "chain_id" = 239 AND "vault_address" = '0x4183Bd253Dc1918A04Bd8a8dD546BaAD58898109';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 cbBTC' WHERE "chain_id" = 239 AND "vault_address" = '0xf49f14Cff1bA2eE7E23222A76e0C2b3D0BDE06dC';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 TON' WHERE "chain_id" = 239 AND "vault_address" = '0x84BBc0be5a6f831a4E2C28a2F3b892C70AcAa5b3';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 LBTC' WHERE "chain_id" = 239 AND "vault_address" = '0xe9BD3590A68939344953b4f912d83b7c8C2A1f77';
+-- Note: vault 0x341193ED21711472e71aECa4A942123452bd0ddA on TAC has no name function
+
+-- Katana vaults (chain_id: 747474)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 uSOL' WHERE "chain_id" = 747474 AND "vault_address" = '0x6680D2993fAadC9204Bd614a53e0c7a3f20c8ca5';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 AUSD' WHERE "chain_id" = 747474 AND "vault_address" = '0xdc97cF490b2D367F34E5AF8a5f90d2b8FCBA8ce1';
+
+-- Polygon vault (chain_id: 137)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 wPOL' WHERE "chain_id" = 137 AND "vault_address" = '0xF91D80E43272DBC610551E8c872E0438d62C1c69';
+
+-- Lisk vaults (chain_id: 1135)
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDT0' WHERE "chain_id" = 1135 AND "vault_address" = '0x50cB55BE8cF05480a844642cB979820C847782aE';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 WETH' WHERE "chain_id" = 1135 AND "vault_address" = '0x7Cbaa98bd5e171A658FdF761ED1Db33806a0d346';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 LSK' WHERE "chain_id" = 1135 AND "vault_address" = '0x8258F0c79465c95AFAc325D6aB18797C9DDAcf55';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 USDC' WHERE "chain_id" = 1135 AND "vault_address" = '0xD92f564A29992251297980187a6B74FAa3D50699';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 mBTC' WHERE "chain_id" = 1135 AND "vault_address" = '0xE9cB4c4d3F0798e3087D4d49D3307cDB302CEC55';
+UPDATE "vault_whitelist" SET "vault_name" = 'Re7 mBTC' WHERE "chain_id" = 1135 AND "vault_address" = '0x9cF2f0AF475398ca01F099974960adbC9cB87025';
 
 -- Market metadata updates
 -- Plume markets (chain_id: 98866)

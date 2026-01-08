@@ -223,12 +223,12 @@ export function ChainManagement() {
                 <div className="pt-2 border-t border-border/50">
                   <p className="text-xs text-muted-foreground mb-2">Configured Vaults:</p>
                   <ul className="space-y-1">
-                    {chain.vaultWhitelist.map((vaultAddress) => (
+                    {chain.vaultWhitelist.map((vault) => (
                       <li
-                        key={vaultAddress}
-                        className="text-xs font-mono text-muted-foreground hover:text-foreground transition-colors pl-2"
+                        key={vault.address}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors pl-2"
                       >
-                        • {vaultAddress}
+                        • {vault.name ? `${vault.name} (${vault.address})` : vault.address}
                       </li>
                     ))}
                   </ul>

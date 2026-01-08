@@ -7,14 +7,11 @@ export interface ApyRangeConfig {
   max: number;
 }
 
-export interface VaultApyRangeWithMeta extends ApyRangeConfig {
-  vaultName?: string | null;
-}
+export type VaultApyRangeWithMeta = ApyRangeConfig;
 
 export interface MarketApyRangeWithMeta extends ApyRangeConfig {
   collateralSymbol?: string | null;
   loanSymbol?: string | null;
-  vaultAddress?: string | null;
 }
 
 export type VaultApyRanges = Record<string, VaultApyRangeWithMeta>;
@@ -28,10 +25,15 @@ export interface ApyConfiguration {
   defaultMaxApy: number;
 }
 
+export interface WhitelistedVault {
+  address: Address;
+  name?: string | null;
+}
+
 export interface ChainOperationalConfig {
   chainId: number;
   executionInterval: number; // in seconds
-  vaultWhitelist: Address[];
+  vaultWhitelist: WhitelistedVault[];
   enabled: boolean;
 }
 
@@ -86,7 +88,6 @@ export class DatabaseClient {
         vaultRanges[config.chainId]![config.vaultAddress] = {
           min: parseFloat(config.minApy.toString()),
           max: parseFloat(config.maxApy.toString()),
-          vaultName: config.vaultName,
         };
       }
 
@@ -100,7 +101,6 @@ export class DatabaseClient {
           max: parseFloat(config.maxApy.toString()),
           collateralSymbol: config.collateralSymbol,
           loanSymbol: config.loanSymbol,
-          vaultAddress: config.vaultAddress,
         };
       }
 
@@ -216,7 +216,6 @@ export class DatabaseClient {
     vaultAddress: Address,
     minApy: number,
     maxApy: number,
-    vaultName?: string,
   ): Promise<Result<void, Error>> {
     try {
       await this.prisma.vaultApyConfig.upsert({
@@ -231,12 +230,10 @@ export class DatabaseClient {
           vaultAddress,
           minApy,
           maxApy,
-          vaultName,
         },
         update: {
           minApy,
           maxApy,
-          ...(vaultName !== undefined && { vaultName }),
         },
       });
       return ok(undefined);
@@ -248,17 +245,17 @@ export class DatabaseClient {
   }
 
   /**
-   * Update vault metadata only (name)
+   * Update vault name in whitelist
    */
-  async updateVaultMetadata(
+  async updateVaultName(
     chainId: number,
     vaultAddress: Address,
     vaultName: string,
   ): Promise<Result<void, Error>> {
     try {
-      await this.prisma.vaultApyConfig.update({
+      await this.prisma.vaultWhitelist.update({
         where: {
-          unique_vault_config: {
+          chainId_vaultAddress: {
             chainId,
             vaultAddress,
           },
@@ -270,7 +267,7 @@ export class DatabaseClient {
       return ok(undefined);
     } catch (error) {
       return err(
-        new Error(`Failed to update vault metadata for ${vaultAddress}: ${String(error)}`),
+        new Error(`Failed to update vault name for ${vaultAddress}: ${String(error)}`),
       );
     }
   }
@@ -286,7 +283,6 @@ export class DatabaseClient {
     metadata?: {
       collateralSymbol?: string;
       loanSymbol?: string;
-      vaultAddress?: string;
     },
   ): Promise<Result<void, Error>> {
     try {
@@ -325,7 +321,6 @@ export class DatabaseClient {
     metadata: {
       collateralSymbol?: string;
       loanSymbol?: string;
-      vaultAddress?: string;
     },
   ): Promise<Result<void, Error>> {
     try {
@@ -340,9 +335,7 @@ export class DatabaseClient {
       });
       return ok(undefined);
     } catch (error) {
-      return err(
-        new Error(`Failed to update market metadata for ${marketId}: ${String(error)}`),
-      );
+      return err(new Error(`Failed to update market metadata for ${marketId}: ${String(error)}`));
     }
   }
 
@@ -438,7 +431,10 @@ export class DatabaseClient {
         executionInterval: config.executionInterval,
         enabled: config.enabled,
         vaultWhitelist: config.vaultWhitelist.map(
-          (v: { vaultAddress: string }) => v.vaultAddress as Address,
+          (v: { vaultAddress: string; vaultName: string | null }) => ({
+            address: v.vaultAddress as Address,
+            name: v.vaultName,
+          }),
         ),
       });
     } catch (error) {
@@ -473,7 +469,10 @@ export class DatabaseClient {
             executionInterval: config.executionInterval,
             enabled: config.enabled,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string }) => v.vaultAddress as Address,
+              (v: { vaultAddress: string; vaultName: string | null }) => ({
+                address: v.vaultAddress as Address,
+                name: v.vaultName,
+              }),
             ),
           }),
         ),
@@ -508,7 +507,10 @@ export class DatabaseClient {
             executionInterval: config.executionInterval,
             enabled: config.enabled,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string }) => v.vaultAddress as Address,
+              (v: { vaultAddress: string; vaultName: string | null }) => ({
+                address: v.vaultAddress as Address,
+                name: v.vaultName,
+              }),
             ),
           }),
         ),

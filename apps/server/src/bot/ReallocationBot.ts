@@ -95,47 +95,44 @@ export class ReallocationBot {
         console.log(`Reallocating on ${vaultData.vaultAddress}`);
 
         try {
-          /// TX SIMULATION
-          const populatedTx = {
-            to: vaultData.vaultAddress,
-            data: encodeFunctionData({
-              abi: metaMorphoAbi,
-              functionName: "reallocate",
-              args: [reallocation],
-            }),
-            value: 0n, // TODO: find a way to get encoder value
-          };
-          await estimateGas(this.walletClient, populatedTx);
-          // TX EXECUTION
-          const txHash = await writeContract(this.walletClient, {
-            address: vaultData.vaultAddress,
-            abi: metaMorphoAbi,
-            functionName: "reallocate",
-            args: [
-              reallocation as unknown as readonly {
-                marketParams: {
-                  loanToken: `0x${string}`;
-                  collateralToken: `0x${string}`;
-                  oracle: `0x${string}`;
-                  irm: `0x${string}`;
-                  lltv: bigint;
-                };
-                assets: bigint;
-              }[],
-            ],
-          });
-
-          console.log(
-            `Transaction sent for ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
-          );
-
-          const receipt = await waitForTransactionReceipt(this.publicClient, {
-            hash: txHash,
-          });
-
-          console.log(
-            `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
-          );
+          // /// TX SIMULATION
+          // const populatedTx = {
+          //   to: vaultData.vaultAddress,
+          //   data: encodeFunctionData({
+          //     abi: metaMorphoAbi,
+          //     functionName: "reallocate",
+          //     args: [reallocation],
+          //   }),
+          //   value: 0n, // TODO: find a way to get encoder value
+          // };
+          // await estimateGas(this.walletClient, populatedTx);
+          // // TX EXECUTION
+          // const txHash = await writeContract(this.walletClient, {
+          //   address: vaultData.vaultAddress,
+          //   abi: metaMorphoAbi,
+          //   functionName: "reallocate",
+          //   args: [
+          //     reallocation as unknown as readonly {
+          //       marketParams: {
+          //         loanToken: `0x${string}`;
+          //         collateralToken: `0x${string}`;
+          //         oracle: `0x${string}`;
+          //         irm: `0x${string}`;
+          //         lltv: bigint;
+          //       };
+          //       assets: bigint;
+          //     }[],
+          //   ],
+          // });
+          // console.log(
+          //   `Transaction sent for ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
+          // );
+          // const receipt = await waitForTransactionReceipt(this.publicClient, {
+          //   hash: txHash,
+          // });
+          // console.log(
+          //   `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
+          // );
         } catch (error) {
           console.log(`Failed to reallocate on ${vaultData.vaultAddress}`);
           console.error("reallocation error", error);

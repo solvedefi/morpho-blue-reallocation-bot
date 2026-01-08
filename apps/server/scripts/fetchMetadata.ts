@@ -101,11 +101,53 @@ const chainClients: Record<number, PublicClient> = {
   747474: createPublicClient({ chain: katana, transport: http(rpcUrls[747474]) }),
 };
 
-// Vault data from migration
+// Vault data from vault_whitelist table
 const vaultConfigs = [
-  // Worldchain vaults (from vault_apy_config)
-  { chainId: 480, address: "0xb1e80387ebe53ff75a89736097d34dc8d9e9045b" },
+  // Mainnet (chain_id: 1)
+  { chainId: 1, address: "0x95EeF579155cd2C5510F312c8fA39208c3Be01a8" },
+  { chainId: 1, address: "0x78Fc2c2eD1A4cDb5402365934aE5648aDAd094d0" },
+  { chainId: 1, address: "0xA02F5E93f783baF150Aa1F8b341Ae90fe0a772f7" },
+  { chainId: 1, address: "0x4F460bb11cf958606C69A963B4A17f9DaEEea8b6" },
+  { chainId: 1, address: "0x4d52545235A3dF246a8928c583E47AE7eeC4aCfE" },
+  { chainId: 1, address: "0x64964E162Aa18d32f91eA5B24a09529f811AEB8e" },
+  { chainId: 1, address: "0xBE40491F3261Fd42724F1AEb465796eb11c06ddF" },
+  // Base (chain_id: 8453)
+  { chainId: 8453, address: "0xbb819D845b573B5D7C538F5b85057160cfb5f313" },
+  // Berachain (chain_id: 80094)
+  { chainId: 80094, address: "0x30BbA9CD9Eb8c95824aa42Faa1Bb397b07545bc1" },
+  // Worldchain (chain_id: 480)
+  { chainId: 480, address: "0xb1E80387EbE53Ff75a89736097D34dC8D9E9045B" },
   { chainId: 480, address: "0xdaa79e066dee8c8c15ffb37b1157f7eb8e0d1b37" },
+  // Plume (chain_id: 98866)
+  { chainId: 98866, address: "0xc0Df5784f28046D11813356919B869dDA5815B16" },
+  // Unichain (chain_id: 130)
+  { chainId: 130, address: "0x6af5E46456A8ac80BB53a02799965DEF99c26e52" },
+  { chainId: 130, address: "0xa48f8A10F16bB50A588606553D9fE7338050f8Cd" },
+  { chainId: 130, address: "0x2c0F7e917257926BA6233B20DE19d7fe3210858C" },
+  // Soneium (chain_id: 1868)
+  { chainId: 1868, address: "0x41baa218A118FB2249CBCf836C1E8EE336d67faA" },
+  { chainId: 1868, address: "0xbA738D34c4E278E1cd64AAA9BBd569688e8Dc5Dc" },
+  { chainId: 1868, address: "0xEcDBE2AF33E68cf96F6716f706B078fa94e978cb" },
+  { chainId: 1868, address: "0x04C451be70C41E4a88F7aC436AE767d64AE79049" },
+  // TAC (chain_id: 239)
+  { chainId: 239, address: "0xC5e1bD2473811bB782326006A3c03477F7834D35" },
+  { chainId: 239, address: "0x4183Bd253Dc1918A04Bd8a8dD546BaAD58898109" },
+  { chainId: 239, address: "0xf49f14Cff1bA2eE7E23222A76e0C2b3D0BDE06dC" },
+  { chainId: 239, address: "0x84BBc0be5a6f831a4E2C28a2F3b892C70AcAa5b3" },
+  { chainId: 239, address: "0xe9BD3590A68939344953b4f912d83b7c8C2A1f77" },
+  { chainId: 239, address: "0x341193ED21711472e71aECa4A942123452bd0ddA" },
+  // Katana (chain_id: 747474)
+  { chainId: 747474, address: "0x6680D2993fAadC9204Bd614a53e0c7a3f20c8ca5" },
+  { chainId: 747474, address: "0xdc97cF490b2D367F34E5AF8a5f90d2b8FCBA8ce1" },
+  // Polygon (chain_id: 137)
+  { chainId: 137, address: "0xF91D80E43272DBC610551E8c872E0438d62C1c69" },
+  // Lisk (chain_id: 1135)
+  { chainId: 1135, address: "0x50cB55BE8cF05480a844642cB979820C847782aE" },
+  { chainId: 1135, address: "0x7Cbaa98bd5e171A658FdF761ED1Db33806a0d346" },
+  { chainId: 1135, address: "0x8258F0c79465c95AFAc325D6aB18797C9DDAcf55" },
+  { chainId: 1135, address: "0xD92f564A29992251297980187a6B74FAa3D50699" },
+  { chainId: 1135, address: "0xE9cB4c4d3F0798e3087D4d49D3307cDB302CEC55" },
+  { chainId: 1135, address: "0x9cF2f0AF475398ca01F099974960adbC9cB87025" },
 ];
 
 // Market data from migration
