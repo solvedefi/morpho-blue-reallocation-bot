@@ -8,6 +8,7 @@ import { isAddress, isHex, type Address, type Hex } from "viem";
 import { z } from "zod";
 
 import { DatabaseClient } from "./database";
+import { MetadataService } from "./services/MetadataService";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 
@@ -78,7 +79,11 @@ const updateVaultSchema = z.object({
   enabled: z.boolean(),
 });
 
-export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfigChangeCallback) {
+export function createServer(
+  dbClient: DatabaseClient,
+  metadataService: MetadataService,
+  onConfigChange?: OnConfigChangeCallback,
+) {
   const app = new Hono();
 
   app.get("/config", async (c: Context) => {
@@ -184,7 +189,19 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       );
     }
 
-    const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy);
+    // Fetch market metadata (token symbols) from blockchain
+    const marketMetadata = await metadataService.fetchMarketMetadata(chainId, marketId as Hex);
+    console.log(
+      `Fetched market metadata for ${marketId} on chain ${chainId}:`,
+      marketMetadata.collateralSymbol ?? "unknown",
+      "/",
+      marketMetadata.loanSymbol ?? "unknown",
+    );
+
+    const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy, {
+      collateralSymbol: marketMetadata.collateralSymbol ?? undefined,
+      loanSymbol: marketMetadata.loanSymbol ?? undefined,
+    });
 
     if (result.isErr()) {
       console.error("Error updating market APY range:", result.error);
@@ -210,6 +227,8 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
         marketId,
         minApy,
         maxApy,
+        collateralSymbol: marketMetadata.collateralSymbol,
+        loanSymbol: marketMetadata.loanSymbol,
       },
     });
   });
@@ -438,7 +457,18 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       );
     }
 
-    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address);
+    // Fetch vault name from blockchain
+    const vaultMetadata = await metadataService.fetchVaultName(chainId, vaultAddress as Address);
+    console.log(
+      `Fetched vault metadata for ${vaultAddress} on chain ${chainId}:`,
+      vaultMetadata.name ?? "no name found",
+    );
+
+    const result = await dbClient.addVaultToWhitelist(
+      chainId,
+      vaultAddress as Address,
+      vaultMetadata.name,
+    );
 
     if (result.isErr()) {
       console.error("Error adding vault to whitelist:", result.error);
@@ -467,6 +497,7 @@ export function createServer(dbClient: DatabaseClient, onConfigChange?: OnConfig
       data: {
         chainId,
         vaultAddress,
+        vaultName: vaultMetadata.name,
       },
     });
   });

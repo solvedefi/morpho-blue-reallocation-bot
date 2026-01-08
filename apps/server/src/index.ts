@@ -10,6 +10,7 @@ import { chainConfigs, type Config } from "./config";
 import { getChainName } from "./constants";
 import { DatabaseClient } from "./database";
 import { createServer } from "./server";
+import { MetadataService } from "./services/MetadataService";
 import { ApyRange } from "./strategies";
 
 dotenvConfig();
@@ -252,7 +253,8 @@ async function main() {
   };
 
   // Start the HTTP server with configuration reload callback
-  const server: Hono = createServer(dbClient, reloadConfiguration);
+  const metadataService = new MetadataService();
+  const server: Hono = createServer(dbClient, metadataService, reloadConfiguration);
   const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   console.log(`Starting HTTP server on port ${String(port)}...`);
