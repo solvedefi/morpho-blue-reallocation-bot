@@ -177,10 +177,10 @@ export function ConfigView({ config }: ConfigViewProps) {
                     {Object.entries(vaults).map(([address, range]) => {
                       const vaultName = vaultNameMap[`${chainId}-${address.toLowerCase()}`];
                       return (
-                        <div
-                          key={address}
-                          className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-blue-500/20"
-                        >
+                      <div
+                        key={address}
+                        className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-blue-500/20"
+                      >
                           <div className="flex flex-col gap-1 flex-1 min-w-0">
                             {vaultName && (
                               <span className="font-medium text-sm text-foreground">
@@ -188,15 +188,15 @@ export function ConfigView({ config }: ConfigViewProps) {
                               </span>
                             )}
                             <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors truncate">
-                              {address}
-                            </span>
+                          {address}
+                        </span>
                           </div>
-                          <div className="flex items-center gap-2 ml-4">
-                            <Badge variant="secondary" className="font-mono">
-                              {range.min}% - {range.max}%
-                            </Badge>
-                          </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Badge variant="secondary" className="font-mono">
+                            {range.min}% - {range.max}%
+                          </Badge>
                         </div>
+                      </div>
                       );
                     })}
                   </div>
@@ -243,10 +243,10 @@ export function ConfigView({ config }: ConfigViewProps) {
                           ? `${range.collateralSymbol}/${range.loanSymbol}`
                           : null;
                       return (
-                        <div
-                          key={marketId}
-                          className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-purple-500/20"
-                        >
+                      <div
+                        key={marketId}
+                        className="group flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border border-transparent hover:border-purple-500/20"
+                      >
                           <div className="flex flex-col gap-1 flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               {marketName && (
@@ -256,15 +256,15 @@ export function ConfigView({ config }: ConfigViewProps) {
                               )}
                             </div>
                             <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors truncate">
-                              {marketId}
-                            </span>
+                          {marketId}
+                        </span>
                           </div>
-                          <div className="flex items-center gap-2 ml-4">
-                            <Badge variant="secondary" className="font-mono">
-                              {range.min}% - {range.max}%
-                            </Badge>
-                          </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Badge variant="secondary" className="font-mono">
+                            {range.min}% - {range.max}%
+                          </Badge>
                         </div>
+                      </div>
                       );
                     })}
                   </div>

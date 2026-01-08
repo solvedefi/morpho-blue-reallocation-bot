@@ -122,6 +122,7 @@ DELETE FROM "market_apy_config" WHERE "chain_id" = 480 AND "market_id" = '0x45f3
 
 -- Berachain markets (chain_id: 80094)
 UPDATE "market_apy_config" SET "collateral_symbol" = 'sUSDe', "loan_symbol" = 'HONEY' WHERE "chain_id" = 80094 AND "market_id" = '0x1ba7904c73d337c39cb88b00180dffb215fc334a6ff47bbe829cd9ee2af00c97';
+UPDATE "market_apy_config" SET "collateral_symbol" = 'WETH', "loan_symbol" = 'HONEY' WHERE "chain_id" = 80094 AND "market_id" = '0x1f05d324f604bd1654ec040311d2ac4f5820ecfd1801a3d19d2c6f09d4f7a614';
 
 -- Now add NOT NULL constraints after all data is populated
 ALTER TABLE "vault_whitelist" ALTER COLUMN "vault_name" SET NOT NULL;
