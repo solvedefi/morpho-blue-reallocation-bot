@@ -6,7 +6,7 @@ import {
   type Client,
   type Transport,
 } from "viem";
-import { estimateGas, sendTransaction, waitForTransactionReceipt } from "viem/actions";
+import { sendTransaction, simulateContract, waitForTransactionReceipt } from "viem/actions";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
@@ -102,18 +102,29 @@ export class ReallocationBot {
 
         try {
           // Simulate transaction first to catch errors before sending
+          console.log(
+            `Simulating reallocation for ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}...`,
+          );
+
+          await simulateContract(this.publicClient, {
+            address: vaultData.vaultAddress,
+            abi: metaMorphoAbi,
+            functionName: "reallocate",
+            args: [reallocation],
+            account: this.walletClient.account,
+          });
+
+          console.log(
+            `Simulation successful for ${vaultData.vaultAddress}, executing transaction...`,
+          );
+
+          // Execute transaction
           const calldata = encodeFunctionData({
             abi: metaMorphoAbi,
             functionName: "reallocate",
             args: [reallocation],
           });
 
-          await estimateGas(this.walletClient, {
-            to: vaultData.vaultAddress,
-            data: calldata,
-          });
-
-          // Execute transaction - use calldata directly to avoid type inference issues with writeContract
           const txHash = await sendTransaction(this.walletClient, {
             to: vaultData.vaultAddress,
             data: calldata,
@@ -129,8 +140,28 @@ export class ReallocationBot {
             `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
           );
         } catch (err) {
-          console.log(`Failed to reallocate on ${vaultData.vaultAddress}`);
-          console.error("reallocation error", err);
+          console.error(`Failed to reallocate on ${vaultData.vaultAddress}`);
+
+          if (err instanceof Error) {
+            const errorMessage = err.message;
+
+            // Log specific Morpho contract errors
+            if (errorMessage.includes("NotAllocatorRole")) {
+              console.error("Error: The account is not an allocator for this vault");
+            } else if (errorMessage.includes("InconsistentReallocation")) {
+              console.error(
+                "Error: Reallocation amounts are inconsistent (withdrawals != deposits)",
+              );
+            } else if (errorMessage.includes("NotEnoughLiquidity")) {
+              console.error("Error: Not enough liquidity in one of the markets");
+            } else if (errorMessage.includes("MarketNotEnabled")) {
+              console.error("Error: One of the markets is not enabled for this vault");
+            } else if (errorMessage.includes("SupplyCapExceeded")) {
+              console.error("Error: Supply cap would be exceeded");
+            }
+          }
+
+          console.error("Reallocation error:", err);
         }
       }),
     );
