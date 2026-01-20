@@ -8,10 +8,21 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ReallocationBot } from "./bot";
 import { chainConfigs, type Config } from "./config";
 import { getChainName } from "./constants";
-import { DatabaseClient } from "./database";
+import { DatabaseClient, type ChainOperationalConfig } from "./database";
 import { createServer } from "./server";
 import { MetadataService } from "./services/MetadataService";
 import { ApyRange } from "./strategies";
+
+interface RunningBotInfo {
+  bot: ReallocationBot;
+  abortController: AbortController;
+  task: Promise<void>;
+  // Store the config the bot was started with for comparison
+  startedWithConfig: {
+    executionInterval: number;
+    vaultWhitelist: Address[];
+  };
+}
 
 dotenvConfig();
 
@@ -133,10 +144,40 @@ async function main() {
   logApyConfiguration(apyConfig);
 
   // Track running bots and their abort controllers
-  const runningBots = new Map<
-    number,
-    { bot: ReallocationBot; abortController: AbortController; task: Promise<void> }
-  >();
+  const runningBots = new Map<number, RunningBotInfo>();
+
+  /**
+   * Helper function to check if bot config has changed
+   */
+  const hasConfigChanged = (
+    runningConfig: { executionInterval: number; vaultWhitelist: Address[] },
+    newConfig: ChainOperationalConfig,
+  ): boolean => {
+    // Check execution interval
+    if (runningConfig.executionInterval !== newConfig.executionInterval) {
+      return true;
+    }
+
+    // Check vault whitelist - compare sorted arrays
+    const newVaultAddresses = newConfig.vaultWhitelist
+      .map((v) => v.address.toLowerCase())
+      .sort();
+    const oldVaultAddresses = runningConfig.vaultWhitelist
+      .map((v) => v.toLowerCase())
+      .sort();
+
+    if (newVaultAddresses.length !== oldVaultAddresses.length) {
+      return true;
+    }
+
+    for (let i = 0; i < newVaultAddresses.length; i++) {
+      if (newVaultAddresses[i] !== oldVaultAddresses[i]) {
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const reloadConfiguration = async () => {
     console.log("\nConfiguration change detected. Reloading...");
@@ -151,20 +192,15 @@ async function main() {
     console.log("Configuration reloaded successfully");
     logApyConfiguration(apyConfig);
 
-    // Update all bots with new strategy
-    for (const botInfo of runningBots.values()) {
-      const newStrategy = new ApyRange(apyConfig);
-      botInfo.bot.updateStrategy(newStrategy);
-    }
-
-    // Reload chain configs to handle enabled/disabled changes
+    // Reload chain configs to handle all changes
     const chainConfigsResult = await dbClient.getAllChainConfigs();
     if (chainConfigsResult.isErr()) {
       console.error("❌ Failed to reload chain configs:", chainConfigsResult.error.message);
       return;
     }
 
-    const enabledChainIds = new Set(chainConfigsResult.value.map((c) => c.chainId));
+    const newChainConfigs = chainConfigsResult.value;
+    const enabledChainIds = new Set(newChainConfigs.map((c) => c.chainId));
 
     // Stop bots for disabled chains
     for (const [botChainId, botInfo] of runningBots) {
@@ -175,11 +211,36 @@ async function main() {
       }
     }
 
-    // Start bots for newly enabled chains
-    for (const opConfig of chainConfigsResult.value) {
-      if (!runningBots.has(opConfig.chainId)) {
+    // Check each enabled chain config for changes
+    for (const opConfig of newChainConfigs) {
+      const existingBot = runningBots.get(opConfig.chainId);
+
+      if (!existingBot) {
+        // New chain - start bot
         console.log(`Starting bot for newly enabled chain ${getChainName(opConfig.chainId)}...`);
         startBotForChain(opConfig, privateKey, apyConfig);
+      } else if (hasConfigChanged(existingBot.startedWithConfig, opConfig)) {
+        // Config changed - restart bot
+        console.log(
+          `Configuration changed for chain ${getChainName(opConfig.chainId)}, restarting bot...`,
+        );
+        console.log(
+          `  Old config: interval=${String(existingBot.startedWithConfig.executionInterval)}s, vaults=${String(existingBot.startedWithConfig.vaultWhitelist.length)}`,
+        );
+        console.log(
+          `  New config: interval=${String(opConfig.executionInterval)}s, vaults=${String(opConfig.vaultWhitelist.length)}`,
+        );
+
+        // Stop existing bot
+        existingBot.abortController.abort();
+        runningBots.delete(opConfig.chainId);
+
+        // Start new bot with updated config
+        startBotForChain(opConfig, privateKey, apyConfig);
+      } else {
+        // Only strategy/APY config changed - update in place
+        const newStrategy = new ApyRange(apyConfig);
+        existingBot.bot.updateStrategy(newStrategy);
       }
     }
 
@@ -187,12 +248,7 @@ async function main() {
   };
 
   const startBotForChain = (
-    opConfig: {
-      chainId: number;
-      executionInterval: number;
-      vaultWhitelist: { address: Address; name?: string | null }[];
-      enabled: boolean;
-    },
+    opConfig: ChainOperationalConfig,
     pk: Hex,
     config: typeof apyConfig,
   ) => {
@@ -249,6 +305,11 @@ async function main() {
       bot,
       abortController,
       task: botTask,
+      // Store the config for comparison on reload
+      startedWithConfig: {
+        executionInterval: opConfig.executionInterval,
+        vaultWhitelist: vaultAddresses,
+      },
     });
   };
 

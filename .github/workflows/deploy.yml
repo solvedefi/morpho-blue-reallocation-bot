@@ -3,11 +3,9 @@ name: Build and Deploy
 on:
   push:
     branches: [main, master]
-  pull_request:
-    branches: [main, master]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   PNPM_VERSION: '9.13.2'
 
 jobs:
@@ -25,7 +23,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
@@ -46,6 +44,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: cd apps/server && pnpm prisma generate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
       - name: Run tests
         run: pnpm test
 
@@ -65,7 +68,6 @@ jobs:
     name: Build Docker Image
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
 
     steps:
       - name: Checkout code
@@ -105,17 +107,26 @@ jobs:
     needs: build-docker
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    env:
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
 
     steps:
+      - name: Set defaults
+        id: defaults
+        run: |
+          echo "ssh_port=${SSH_PORT:-22}" >> $GITHUB_OUTPUT
+          echo "deploy_path=${DEPLOY_PATH:-~/morpho-blue-reallocation-bot}" >> $GITHUB_OUTPUT
+
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: ${{ steps.defaults.outputs.ssh_port }}
           script: |
-            cd ${{ secrets.DEPLOY_PATH || '~/morpho-blue-reallocation-bot' }}
-            docker compose pull
-            docker compose up -d --remove-orphans
+            cd ${{ steps.defaults.outputs.deploy_path }}
+            git pull
+            docker compose up -d --build reallocation_bot
             docker image prune -f
