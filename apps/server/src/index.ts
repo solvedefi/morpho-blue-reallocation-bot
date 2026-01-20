@@ -159,12 +159,8 @@ async function main() {
     }
 
     // Check vault whitelist - compare sorted arrays
-    const newVaultAddresses = newConfig.vaultWhitelist
-      .map((v) => v.address.toLowerCase())
-      .sort();
-    const oldVaultAddresses = runningConfig.vaultWhitelist
-      .map((v) => v.toLowerCase())
-      .sort();
+    const newVaultAddresses = newConfig.vaultWhitelist.map((v) => v.address.toLowerCase()).sort();
+    const oldVaultAddresses = runningConfig.vaultWhitelist.map((v) => v.toLowerCase()).sort();
 
     if (newVaultAddresses.length !== oldVaultAddresses.length) {
       return true;
