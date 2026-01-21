@@ -110,7 +110,19 @@ export class ReallocationBot {
             address: vaultData.vaultAddress,
             abi: metaMorphoAbi,
             functionName: "reallocate",
-            args: [reallocation],
+            // Type assertion needed due to viem's strict readonly type inference from ABI
+            args: [reallocation] as unknown as readonly [
+              readonly {
+                marketParams: {
+                  loanToken: `0x${string}`;
+                  collateralToken: `0x${string}`;
+                  oracle: `0x${string}`;
+                  irm: `0x${string}`;
+                  lltv: bigint;
+                };
+                assets: bigint;
+              }[],
+            ],
             account: this.walletClient.account,
           });
 
@@ -122,7 +134,19 @@ export class ReallocationBot {
           const calldata = encodeFunctionData({
             abi: metaMorphoAbi,
             functionName: "reallocate",
-            args: [reallocation],
+            // Type assertion needed due to viem's strict readonly type inference from ABI
+            args: [reallocation] as unknown as readonly [
+              readonly {
+                marketParams: {
+                  loanToken: `0x${string}`;
+                  collateralToken: `0x${string}`;
+                  oracle: `0x${string}`;
+                  irm: `0x${string}`;
+                  lltv: bigint;
+                };
+                assets: bigint;
+              }[],
+            ],
           });
 
           const txHash = await sendTransaction(this.walletClient, {
