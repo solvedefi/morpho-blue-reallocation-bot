@@ -10,8 +10,8 @@ export interface ChainConfig {
 export interface MarketParams {
   loanToken: Address;
   collateralToken: Address;
-  irm: Address;
   oracle: Address;
+  irm: Address;
   lltv: bigint;
 }
 

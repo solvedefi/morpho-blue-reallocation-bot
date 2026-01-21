@@ -14,18 +14,26 @@ jobs:
     name: Stop and Remove Deployment
     runs-on: ubuntu-latest
     environment: reallocation-bot
+    env:
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+
     steps:
       - name: Validate input
         run: |
           echo "Stopping and removing deployment for branch: ${{ inputs.branch_name }}"
 
+      - name: Set defaults
+        id: defaults
+        run: |
+          echo "ssh_port=${SSH_PORT:-22}" >> $GITHUB_OUTPUT
+
       - name: Stop deployment and delete directory via SSH
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ steps.defaults.outputs.ssh_port }}
           script: |
             set -e
 
@@ -80,10 +88,10 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Successfully stopped and removed deployment for branch: ${{ inputs.branch_name }}"
+            echo "Successfully stopped and removed deployment for branch: ${{ inputs.branch_name }}"
             echo "   - Containers stopped"
             echo "   - Directory deleted"
           else
-            echo "❌ Failed to stop deployment for branch: ${{ inputs.branch_name }}"
+            echo "Failed to stop deployment for branch: ${{ inputs.branch_name }}"
             exit 1
           fi
