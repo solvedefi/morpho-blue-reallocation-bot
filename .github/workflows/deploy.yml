@@ -4,10 +4,6 @@ on:
   push:
     branches: [main, master]
 
-env:
-  NODE_VERSION: '22'
-  PNPM_VERSION: '9.13.2'
-
 jobs:
   test:
     name: Test and Lint
@@ -20,12 +16,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: '.nvmrc'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Get pnpm store directory
         id: pnpm-cache
