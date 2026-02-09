@@ -176,20 +176,20 @@ export const chainConfigs: Record<number, Config> = {
   },
   [130]: {
     chain: unichain,
-    morpho: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual Morpho address
-    adaptiveCurveIrm: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual IRM address
-    metaMorphoFactories: ["0x0000000000000000000000000000000000000000"] as Address[], // TODO: Add actual factory address
+    morpho: "0x8f5ae9CddB9f68de460C77730b018Ae7E04a140A" as Address,
+    adaptiveCurveIrm: "0x9a6061d51743B31D2c3Be75D83781Fa423f53F0E" as Address,
+    metaMorphoFactories: ["0xe9EdE3929F43a7062a007C3e8652e4ACa610Bdc0"] as Address[],
   },
   [239]: {
     chain: tac,
-    morpho: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual Morpho address
-    adaptiveCurveIrm: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual IRM address
-    metaMorphoFactories: ["0x0000000000000000000000000000000000000000"] as Address[], // TODO: Add actual factory address
+    morpho: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c" as Address,
+    adaptiveCurveIrm: "0x7E82b16496fA8CC04935528dA7F5A2C684A3C7A3" as Address,
+    metaMorphoFactories: ["0xcDA78f4979d17Ec93052A84A12001fe0088AD734"] as Address[],
   },
   [747474]: {
     chain: katana,
-    morpho: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual Morpho address
-    adaptiveCurveIrm: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual IRM address
-    metaMorphoFactories: ["0x0000000000000000000000000000000000000000"] as Address[], // TODO: Add actual factory address
+    morpho: "0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc" as Address,
+    adaptiveCurveIrm: "0x4F708C0ae7deD3d74736594C2109C2E3c065B428" as Address,
+    metaMorphoFactories: ["0x1c8De6889acee12257899BFeAa2b7e534de32E16"] as Address[],
   },
 };
