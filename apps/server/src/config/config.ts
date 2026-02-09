@@ -1,4 +1,4 @@
-import { defineChain } from "viem";
+import { Address, defineChain } from "viem";
 import { base, mainnet, berachain, worldchain, polygon, lisk, soneium } from "viem/chains";
 
 import type { Config } from "./types";
@@ -30,6 +30,90 @@ export const plume = defineChain({
     multicall3: {
       address: "0xca11bde05977b3631167028862be2a173976ca11",
       blockCreated: 48_577,
+    },
+  },
+  sourceId,
+});
+
+export const unichain = defineChain({
+  id: 130,
+  name: "Unichain",
+  nativeCurrency: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://mainnet.unichain.org"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Uniscan",
+      url: "https://uniscan.xyz",
+    },
+  },
+  contracts: {
+    multicall3: {
+      address: "0xca11bde05977b3631167028862be2a173976ca11",
+      blockCreated: 0,
+    },
+  },
+  sourceId,
+});
+
+export const tac = defineChain({
+  id: 239,
+  name: "TAC",
+  nativeCurrency: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.tacchain.io"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "TAC Explorer",
+      url: "https://explorer.tacchain.io",
+    },
+  },
+  contracts: {
+    multicall3: {
+      address: "0xca11bde05977b3631167028862be2a173976ca11",
+      blockCreated: 0,
+    },
+  },
+  sourceId,
+});
+
+export const katana = defineChain({
+  id: 747_474,
+  name: "Katana",
+  nativeCurrency: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.katana.gg"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Katana Explorer",
+      url: "https://explorer.katana.gg",
+    },
+  },
+  contracts: {
+    multicall3: {
+      address: "0xca11bde05977b3631167028862be2a173976ca11",
+      blockCreated: 0,
     },
   },
   sourceId,
@@ -89,5 +173,23 @@ export const chainConfigs: Record<number, Config> = {
     morpho: "0xE75Fc5eA6e74B824954349Ca351eb4e671ADA53a",
     adaptiveCurveIrm: "0x68F9b666b984527A7c145Db4103Cc6d3171C797F",
     metaMorphoFactories: ["0x7026b436f294e560b3C26E731f5cac5992cA2B33"],
+  },
+  [130]: {
+    chain: unichain,
+    morpho: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual Morpho address
+    adaptiveCurveIrm: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual IRM address
+    metaMorphoFactories: ["0x0000000000000000000000000000000000000000"] as Address[], // TODO: Add actual factory address
+  },
+  [239]: {
+    chain: tac,
+    morpho: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual Morpho address
+    adaptiveCurveIrm: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual IRM address
+    metaMorphoFactories: ["0x0000000000000000000000000000000000000000"] as Address[], // TODO: Add actual factory address
+  },
+  [747474]: {
+    chain: katana,
+    morpho: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual Morpho address
+    adaptiveCurveIrm: "0x0000000000000000000000000000000000000000" as Address, // TODO: Add actual IRM address
+    metaMorphoFactories: ["0x0000000000000000000000000000000000000000"] as Address[], // TODO: Add actual factory address
   },
 };
