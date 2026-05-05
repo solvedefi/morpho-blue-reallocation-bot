@@ -12,6 +12,7 @@ import {
 import { multicall } from "viem/actions";
 
 import { adaptiveCurveIrmAbi } from "../../abis/AdaptiveCurveIrm.js";
+import { erc20Abi } from "../../abis/ERC20.js";
 import { morphoBlueAbi } from "../../abis/MorphoBlue.js";
 import { vaultV2Abi } from "../../abis/VaultV2.js";
 import { type Config } from "../config";
@@ -57,6 +58,7 @@ export class MorphoV2Client {
 
       const calls = [
         { address: vaultAddress, abi: vaultV2Abi, functionName: "totalAssets" } as const,
+        { address: vaultAddress, abi: vaultV2Abi, functionName: "asset" } as const,
         ...marketIds.flatMap(
           (marketId) =>
             [
@@ -91,8 +93,9 @@ export class MorphoV2Client {
       const results = await multicall(this.client, { contracts: calls, allowFailure: false });
 
       const totalAssets = results[0] as bigint;
+      const assetAddress = results[1] as Address;
 
-      // Per-market reads start at index 1, 4 calls per market, plus 2 cap reads
+      // Per-market reads start at index 2, 4 calls per market, plus 2 cap reads
       // that we issue as a follow-up multicall once we know the marketParams
       // (cap IDs depend on params + adapter).
       const markets: MarketV1Data[] = [];
@@ -101,7 +104,7 @@ export class MorphoV2Client {
       for (let i = 0; i < marketIds.length; i++) {
         const marketId = marketIds[i];
         if (!marketId) continue;
-        const baseIdx = 1 + i * 4;
+        const baseIdx = 2 + i * 4;
         const marketTuple = results[baseIdx] as readonly [
           bigint,
           bigint,
@@ -165,35 +168,50 @@ export class MorphoV2Client {
         });
       }
 
-      const capContracts = capCalls.flatMap(
-        ({ absId, relId }) =>
-          [
-            {
-              address: vaultAddress,
-              abi: vaultV2Abi,
-              functionName: "absoluteCap",
-              args: [absId],
-            },
-            {
-              address: vaultAddress,
-              abi: vaultV2Abi,
-              functionName: "relativeCap",
-              args: [relId],
-            },
-          ] as const,
-      );
+      // Second multicall: caps per market + idle assets (vault's underlying ERC20
+      // balance held outside any adapter).
+      const secondCalls = [
+        ...capCalls.flatMap(
+          ({ absId, relId }) =>
+            [
+              {
+                address: vaultAddress,
+                abi: vaultV2Abi,
+                functionName: "absoluteCap",
+                args: [absId],
+              },
+              {
+                address: vaultAddress,
+                abi: vaultV2Abi,
+                functionName: "relativeCap",
+                args: [relId],
+              },
+            ] as const,
+        ),
+        {
+          address: assetAddress,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [vaultAddress],
+        } as const,
+      ];
 
-      const capResults = await multicall(this.client, {
-        contracts: capContracts,
+      const secondResults = await multicall(this.client, {
+        contracts: secondCalls,
         allowFailure: false,
       });
 
+      const idleAssets = secondResults[secondResults.length - 1] as bigint;
+
       for (let i = 0; i < markets.length; i++) {
         const market = markets[i];
-        const absolute = capResults[i * 2];
-        const relative = capResults[i * 2 + 1];
+        const absolute = secondResults[i * 2];
+        const relative = secondResults[i * 2 + 1];
         if (!market || absolute === undefined || relative === undefined) continue;
-        const caps: Caps = { absolute, relative };
+        const caps: Caps = {
+          absolute: absolute as bigint,
+          relative: relative as bigint,
+        };
         market.caps = caps;
       }
 
@@ -202,10 +220,7 @@ export class MorphoV2Client {
       return ok({
         vaultAddress,
         totalAssets,
-        // V2 idle assets aren't exposed as a single view; computing them
-        // would require subtracting all adapter allocations from totalAssets.
-        // Defer until a strategy actually needs it (Phase 2).
-        idleAssets: 0n,
+        idleAssets,
         marketsV1Data,
       });
     } catch (error) {

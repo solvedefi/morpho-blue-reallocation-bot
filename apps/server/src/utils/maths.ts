@@ -18,6 +18,7 @@ export const mulDivUp = (x: bigint, y: bigint, d: bigint): bigint => (x * y + (d
 export const wDivDown = (x: bigint, y: bigint): bigint => mulDivDown(x, WAD, y);
 export const wDivUp = (x: bigint, y: bigint): bigint => mulDivUp(x, WAD, y);
 export const wMulDown = (x: bigint, y: bigint): bigint => mulDivDown(x, y, WAD);
+export const wMulUp = (x: bigint, y: bigint): bigint => mulDivUp(x, y, WAD);
 
 export const toAssetsUp = (shares: bigint, totalAssets: bigint, totalShares: bigint): bigint => {
   return mulDivUp(shares, totalAssets + VIRTUAL_ASSETS, totalShares + VIRTUAL_SHARES);
@@ -49,14 +50,14 @@ export const getUtilization = (marketState: MarketState) => {
   return wDivDown(marketState.totalBorrowAssets, marketState.totalSupplyAssets);
 };
 
-function getWithdrawalToUtilization(marketState: MarketState, targetUtilization: bigint) {
+export function getWithdrawalToUtilization(marketState: MarketState, targetUtilization: bigint) {
   return wMulDown(
     marketState.totalSupplyAssets,
     WAD - wDivDown(getUtilization(marketState), targetUtilization),
   );
 }
 
-function getDepositToUtilization(marketState: MarketState, targetUtilization: bigint) {
+export function getDepositToUtilization(marketState: MarketState, targetUtilization: bigint) {
   return wMulDown(
     marketState.totalSupplyAssets,
     wDivDown(getUtilization(marketState), targetUtilization) - WAD,
