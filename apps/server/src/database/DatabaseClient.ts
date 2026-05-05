@@ -2,6 +2,8 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import { Result, ok, err } from "neverthrow";
 import { Address, Hex } from "viem";
 
+import { DEFAULT_MIN_GAS_WEI, TX_GAS_LOG_RETENTION_PER_CHAIN } from "../constants";
+
 export interface ApyRangeConfig {
   min: number;
   max: number;
@@ -35,6 +37,8 @@ export interface ChainOperationalConfig {
   executionInterval: number; // in seconds
   vaultWhitelist: WhitelistedVault[];
   enabled: boolean;
+  minGasWei: bigint | null;
+  gasCheckIntervalSec: number;
 }
 
 export interface StrategyThresholds {
@@ -430,6 +434,8 @@ export class DatabaseClient {
         chainId: config.chainId,
         executionInterval: config.executionInterval,
         enabled: config.enabled,
+        minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
+        gasCheckIntervalSec: config.gasCheckIntervalSec,
         vaultWhitelist: config.vaultWhitelist.map(
           (v: { vaultAddress: string; vaultName: string | null }) => ({
             address: v.vaultAddress as Address,
@@ -468,6 +474,8 @@ export class DatabaseClient {
             chainId: config.chainId,
             executionInterval: config.executionInterval,
             enabled: config.enabled,
+            minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
+            gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
               (v: { vaultAddress: string; vaultName: string | null }) => ({
                 address: v.vaultAddress as Address,
@@ -506,6 +514,8 @@ export class DatabaseClient {
             chainId: config.chainId,
             executionInterval: config.executionInterval,
             enabled: config.enabled,
+            minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
+            gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
               (v: { vaultAddress: string; vaultName: string | null }) => ({
                 address: v.vaultAddress as Address,
@@ -529,12 +539,14 @@ export class DatabaseClient {
     enabled = true,
   ): Promise<Result<void, Error>> {
     try {
+      const defaultMinGas = DEFAULT_MIN_GAS_WEI[chainId];
       await this.prisma.chainConfig.upsert({
         where: { chainId },
         create: {
           chainId,
           executionInterval,
           enabled,
+          minGasWei: defaultMinGas !== undefined ? defaultMinGas.toString() : null,
         },
         update: {
           executionInterval,
@@ -737,6 +749,100 @@ export class DatabaseClient {
       return ok(undefined);
     } catch (error) {
       return err(new Error(`Failed to update strategy thresholds: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Update chain gas-monitor settings (threshold and/or check interval).
+   * Pass `null` for `minGasWei` to disable monitoring.
+   */
+  async updateChainGasMonitor(
+    chainId: number,
+    update: { minGasWei?: bigint | null; gasCheckIntervalSec?: number },
+  ): Promise<Result<null, Error>> {
+    try {
+      const data: { minGasWei?: string | null; gasCheckIntervalSec?: number } = {};
+      if (update.minGasWei !== undefined) {
+        data.minGasWei = update.minGasWei === null ? null : update.minGasWei.toString();
+      }
+      if (update.gasCheckIntervalSec !== undefined) {
+        data.gasCheckIntervalSec = update.gasCheckIntervalSec;
+      }
+
+      await this.prisma.chainConfig.update({
+        where: { chainId },
+        data,
+      });
+      return ok(null);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to update gas monitor config for chainId ${String(chainId)}: ${String(error)}`,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Record gas usage of a reallocate tx. Trims log to most recent
+   * TX_GAS_LOG_RETENTION_PER_CHAIN entries per chain.
+   */
+  async recordTxGasUsage(
+    chainId: number,
+    txHash: Hex,
+    gasUsed: bigint,
+    gasPrice: bigint,
+    blockNumber: bigint,
+  ): Promise<Result<null, Error>> {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.txGasLog.create({
+          data: {
+            chainId,
+            txHash,
+            gasUsed: gasUsed.toString(),
+            gasPrice: gasPrice.toString(),
+            blockNumber: blockNumber.toString(),
+          },
+        });
+
+        const keep = await tx.txGasLog.findMany({
+          where: { chainId },
+          orderBy: { createdAt: "desc" },
+          take: TX_GAS_LOG_RETENTION_PER_CHAIN,
+          select: { id: true },
+        });
+        // pruning all gas logs beyond the retention limit
+        await tx.txGasLog.deleteMany({
+          where: {
+            chainId,
+            id: { notIn: keep.map((r: { id: number }) => r.id) },
+          },
+        });
+      });
+      return ok(null);
+    } catch (error) {
+      return err(new Error(`Failed to record tx gas usage: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Get the most recent gas-usage samples for a chain.
+   */
+  async getRecentGasSamples(
+    chainId: number,
+    limit: number,
+  ): Promise<Result<{ gasUsed: bigint }[], Error>> {
+    try {
+      const rows = await this.prisma.txGasLog.findMany({
+        where: { chainId },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { gasUsed: true },
+      });
+      return ok(rows.map((r: { gasUsed: string }) => ({ gasUsed: BigInt(r.gasUsed) })));
+    } catch (error) {
+      return err(new Error(`Failed to load gas samples: ${String(error)}`));
     }
   }
 

@@ -7,6 +7,7 @@ import { Hono, Context } from "hono";
 import { isAddress, isHex, type Address, type Hex } from "viem";
 import { z } from "zod";
 
+import { getChainName, getNativeSymbol } from "./constants";
 import { DatabaseClient } from "./database";
 import { MetadataService } from "./services/MetadataService";
 
@@ -64,10 +65,31 @@ const updateChainSchema = z
   .object({
     enabled: z.boolean().optional(),
     executionInterval: z.number().positive().optional(),
+    minGasWei: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        (val) => {
+          if (val === undefined || val === null) return true;
+          try {
+            return BigInt(val) >= 0n;
+          } catch {
+            return false;
+          }
+        },
+        { message: "minGasWei must be a non-negative bigint string or null" },
+      ),
+    gasCheckIntervalSec: z.number().int().positive().optional(),
   })
-  .refine((data) => data.enabled !== undefined || data.executionInterval !== undefined, {
-    message: "At least one field must be provided",
-  });
+  .refine(
+    (data) =>
+      data.enabled !== undefined ||
+      data.executionInterval !== undefined ||
+      data.minGasWei !== undefined ||
+      data.gasCheckIntervalSec !== undefined,
+    { message: "At least one field must be provided" },
+  );
 
 const addVaultToWhitelistSchema = z.object({
   vaultAddress: z.string().refine((val) => isAddress(val), {
@@ -403,13 +425,18 @@ export function createServer(
 
     return c.json({
       success: true,
-      data: chainsResult.value,
+      data: chainsResult.value.map((cfg) => ({
+        ...cfg,
+        chainName: getChainName(cfg.chainId),
+        nativeSymbol: getNativeSymbol(cfg.chainId),
+        minGasWei: cfg.minGasWei === null ? null : cfg.minGasWei.toString(),
+      })),
     });
   });
 
   app.patch("/chains/:chainId", zValidator("json", updateChainSchema), async (c) => {
     const chainId = parseInt(c.req.param("chainId"));
-    const { enabled, executionInterval } = c.req.valid("json");
+    const { enabled, executionInterval, minGasWei, gasCheckIntervalSec } = c.req.valid("json");
 
     if (isNaN(chainId)) {
       return c.json(
@@ -445,6 +472,25 @@ export function createServer(
           {
             success: false,
             error: "Failed to update chain execution interval",
+          },
+          500,
+        );
+      }
+    }
+
+    // Update gas-monitor settings if provided
+    if (minGasWei !== undefined || gasCheckIntervalSec !== undefined) {
+      const result = await dbClient.updateChainGasMonitor(chainId, {
+        minGasWei:
+          minGasWei === undefined ? undefined : minGasWei === null ? null : BigInt(minGasWei),
+        gasCheckIntervalSec,
+      });
+      if (result.isErr()) {
+        console.error("Error updating chain gas monitor:", result.error);
+        return c.json(
+          {
+            success: false,
+            error: "Failed to update gas monitor settings",
           },
           500,
         );

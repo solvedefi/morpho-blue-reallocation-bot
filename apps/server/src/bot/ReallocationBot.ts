@@ -6,13 +6,29 @@ import {
   type Client,
   type Transport,
 } from "viem";
-import { sendTransaction, simulateContract, waitForTransactionReceipt } from "viem/actions";
+import {
+  getBalance,
+  getGasPrice,
+  sendTransaction,
+  simulateContract,
+  waitForTransactionReceipt,
+} from "viem/actions";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
-import { getChainName } from "../constants.js";
+import { getChainName, getNativeSymbol } from "../constants.js";
 import { MorphoClient } from "../contracts/MorphoClient.js";
+import { type DatabaseClient } from "../database";
+import { type GasSample, avgGasUsed, txsRemaining } from "../services/GasMonitor";
+import { lowBalancePreTxAlert, type SlackNotifier } from "../services/SlackNotifier";
 import { Strategy } from "../strategies/strategy.js";
+
+const PRE_TX_RECENT_SAMPLES = 20;
+// Recommended balance is `estimatedTxCost × 1.5` — encoded as a 15/10 ratio
+// so we can compute it in bigint without losing precision.
+const SAFETY_FACTOR_NUM = 15n;
+const SAFETY_FACTOR_DEN = 10n;
+const applySafetyFactor = (cost: bigint) => (cost * SAFETY_FACTOR_NUM) / SAFETY_FACTOR_DEN;
 
 export class ReallocationBot {
   private chainId: number;
@@ -22,6 +38,8 @@ export class ReallocationBot {
   private strategy: Strategy;
   private morphoClient: MorphoClient;
   private config: Config;
+  private dbClient: DatabaseClient;
+  private slack: SlackNotifier;
 
   constructor(
     chainId: number,
@@ -30,6 +48,8 @@ export class ReallocationBot {
     vaultWhitelist: Address[],
     strategy: Strategy,
     config: Config,
+    dbClient: DatabaseClient,
+    slack: SlackNotifier,
   ) {
     this.chainId = chainId;
     this.publicClient = publicClient;
@@ -38,6 +58,8 @@ export class ReallocationBot {
     this.strategy = strategy;
     this.morphoClient = new MorphoClient(publicClient, config);
     this.config = config;
+    this.dbClient = dbClient;
+    this.slack = slack;
   }
 
   /**
@@ -106,6 +128,10 @@ export class ReallocationBot {
             `Simulating reallocation for ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}...`,
           );
 
+          // Fire-and-forget: alert if balance is below the safety cushion,
+          // but never block the reallocation attempt.
+          void this.alertIfLowBalance();
+
           await simulateContract(this.publicClient, {
             address: vaultData.vaultAddress,
             abi: metaMorphoAbi,
@@ -163,6 +189,17 @@ export class ReallocationBot {
           console.log(
             `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
           );
+
+          const logResult = await this.dbClient.recordTxGasUsage(
+            this.chainId,
+            txHash,
+            receipt.gasUsed,
+            receipt.effectiveGasPrice,
+            receipt.blockNumber,
+          );
+          if (logResult.isErr()) {
+            console.error("Failed to record tx gas usage:", logResult.error.message);
+          }
         } catch (err) {
           console.error(`Failed to reallocate on ${vaultData.vaultAddress}`);
 
@@ -189,5 +226,47 @@ export class ReallocationBot {
         }
       }),
     );
+  }
+
+  private async alertIfLowBalance(): Promise<void> {
+    const account = this.walletClient.account.address;
+    const chainName = getChainName(this.chainId);
+
+    let balance: bigint;
+    let gasPrice: bigint;
+    try {
+      [balance, gasPrice] = await Promise.all([
+        getBalance(this.publicClient, { address: account }),
+        getGasPrice(this.publicClient),
+      ]);
+    } catch (err) {
+      console.error(`Pre-tx balance check failed on ${chainName}:`, err);
+      return;
+    }
+
+    const samplesResult = await this.dbClient.getRecentGasSamples(
+      this.chainId,
+      PRE_TX_RECENT_SAMPLES,
+    );
+    const samples: GasSample[] = samplesResult.isOk() ? samplesResult.value : [];
+    const avg = avgGasUsed(samples);
+    const required = applySafetyFactor(avg * gasPrice);
+
+    if (balance >= required) return;
+
+    const txsLeft = txsRemaining(balance, samples, gasPrice);
+    const message = lowBalancePreTxAlert({
+      chainName,
+      chainId: this.chainId,
+      account,
+      nativeSymbol: getNativeSymbol(this.chainId),
+      balance,
+      requiredWei: required,
+      gasPrice,
+      avgGasUsed: avg,
+      sampleCount: samples.length,
+      txsLeft,
+    });
+    await this.slack.send(message);
   }
 }
