@@ -69,6 +69,19 @@ model ChainConfig {
 }
 
 // Vault whitelist per chain
+model VaultV2Markets {
+  id             Int      @id @default(autoincrement())
+  chainId        Int      @map("chain_id")
+  vaultAddress   String   @map("vault_address") @db.VarChar(42)
+  adapterAddress String   @map("adapter_address") @db.VarChar(42)
+  marketId       String   @map("market_id") @db.VarChar(66)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([chainId, vaultAddress, marketId])
+  @@index([chainId, vaultAddress])
+  @@map("vault_v2_markets")
+}
+
 model VaultWhitelist {
   id           Int         @id @default(autoincrement())
   chainId      Int         @map("chain_id")
