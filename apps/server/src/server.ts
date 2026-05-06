@@ -95,6 +95,7 @@ const addVaultToWhitelistSchema = z.object({
   vaultAddress: z.string().refine((val) => isAddress(val), {
     message: "Invalid Ethereum address",
   }),
+  vaultVersion: z.enum(["V1", "V2"]).default("V1"),
 });
 
 const updateVaultSchema = z.object({
@@ -510,7 +511,7 @@ export function createServer(
 
   app.post("/chains/:chainId/vaults", zValidator("json", addVaultToWhitelistSchema), async (c) => {
     const chainId = parseInt(c.req.param("chainId"));
-    const { vaultAddress } = c.req.valid("json");
+    const { vaultAddress, vaultVersion } = c.req.valid("json");
 
     if (isNaN(chainId)) {
       return c.json(
@@ -542,7 +543,12 @@ export function createServer(
     const vaultName = vaultNameResult.value;
     console.log(`Fetched vault name for ${vaultAddress} on chain ${String(chainId)}:`, vaultName);
 
-    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address, vaultName);
+    const result = await dbClient.addVaultToWhitelist(
+      chainId,
+      vaultAddress as Address,
+      vaultName,
+      vaultVersion,
+    );
 
     if (result.isErr()) {
       console.error("Error adding vault to whitelist:", result.error);
@@ -572,6 +578,7 @@ export function createServer(
         chainId,
         vaultAddress,
         vaultName,
+        vaultVersion,
       },
     });
   });
@@ -676,6 +683,23 @@ export function createServer(
       });
     },
   );
+
+  // ---- V2 vault market list (read-only) ----
+  // Source of truth for "which markets is the V2 vault allowed to use" is
+  // the on-chain caps map; this endpoint exposes our cached view of that
+  // (the rows seeded into `vault_v2_markets` and consumed by the V2 bot).
+  app.get("/chains/:chainId/v2-markets", async (c) => {
+    const chainId = parseInt(c.req.param("chainId"));
+    if (isNaN(chainId)) {
+      return c.json({ success: false, error: "Invalid chain ID" }, 400);
+    }
+    const result = await dbClient.getV2VaultMarkets(chainId);
+    if (result.isErr()) {
+      console.error("Error loading V2 vault markets:", result.error);
+      return c.json({ success: false, error: "Failed to load V2 vault markets" }, 500);
+    }
+    return c.json({ success: true, data: result.value });
+  });
 
   app.get("/health", (c) => {
     return c.json({ status: "ok", timestamp: new Date().toISOString() });

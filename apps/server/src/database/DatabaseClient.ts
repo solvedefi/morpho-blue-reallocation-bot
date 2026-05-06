@@ -617,16 +617,11 @@ export class DatabaseClient {
     chainId: number,
     vaultAddress: Address,
     vaultName: string,
+    vaultVersion: VaultVersion = "V1",
   ): Promise<Result<void, Error>> {
     try {
-      // Check if the vault already exists and is enabled
       const existingVault = await this.prisma.vaultWhitelist.findUnique({
-        where: {
-          chainId_vaultAddress: {
-            chainId,
-            vaultAddress,
-          },
-        },
+        where: { chainId_vaultAddress: { chainId, vaultAddress } },
       });
 
       if (existingVault?.enabled) {
@@ -634,22 +629,9 @@ export class DatabaseClient {
       }
 
       await this.prisma.vaultWhitelist.upsert({
-        where: {
-          chainId_vaultAddress: {
-            chainId,
-            vaultAddress,
-          },
-        },
-        create: {
-          chainId,
-          vaultAddress,
-          vaultName,
-          enabled: true,
-        },
-        update: {
-          enabled: true,
-          vaultName,
-        },
+        where: { chainId_vaultAddress: { chainId, vaultAddress } },
+        create: { chainId, vaultAddress, vaultName, vaultVersion, enabled: true },
+        update: { enabled: true, vaultName, vaultVersion },
       });
       return ok(undefined);
     } catch (error) {
