@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Loader2, Wallet } from "lucide-react";
 import { useState } from "react";
 
-import type { ChainConfig } from "../lib/api";
+import type { ChainConfig, VaultVersion } from "../lib/api";
 import { api } from "../lib/api";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ export function VaultWhitelistManagement() {
   const queryClient = useQueryClient();
   const [selectedChainId, setSelectedChainId] = useState<number | null>(null);
   const [newVaultAddress, setNewVaultAddress] = useState("");
+  const [newVaultVersion, setNewVaultVersion] = useState<VaultVersion>("V1");
 
   const {
     data: chainsData,
@@ -42,12 +43,20 @@ export function VaultWhitelistManagement() {
   });
 
   const addVaultMutation = useMutation({
-    mutationFn: ({ chainId, vaultAddress }: { chainId: number; vaultAddress: string }) =>
-      api.addVaultToWhitelist(chainId, { vaultAddress }),
+    mutationFn: ({
+      chainId,
+      vaultAddress,
+      vaultVersion,
+    }: {
+      chainId: number;
+      vaultAddress: string;
+      vaultVersion: VaultVersion;
+    }) => api.addVaultToWhitelist(chainId, { vaultAddress, vaultVersion }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chains"] });
       setNewVaultAddress("");
       setSelectedChainId(null);
+      setNewVaultVersion("V1");
     },
   });
 
@@ -64,6 +73,7 @@ export function VaultWhitelistManagement() {
       addVaultMutation.mutate({
         chainId: selectedChainId,
         vaultAddress: newVaultAddress,
+        vaultVersion: newVaultVersion,
       });
     }
   };
@@ -112,7 +122,7 @@ export function VaultWhitelistManagement() {
           <CardDescription>Add a new vault to monitor on a specific chain</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="chain-select">Chain</Label>
               <select
@@ -138,6 +148,19 @@ export function VaultWhitelistManagement() {
                 value={newVaultAddress}
                 onChange={(e) => setNewVaultAddress(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="vault-version">Vault Version</Label>
+              <select
+                id="vault-version"
+                value={newVaultVersion}
+                onChange={(e) => setNewVaultVersion(e.target.value as VaultVersion)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="V1">V1 (MetaMorpho)</option>
+                <option value="V2">V2 (VaultV2 + adapter)</option>
+              </select>
             </div>
           </div>
 
@@ -220,6 +243,12 @@ export function VaultWhitelistManagement() {
                               {vault.name}
                             </span>
                           )}
+                          <Badge
+                            variant={vault.vaultVersion === "V2" ? "default" : "secondary"}
+                            className="font-mono text-[10px] h-5"
+                          >
+                            {vault.vaultVersion}
+                          </Badge>
                         </div>
                         <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground/80 transition-colors truncate pl-7">
                           {vault.address}

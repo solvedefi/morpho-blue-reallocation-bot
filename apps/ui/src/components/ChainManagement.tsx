@@ -270,9 +270,18 @@ export function ChainManagement() {
                     {chain.vaultWhitelist.map((vault) => (
                       <li
                         key={vault.address}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors pl-2"
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors pl-2 flex items-center gap-2"
                       >
-                        • {vault.name ? `${vault.name} (${vault.address})` : vault.address}
+                        <span>•</span>
+                        <Badge
+                          variant={vault.vaultVersion === "V2" ? "default" : "secondary"}
+                          className="font-mono text-[10px] h-4 px-1.5"
+                        >
+                          {vault.vaultVersion}
+                        </Badge>
+                        <span>
+                          {vault.name ? `${vault.name} (${vault.address})` : vault.address}
+                        </span>
                       </li>
                     ))}
                   </ul>

@@ -43,9 +43,24 @@ export interface UpdateStrategyRequest {
   defaultMaxApy?: number;
 }
 
+export type VaultVersion = "V1" | "V2";
+
 export interface WhitelistedVault {
   address: string;
   name: string;
+  vaultVersion: VaultVersion;
+}
+
+export interface V2VaultEntry {
+  chainId: number;
+  vaultAddress: string;
+  adapterAddress: string;
+  marketIds: string[];
+}
+
+export interface V2MarketsResponse {
+  success: boolean;
+  data: V2VaultEntry[];
 }
 
 export interface ChainConfig {
@@ -73,6 +88,7 @@ export interface UpdateChainRequest {
 
 export interface AddVaultRequest {
   vaultAddress: string;
+  vaultVersion?: VaultVersion;
 }
 
 export interface UpdateVaultStatusRequest {
@@ -141,6 +157,14 @@ export const api = {
       throw new Error("Failed to fetch chains");
     }
     return response.json() as Promise<ChainsResponse>;
+  },
+
+  async getV2Markets(chainId: number): Promise<V2MarketsResponse> {
+    const response = await fetch(`/chains/${String(chainId)}/v2-markets`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch V2 markets");
+    }
+    return response.json() as Promise<V2MarketsResponse>;
   },
 
   async updateChain(chainId: number, data: UpdateChainRequest): Promise<SuccessResponse> {
