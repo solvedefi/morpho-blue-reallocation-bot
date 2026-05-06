@@ -27,9 +27,19 @@ export interface ApyConfiguration {
   defaultMaxApy: number;
 }
 
+export type VaultVersion = "V1" | "V2";
+
 export interface WhitelistedVault {
   address: Address;
   name?: string | null;
+  vaultVersion: VaultVersion;
+}
+
+export interface V2VaultEntryRow {
+  chainId: number;
+  vaultAddress: Address;
+  adapterAddress: Address;
+  marketIds: Hex[];
 }
 
 export interface ChainOperationalConfig {
@@ -437,9 +447,10 @@ export class DatabaseClient {
         minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
         gasCheckIntervalSec: config.gasCheckIntervalSec,
         vaultWhitelist: config.vaultWhitelist.map(
-          (v: { vaultAddress: string; vaultName: string | null }) => ({
+          (v: { vaultAddress: string; vaultName: string | null; vaultVersion: string }) => ({
             address: v.vaultAddress as Address,
             name: v.vaultName,
+            vaultVersion: v.vaultVersion === "V2" ? ("V2" as const) : ("V1" as const),
           }),
         ),
       });
@@ -477,9 +488,10 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null }) => ({
+              (v: { vaultAddress: string; vaultName: string | null; vaultVersion: string }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
+                vaultVersion: v.vaultVersion === "V2" ? ("V2" as const) : ("V1" as const),
               }),
             ),
           }),
@@ -517,9 +529,10 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null }) => ({
+              (v: { vaultAddress: string; vaultName: string | null; vaultVersion: string }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
+                vaultVersion: v.vaultVersion === "V2" ? ("V2" as const) : ("V1" as const),
               }),
             ),
           }),
@@ -527,6 +540,42 @@ export class DatabaseClient {
       );
     } catch (error) {
       return err(new Error(`Failed to get all chain configs: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Get V2 vault entries (vault + adapter + curated market list) for a chain.
+   * Each row from `vault_v2_markets` is grouped by vault address.
+   */
+  async getV2VaultMarkets(chainId: number): Promise<Result<V2VaultEntryRow[], Error>> {
+    try {
+      const rows = await this.prisma.vaultV2Markets.findMany({
+        where: { chainId },
+        orderBy: [{ vaultAddress: "asc" }, { marketId: "asc" }],
+      });
+
+      const grouped = new Map<string, V2VaultEntryRow>();
+      for (const row of rows) {
+        const key = row.vaultAddress;
+        const existing = grouped.get(key);
+        if (existing) {
+          existing.marketIds.push(row.marketId as Hex);
+        } else {
+          grouped.set(key, {
+            chainId: row.chainId,
+            vaultAddress: row.vaultAddress as Address,
+            adapterAddress: row.adapterAddress as Address,
+            marketIds: [row.marketId as Hex],
+          });
+        }
+      }
+      return ok([...grouped.values()]);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to load V2 vault markets for chainId ${String(chainId)}: ${String(error)}`,
+        ),
+      );
     }
   }
 

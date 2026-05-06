@@ -5,7 +5,7 @@ import { type Hono } from "hono";
 import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-import { ReallocationBot } from "./bot";
+import { ReallocationBot, ReallocationBotV2, type V2VaultEntry } from "./bot";
 import { chainConfigs, type Config } from "./config";
 import { getChainName } from "./constants";
 import { DatabaseClient, type ChainOperationalConfig } from "./database";
@@ -15,15 +15,19 @@ import { MetadataService } from "./services/MetadataService";
 import { MinGasThresholds } from "./services/MinGasThresholds";
 import { SlackNotifier } from "./services/SlackNotifier";
 import { ApyRange } from "./strategies";
+import { ApyRangeV2Strategy } from "./strategies-v2";
 
 interface RunningBotInfo {
-  bot: ReallocationBot;
+  v1Bot?: ReallocationBot;
+  v2Bot?: ReallocationBotV2;
   abortController: AbortController;
   task: Promise<void>;
-  // Store the config the bot was started with for comparison
+  // Snapshot of the config the bots were started with — used to decide
+  // whether a reload requires a restart vs. an in-place strategy update.
   startedWithConfig: {
     executionInterval: number;
-    vaultWhitelist: Address[];
+    v1VaultAddresses: Address[];
+    v2Entries: V2VaultEntry[];
     minGasWei: bigint | null;
     gasCheckIntervalSec: number;
   };
@@ -82,16 +86,22 @@ async function getPrivateKey(): Promise<Hex> {
   return reallocatorPrivateKey as Hex;
 }
 
-async function runBotInBackgroundWithAbort(
-  bot: ReallocationBot,
+interface RunnableBot {
+  run: () => Promise<void>;
+}
+
+function runBotsInBackgroundWithAbort(
+  bots: RunnableBot[],
   executionInterval: number,
   abortController: AbortController,
 ): Promise<void> {
   const intervalId = setInterval(() => {
-    try {
-      void bot.run();
-    } catch (err) {
-      console.error("Bot run failed:", err);
+    for (const bot of bots) {
+      try {
+        void bot.run();
+      } catch (err) {
+        console.error("Bot run failed:", err);
+      }
     }
   }, executionInterval * 1000);
 
@@ -156,18 +166,20 @@ async function main() {
   const runningBots = new Map<number, RunningBotInfo>();
 
   /**
-   * Helper function to check if bot config has changed
+   * Helper function to check if bot config has changed (interval, V1 vault
+   * set, or V2 entry set including market lists).
    */
   const hasConfigChanged = (
     runningConfig: {
       executionInterval: number;
-      vaultWhitelist: Address[];
+      v1VaultAddresses: Address[];
+      v2Entries: V2VaultEntry[];
       minGasWei: bigint | null;
       gasCheckIntervalSec: number;
     },
     newConfig: ChainOperationalConfig,
+    newV2Entries: V2VaultEntry[],
   ): boolean => {
-    // Check execution interval
     if (runningConfig.executionInterval !== newConfig.executionInterval) {
       return true;
     }
@@ -178,21 +190,46 @@ async function main() {
       return true;
     }
 
-    // Check vault whitelist - compare sorted arrays
-    const newVaultAddresses = newConfig.vaultWhitelist.map((v) => v.address.toLowerCase()).sort();
-    const oldVaultAddresses = runningConfig.vaultWhitelist.map((v) => v.toLowerCase()).sort();
+    const newV1 = newConfig.vaultWhitelist
+      .filter((v) => v.vaultVersion === "V1")
+      .map((v) => v.address.toLowerCase())
+      .sort();
+    const oldV1 = runningConfig.v1VaultAddresses.map((a) => a.toLowerCase()).sort();
+    if (!stringArraysEqual(newV1, oldV1)) return true;
 
-    if (newVaultAddresses.length !== oldVaultAddresses.length) {
-      return true;
+    return !v2EntriesEqual(runningConfig.v2Entries, newV2Entries);
+  };
+
+  const stringArraysEqual = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
     }
+    return true;
+  };
 
-    for (let i = 0; i < newVaultAddresses.length; i++) {
-      if (newVaultAddresses[i] !== oldVaultAddresses[i]) {
-        return true;
-      }
+  const v2EntriesEqual = (a: V2VaultEntry[], b: V2VaultEntry[]): boolean => {
+    if (a.length !== b.length) return false;
+    const norm = (entries: V2VaultEntry[]) =>
+      entries
+        .map((e) => ({
+          v: e.vaultAddress.toLowerCase(),
+          ad: e.adapterAddress.toLowerCase(),
+          m: [...e.marketIds]
+            .map((x) => x.toLowerCase())
+            .sort()
+            .join(","),
+        }))
+        .sort((x, y) => x.v.localeCompare(y.v));
+    const aN = norm(a);
+    const bN = norm(b);
+    for (let i = 0; i < aN.length; i++) {
+      const ai = aN[i];
+      const bi = bN[i];
+      if (!ai || !bi) return false;
+      if (ai.v !== bi.v || ai.ad !== bi.ad || ai.m !== bi.m) return false;
     }
-
-    return false;
+    return true;
   };
 
   const reloadConfiguration = async () => {
@@ -232,33 +269,40 @@ async function main() {
     for (const opConfig of newChainConfigs) {
       const existingBot = runningBots.get(opConfig.chainId);
 
+      // Load V2 entries for this chain (needed both for change detection
+      // and for restarting if changed).
+      const v2EntriesResult = await dbClient.getV2VaultMarkets(opConfig.chainId);
+      if (v2EntriesResult.isErr()) {
+        console.error(
+          `❌ Failed to load V2 entries for chain ${getChainName(opConfig.chainId)}:`,
+          v2EntriesResult.error.message,
+        );
+        continue;
+      }
+      const v2Entries = v2EntriesResult.value;
+
       if (!existingBot) {
-        // New chain - start bot
         console.log(`Starting bot for newly enabled chain ${getChainName(opConfig.chainId)}...`);
-        startBotForChain(opConfig, privateKey, apyConfig);
-      } else if (hasConfigChanged(existingBot.startedWithConfig, opConfig)) {
-        // Config changed - restart bot
+        startBotForChain(opConfig, privateKey, apyConfig, v2Entries);
+      } else if (hasConfigChanged(existingBot.startedWithConfig, opConfig, v2Entries)) {
         console.log(
           `Configuration changed for chain ${getChainName(opConfig.chainId)}, restarting bot...`,
         );
-        console.log(
-          `  Old config: interval=${String(existingBot.startedWithConfig.executionInterval)}s, vaults=${String(existingBot.startedWithConfig.vaultWhitelist.length)}`,
-        );
-        console.log(
-          `  New config: interval=${String(opConfig.executionInterval)}s, vaults=${String(opConfig.vaultWhitelist.length)}`,
-        );
 
-        // Stop existing bot
         existingBot.abortController.abort();
         gasMonitor.stop(opConfig.chainId);
         runningBots.delete(opConfig.chainId);
 
-        // Start new bot with updated config
-        startBotForChain(opConfig, privateKey, apyConfig);
+        startBotForChain(opConfig, privateKey, apyConfig, v2Entries);
       } else {
-        // Only strategy/APY config changed - update in place
-        const newStrategy = new ApyRange(apyConfig);
-        existingBot.bot.updateStrategy(newStrategy);
+        // Only strategy/APY config changed — update in place on whichever
+        // bots are running.
+        if (existingBot.v1Bot) {
+          existingBot.v1Bot.updateStrategy(new ApyRange(apyConfig));
+        }
+        if (existingBot.v2Bot) {
+          existingBot.v2Bot.updateStrategy(new ApyRangeV2Strategy(apyConfig));
+        }
       }
     }
 
@@ -269,7 +313,8 @@ async function main() {
     opConfig: ChainOperationalConfig,
     pk: Hex,
     config: typeof apyConfig,
-  ) => {
+    v2Entries: V2VaultEntry[],
+  ): void => {
     const infraConfig: Config | undefined = chainConfigs[opConfig.chainId];
     if (!infraConfig) {
       console.warn(
@@ -280,45 +325,72 @@ async function main() {
 
     const rpcUrl = getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
 
-    // Create public client for reading contract data
     const publicClient = createPublicClient({
       chain: infraConfig.chain,
-      transport: http(rpcUrl, {
-        timeout: 60_000, // 60 second timeout
-        retryCount: 3, // Retry failed requests 3 times
-        retryDelay: 1000, // Wait 1 second between retries
-      }),
+      transport: http(rpcUrl, { timeout: 60_000, retryCount: 3, retryDelay: 1000 }),
     });
 
-    // Create wallet client for writing transactions
     const walletClient = createWalletClient({
       chain: infraConfig.chain,
-      transport: http(rpcUrl, {
-        timeout: 60_000,
-        retryCount: 3,
-        retryDelay: 1000,
-      }),
+      transport: http(rpcUrl, { timeout: 60_000, retryCount: 3, retryDelay: 1000 }),
       account: privateKeyToAccount(pk),
     });
 
-    // Extract addresses from vault whitelist
-    const vaultAddresses = opConfig.vaultWhitelist.map((v) => v.address);
+    // Partition vaults by version. The same chain can run a V1 bot AND a
+    // V2 bot in the same process, sharing one wallet/public client.
+    const v1VaultAddresses = opConfig.vaultWhitelist
+      .filter((v) => v.vaultVersion === "V1")
+      .map((v) => v.address);
 
-    const strategy = new ApyRange(config);
-    const bot = new ReallocationBot(
-      opConfig.chainId,
-      publicClient,
-      walletClient,
-      vaultAddresses,
-      strategy,
-      infraConfig,
-      minGasThresholds,
-    );
+    const chainName = getChainName(opConfig.chainId);
+    const runnableBots: RunnableBot[] = [];
+    let v1Bot: ReallocationBot | undefined;
+    let v2Bot: ReallocationBotV2 | undefined;
+
+    if (v1VaultAddresses.length > 0) {
+      v1Bot = new ReallocationBot(
+        opConfig.chainId,
+        publicClient,
+        walletClient,
+        v1VaultAddresses,
+        new ApyRange(config),
+        infraConfig,
+        minGasThresholds,
+      );
+      runnableBots.push(v1Bot);
+      console.log(
+        `  V1 bot started for ${chainName} (${String(v1VaultAddresses.length)} vault(s))`,
+      );
+    }
+
+    if (v2Entries.length > 0) {
+      v2Bot = new ReallocationBotV2(
+        opConfig.chainId,
+        publicClient,
+        walletClient,
+        v2Entries,
+        new ApyRangeV2Strategy(config),
+        infraConfig,
+      );
+      runnableBots.push(v2Bot);
+      console.log(`  V2 bot started for ${chainName} (${String(v2Entries.length)} vault(s))`);
+    }
+
+    if (runnableBots.length === 0) {
+      console.log(`No bots to start for ${chainName} (no V1 vaults, no V2 entries)`);
+      return;
+    }
 
     const abortController = new AbortController();
-    void bot.run();
+    // Kick off an immediate first run on each so we don't wait one full
+    // interval before the first reallocation.
+    for (const b of runnableBots) void b.run();
 
-    const botTask = runBotInBackgroundWithAbort(bot, opConfig.executionInterval, abortController);
+    const botTask = runBotsInBackgroundWithAbort(
+      runnableBots,
+      opConfig.executionInterval,
+      abortController,
+    );
 
     gasMonitor.start(
       opConfig.chainId,
@@ -329,13 +401,14 @@ async function main() {
     );
 
     runningBots.set(opConfig.chainId, {
-      bot,
+      v1Bot,
+      v2Bot,
       abortController,
       task: botTask,
-      // Store the config for comparison on reload
       startedWithConfig: {
         executionInterval: opConfig.executionInterval,
-        vaultWhitelist: vaultAddresses,
+        v1VaultAddresses,
+        v2Entries,
         minGasWei: opConfig.minGasWei,
         gasCheckIntervalSec: opConfig.gasCheckIntervalSec,
       },
@@ -383,10 +456,20 @@ async function main() {
   // Get private key (shared across all chains)
   const privateKey = await getPrivateKey();
 
-  // Start bots for all enabled chains
+  // Start bots for all enabled chains. Each chain may host a V1 bot, a V2
+  // bot, or both — depending on which vault versions are whitelisted and
+  // (for V2) whether `vault_v2_markets` has any rows for the chain.
   for (const opConfig of chainOperationalConfigs) {
     console.log(`\nStarting bot for chain ${getChainName(opConfig.chainId)}...`);
-    startBotForChain(opConfig, privateKey, apyConfig);
+    const v2EntriesResult = await dbClient.getV2VaultMarkets(opConfig.chainId);
+    if (v2EntriesResult.isErr()) {
+      console.error(
+        `Failed to load V2 entries for chain ${getChainName(opConfig.chainId)}, skipping V2:`,
+        v2EntriesResult.error.message,
+      );
+    }
+    const v2Entries = v2EntriesResult.isOk() ? v2EntriesResult.value : [];
+    startBotForChain(opConfig, privateKey, apyConfig, v2Entries);
   }
 
   console.log("\nAll bots started successfully!\n");
