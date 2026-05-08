@@ -580,6 +580,58 @@ export class DatabaseClient {
   }
 
   /**
+   * Remove a market row from a V2 vault's curated list.
+   *
+   * NOT exposed via HTTP — only callable from operational tooling
+   * (`apps/server/scripts/sync-v2-markets.ts`). Hand-editing the cache
+   * via API would let the bot diverge from on-chain caps without
+   * surfacing the divergence; the sync CLI guarantees a diff is shown
+   * + applied atomically.
+   */
+  async removeV2VaultMarket(
+    chainId: number,
+    vaultAddress: Address,
+    marketId: Hex,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultV2Markets.delete({
+        where: { chainId_vaultAddress_marketId: { chainId, vaultAddress, marketId } },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to remove V2 market ${marketId} for vault ${vaultAddress}: ${String(error)}`,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Update the adapter address on every market row of a V2 vault. Used by
+   * the sync CLI when the on-chain adapter has changed (rare).
+   */
+  async updateV2VaultAdapter(
+    chainId: number,
+    vaultAddress: Address,
+    newAdapterAddress: Address,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultV2Markets.updateMany({
+        where: { chainId, vaultAddress },
+        data: { adapterAddress: newAdapterAddress },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to update adapter for V2 vault ${vaultAddress} on chain ${String(chainId)}: ${String(error)}`,
+        ),
+      );
+    }
+  }
+
+  /**
    * Upsert chain configuration
    */
   async upsertChainConfig(
