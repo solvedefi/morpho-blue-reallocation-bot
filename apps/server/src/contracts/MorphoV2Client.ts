@@ -201,7 +201,9 @@ export class MorphoV2Client {
         allowFailure: false,
       });
 
-      const idleAssets = secondResults[secondResults.length - 1] as bigint;
+      // The balanceOf result is always the last entry in secondCalls.
+      const idleAssetsResult = secondResults[secondResults.length - 1];
+      const idleAssets = typeof idleAssetsResult === "bigint" ? idleAssetsResult : 0n;
 
       for (let i = 0; i < markets.length; i++) {
         const market = markets[i];
@@ -209,8 +211,8 @@ export class MorphoV2Client {
         const relative = secondResults[i * 2 + 1];
         if (!market || absolute === undefined || relative === undefined) continue;
         const caps: Caps = {
-          absolute: absolute as bigint,
-          relative: relative as bigint,
+          absolute: absolute,
+          relative: relative,
         };
         market.caps = caps;
       }

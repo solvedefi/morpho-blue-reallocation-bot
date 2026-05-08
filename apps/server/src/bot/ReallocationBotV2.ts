@@ -16,6 +16,8 @@ import { MorphoV2Client } from "../contracts/MorphoV2Client.js";
 import { Reallocation, ReallocationAction } from "../contracts/typesV2";
 import { StrategyV2 } from "../strategies-v2/strategy.js";
 
+import { emitReallocationEvent } from "./events";
+
 /**
  * One V2 vault the bot manages on a chain. Each entry carries the adapter
  * address and the curated market list (from `vault_v2_markets` in the DB).
@@ -108,6 +110,14 @@ export class ReallocationBotV2 {
             `Failed to find V2 reallocation for vault ${vaultData.vaultAddress} on chain ${chainName}:`,
             reallocationResult.error,
           );
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V2",
+            vault: vaultData.vaultAddress,
+            status: "skipped",
+            reason: "strategy_error",
+            error: reallocationResult.error.message,
+          });
           return;
         }
 
@@ -116,6 +126,13 @@ export class ReallocationBotV2 {
           console.log(
             `No V2 reallocation found on ${vaultData.vaultAddress} on chain ${chainName}`,
           );
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V2",
+            vault: vaultData.vaultAddress,
+            status: "skipped",
+            reason: "in_range_or_below_threshold",
+          });
           return;
         }
 
@@ -153,14 +170,30 @@ export class ReallocationBotV2 {
           console.log(
             `V2 reallocated on ${vaultData.vaultAddress} on chain ${chainName}, tx: ${txHash}, status: ${receipt.status}`,
           );
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V2",
+            vault: vaultData.vaultAddress,
+            status: receipt.status === "success" ? "executed" : "reverted",
+            allocationsCount: reallocation.allocations.length,
+            deallocationsCount: reallocation.deallocations.length,
+            txHash,
+          });
         } catch (err) {
           console.error(`V2 reallocation failed on ${vaultData.vaultAddress}`);
-          // V2-specific revert hints — keep generic for now and add
-          // specific selectors as we encounter them in production.
           if (err instanceof Error && err.message.includes("NotAllocator")) {
             console.error("Hint: the EOA does not have the allocator role on this V2 vault");
           }
           console.error("V2 reallocation error:", err);
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V2",
+            vault: vaultData.vaultAddress,
+            status: "failed",
+            allocationsCount: reallocation.allocations.length,
+            deallocationsCount: reallocation.deallocations.length,
+            error: err instanceof Error ? err.message.split("\n")[0] : String(err),
+          });
         }
       }),
     );

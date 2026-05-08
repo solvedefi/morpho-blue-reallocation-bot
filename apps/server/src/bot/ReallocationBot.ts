@@ -15,6 +15,8 @@ import { MorphoClient } from "../contracts/MorphoClient.js";
 import { MinGasThresholds } from "../services/MinGasThresholds";
 import { Strategy } from "../strategies/strategy.js";
 
+import { emitReallocationEvent } from "./events";
+
 export class ReallocationBot {
   private chainId: number;
   private publicClient: Client<Transport, Chain>;
@@ -88,6 +90,14 @@ export class ReallocationBot {
             `Failed to find reallocation for vault ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}:`,
           );
           console.error(reallocationResult.error);
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V1",
+            vault: vaultData.vaultAddress,
+            status: "skipped",
+            reason: "strategy_error",
+            error: reallocationResult.error.message,
+          });
           return;
         }
 
@@ -99,6 +109,13 @@ export class ReallocationBot {
           console.log(
             `No reallocation found on ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}`,
           );
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V1",
+            vault: vaultData.vaultAddress,
+            status: "skipped",
+            reason: "in_range_or_below_threshold",
+          });
           return;
         }
 
@@ -171,6 +188,15 @@ export class ReallocationBot {
           if (receipt.status === "success") {
             this.thresholds.record(this.chainId, receipt.gasUsed, receipt.effectiveGasPrice);
           }
+
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V1",
+            vault: vaultData.vaultAddress,
+            status: receipt.status === "success" ? "executed" : "reverted",
+            allocationsCount: reallocation.length,
+            txHash,
+          });
         } catch (err) {
           console.error(`Failed to reallocate on ${vaultData.vaultAddress}`);
 
@@ -194,6 +220,14 @@ export class ReallocationBot {
           }
 
           console.error("Reallocation error:", err);
+          emitReallocationEvent({
+            chainId: this.chainId,
+            version: "V1",
+            vault: vaultData.vaultAddress,
+            status: "failed",
+            allocationsCount: reallocation.length,
+            error: err instanceof Error ? err.message.split("\n")[0] : String(err),
+          });
         }
       }),
     );

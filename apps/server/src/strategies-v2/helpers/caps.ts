@@ -8,11 +8,12 @@ import {
   wMulUp,
 } from "../../utils/maths";
 
-// Fraction of a cap (absolute or relative) we're willing to use, expressed
-// as a percent (0..1). Mirrors the upstream template's CAP_BUFFER_PERCENT
-// (apps/config/src/strategies/apyRange.ts). 0.99 = use up to 99% of cap;
-// the remaining 1% is buffer to avoid revert at the rounding boundary.
-export const CAP_BUFFER_PERCENT = 0.99;
+// Percent (0..100) of a cap we're willing to use. 99 = use up to 99% of
+// cap; the remaining 1% is buffer to avoid revert at the rounding boundary.
+// Note: this number is passed to `percentToWad` which expects 0..100, NOT
+// a fraction 0..1 — `percentToWad(99) === 0.99 in WAD`. Mirrors the
+// upstream template's CAP_BUFFER_PERCENT.
+export const CAP_BUFFER_PERCENT = 99;
 
 /**
  * Maximum amount the vault can withdraw from a market while keeping
@@ -32,8 +33,9 @@ export function getWithdrawableAmountV2(market: MarketV1Data, targetUtilization:
  *
  * Verbatim port of `morpho-org/vault-v2-reallocation-bot:apps/client/src/utils/maths.ts:getDepositableAmount`.
  *
- * `capBufferPercent` is the fraction (0..1) of cap we're willing to use,
- * NOT the buffer to leave (so 0.99 means "use 99%, leave 1%").
+ * `capBufferPercent` is the percent (0..100) of cap we're willing to use,
+ * NOT the buffer to leave (so 99 means "use 99%, leave 1%"). Passed to
+ * `percentToWad` internally — that helper takes 0..100, not 0..1.
  */
 export function getDepositableAmountV2(
   market: MarketV1Data,
