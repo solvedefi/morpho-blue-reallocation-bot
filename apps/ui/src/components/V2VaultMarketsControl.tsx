@@ -35,8 +35,8 @@ export function V2VaultMarketsControl({
     onSuccess: () => {
       setMarketIdInput("");
       setFormError(null);
-      queryClient.invalidateQueries({ queryKey: ["v2-markets", chainId] });
-      queryClient.invalidateQueries({ queryKey: ["chains"] });
+      void queryClient.invalidateQueries({ queryKey: ["v2-markets", chainId] });
+      void queryClient.invalidateQueries({ queryKey: ["chains"] });
     },
     onError: (err: Error) => {
       setFormError(err.message);
