@@ -608,6 +608,35 @@ export class DatabaseClient {
   }
 
   /**
+   * Add a (vault, market) row to `vault_v2_markets`. Callers MUST validate
+   * the on-chain cap before invoking this — the HTTP endpoint at
+   * `POST /chains/:chainId/v2-markets` reads `vault.absoluteCap(capId)` and
+   * rejects with 0; that read-back is what makes the DB physically
+   * incapable of holding a market the vault wouldn't permit.
+   */
+  async addV2VaultMarket(
+    chainId: number,
+    vaultAddress: Address,
+    adapterAddress: Address,
+    marketId: Hex,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultV2Markets.upsert({
+        where: { chainId_vaultAddress_marketId: { chainId, vaultAddress, marketId } },
+        create: { chainId, vaultAddress, adapterAddress, marketId },
+        update: { adapterAddress },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to add V2 market ${marketId} for vault ${vaultAddress}: ${String(error)}`,
+        ),
+      );
+    }
+  }
+
+  /**
    * Update the adapter address on every market row of a V2 vault. Used by
    * the sync CLI when the on-chain adapter has changed (rare).
    */

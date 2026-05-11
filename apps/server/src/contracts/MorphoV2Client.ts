@@ -53,12 +53,14 @@ export class MorphoV2Client {
           totalAssets: 0n,
           idleAssets: 0n,
           marketsV1Data: { adapterAddress, markets: [] },
+          onChainAdapter: adapterAddress,
         });
       }
 
       const calls = [
         { address: vaultAddress, abi: vaultV2Abi, functionName: "totalAssets" } as const,
         { address: vaultAddress, abi: vaultV2Abi, functionName: "asset" } as const,
+        { address: vaultAddress, abi: vaultV2Abi, functionName: "adapters", args: [0n] } as const,
         ...marketIds.flatMap(
           (marketId) =>
             [
@@ -94,17 +96,19 @@ export class MorphoV2Client {
 
       const totalAssets = results[0] as bigint;
       const assetAddress = results[1] as Address;
+      const onChainAdapter = results[2] as Address;
 
-      // Per-market reads start at index 2, 4 calls per market, plus 2 cap reads
-      // that we issue as a follow-up multicall once we know the marketParams
-      // (cap IDs depend on params + adapter).
+      // Per-market reads start at index 3 (after totalAssets, asset,
+      // adapters(0)), 4 calls per market, plus 2 cap reads that we issue
+      // as a follow-up multicall once we know the marketParams (cap IDs
+      // depend on params + adapter).
       const markets: MarketV1Data[] = [];
       const capCalls: { absId: Hex; relId: Hex }[] = [];
 
       for (let i = 0; i < marketIds.length; i++) {
         const marketId = marketIds[i];
         if (!marketId) continue;
-        const baseIdx = 2 + i * 4;
+        const baseIdx = 3 + i * 4;
         const marketTuple = results[baseIdx] as readonly [
           bigint,
           bigint,
@@ -224,6 +228,7 @@ export class MorphoV2Client {
         totalAssets,
         idleAssets,
         marketsV1Data,
+        onChainAdapter,
       });
     } catch (error) {
       return err(new Error(`Failed to fetch V2 vault data for ${vaultAddress}: ${String(error)}`));

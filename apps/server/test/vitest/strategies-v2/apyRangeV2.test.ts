@@ -104,6 +104,7 @@ function buildVaultData(args: {
     totalAssets: args.totalAssets,
     idleAssets: args.idleAssets,
     marketsV1Data: { adapterAddress: TEST_ADAPTER, markets: args.markets },
+    onChainAdapter: TEST_ADAPTER,
   };
 }
 

@@ -33,6 +33,7 @@ export interface VaultV2Data {
   totalAssets: bigint;
   idleAssets: bigint;
   marketsV1Data: VaultV2MarketV1Data;
+  onChainAdapter: Address;
 }
 
 // A single V2 reallocation step — encodes a call to `allocate` or

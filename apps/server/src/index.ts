@@ -371,6 +371,7 @@ async function main() {
         v2Entries,
         new ApyRangeV2Strategy(config),
         infraConfig,
+        dbClient,
       );
       runnableBots.push(v2Bot);
       console.log(`  V2 bot started for ${chainName} (${String(v2Entries.length)} vault(s))`);

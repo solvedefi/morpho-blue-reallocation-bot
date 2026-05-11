@@ -91,6 +91,23 @@ export interface AddVaultRequest {
   vaultVersion?: VaultVersion;
 }
 
+export interface AddV2MarketRequest {
+  vaultAddress: string;
+  marketId: string;
+}
+
+export interface AddV2MarketResponse {
+  success: boolean;
+  data?: {
+    chainId: number;
+    vaultAddress: string;
+    adapterAddress: string;
+    marketId: string;
+    absoluteCap: string;
+  };
+  error?: string;
+}
+
 export interface UpdateVaultStatusRequest {
   enabled: boolean;
 }
@@ -165,6 +182,19 @@ export const api = {
       throw new Error("Failed to fetch V2 markets");
     }
     return response.json() as Promise<V2MarketsResponse>;
+  },
+
+  async addV2Market(chainId: number, data: AddV2MarketRequest): Promise<AddV2MarketResponse> {
+    const response = await fetch(`/chains/${String(chainId)}/v2-markets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const body = (await response.json()) as AddV2MarketResponse;
+    if (!response.ok) {
+      throw new Error(body.error ?? "Failed to add V2 market");
+    }
+    return body;
   },
 
   async updateChain(chainId: number, data: UpdateChainRequest): Promise<SuccessResponse> {

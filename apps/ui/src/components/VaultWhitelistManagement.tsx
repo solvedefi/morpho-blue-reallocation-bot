@@ -128,7 +128,9 @@ export function VaultWhitelistManagement() {
               <select
                 id="chain-select"
                 value={selectedChainId || ""}
-                onChange={(e) => setSelectedChainId(Number(e.target.value))}
+                onChange={(e) => {
+                  setSelectedChainId(Number(e.target.value));
+                }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">Select a chain...</option>
@@ -146,7 +148,9 @@ export function VaultWhitelistManagement() {
                 id="vault-address"
                 placeholder="0x..."
                 value={newVaultAddress}
-                onChange={(e) => setNewVaultAddress(e.target.value)}
+                onChange={(e) => {
+                  setNewVaultAddress(e.target.value);
+                }}
               />
             </div>
 
@@ -155,7 +159,9 @@ export function VaultWhitelistManagement() {
               <select
                 id="vault-version"
                 value={newVaultVersion}
-                onChange={(e) => setNewVaultVersion(e.target.value as VaultVersion)}
+                onChange={(e) => {
+                  setNewVaultVersion(e.target.value as VaultVersion);
+                }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="V1">V1 (MetaMorpho)</option>
@@ -259,7 +265,9 @@ export function VaultWhitelistManagement() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleRemoveVault(chain.chainId, vault.address)}
+                          onClick={() => {
+                            handleRemoveVault(chain.chainId, vault.address);
+                          }}
                           disabled={removeVaultMutation.isPending}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -276,7 +284,7 @@ export function VaultWhitelistManagement() {
 
       {removeVaultMutation.isError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
-          <p className="text-sm">{removeVaultMutation.error?.message}</p>
+          <p className="text-sm">{removeVaultMutation.error.message}</p>
         </div>
       )}
 
