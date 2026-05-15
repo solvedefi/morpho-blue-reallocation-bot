@@ -15,8 +15,9 @@ import { getChainName } from "../constants.js";
 import { MorphoV2Client } from "../contracts/MorphoV2Client.js";
 import { Reallocation, ReallocationAction, VaultV2Data } from "../contracts/typesV2";
 import { type DatabaseClient } from "../database";
-import { alertDriftDetected } from "../services/driftAlerts.js";
-import { applyV2Diffs, type VaultV2Diff } from "../services/v2DriftDetector.js";
+import { MinGasThresholds } from "../services/MinGasThresholds";
+import { type SlackNotifier } from "../services/SlackNotifier";
+import { alertDriftDetected, applyV2Diffs, type VaultV2Diff } from "../services/v2DriftDetector.js";
 import { StrategyV2 } from "../strategies-v2/strategy.js";
 
 import { emitReallocationEvent } from "./events";
@@ -56,6 +57,8 @@ export class ReallocationBotV2 {
   private strategy: StrategyV2;
   private morphoV2Client: MorphoV2Client;
   private dbClient: DatabaseClient;
+  private slack: SlackNotifier;
+  private thresholds: MinGasThresholds;
 
   constructor(
     chainId: number,
@@ -65,6 +68,8 @@ export class ReallocationBotV2 {
     strategy: StrategyV2,
     config: Config,
     dbClient: DatabaseClient,
+    slack: SlackNotifier,
+    thresholds: MinGasThresholds,
   ) {
     this.chainId = chainId;
     this.publicClient = publicClient;
@@ -73,6 +78,8 @@ export class ReallocationBotV2 {
     this.strategy = strategy;
     this.morphoV2Client = new MorphoV2Client(publicClient, config);
     this.dbClient = dbClient;
+    this.slack = slack;
+    this.thresholds = thresholds;
   }
 
   updateStrategy(strategy: StrategyV2) {
@@ -134,7 +141,7 @@ export class ReallocationBotV2 {
             );
           }
 
-          alertDriftDetected({
+          alertDriftDetected(this.slack, {
             chainId: this.chainId,
             vaultAddress: entry.vaultAddress,
             adapterUpdate: drift.adapterChanged
@@ -225,6 +232,11 @@ export class ReallocationBotV2 {
           console.log(
             `V2 reallocated on ${vaultData.vaultAddress} on chain ${chainName}, tx: ${txHash}, status: ${receipt.status}`,
           );
+
+          if (receipt.status === "success") {
+            this.thresholds.record(this.chainId, receipt.gasUsed, receipt.effectiveGasPrice);
+          }
+
           emitReallocationEvent({
             chainId: this.chainId,
             version: "V2",

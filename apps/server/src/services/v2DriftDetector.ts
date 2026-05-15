@@ -15,6 +15,8 @@ import { chainConfigs } from "../config/config";
 import { marketV1CapId } from "../contracts/MorphoV2Client";
 import { type DatabaseClient } from "../database";
 
+import { driftDetectedAlert, type SlackNotifier } from "./SlackNotifier";
+
 /**
  * Diff between the bot's `vault_v2_markets` cache and on-chain state for
  * one V2 vault.
@@ -221,4 +223,37 @@ async function diffOneVault(args: {
     adapterChanged,
     marketsToRemove,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Drift alert dispatch — emits a structured JSON line and a Slack message.
+// Called from `ReallocationBotV2` after `applyV2Diffs`. Severity flips to
+// "critical" when the DB apply failed or when the adapter changed.
+// ---------------------------------------------------------------------------
+
+export interface DriftAlertPayload {
+  chainId: number;
+  vaultAddress: Address;
+  /** What the diff would do — present whether or not the apply succeeded. */
+  adapterUpdate?: { from: Address; to: Address };
+  marketsRemoved: Hex[];
+  /** Populated when the DB write failed; consumer should escalate severity. */
+  applyErrors?: string[];
+}
+
+export function alertDriftDetected(slack: SlackNotifier, payload: DriftAlertPayload): void {
+  const applyFailed = (payload.applyErrors?.length ?? 0) > 0;
+  const severity = applyFailed || payload.adapterUpdate ? "critical" : "warning";
+  console.log(
+    JSON.stringify({
+      evt: "v2_drift_alert",
+      chainId: payload.chainId,
+      vault: payload.vaultAddress,
+      adapterUpdate: payload.adapterUpdate,
+      marketsRemoved: payload.marketsRemoved,
+      applyErrors: payload.applyErrors,
+      severity,
+    }),
+  );
+  void slack.send(driftDetectedAlert(payload));
 }
