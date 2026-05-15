@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, Settings, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { formatEther, parseEther } from "viem";
 
-import type { ChainConfig } from "../lib/api";
+import type { ChainConfig, UpdateChainRequest } from "../lib/api";
 import { api } from "../lib/api";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,25 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-const CHAIN_NAMES: Record<number, string> = {
-  1: "Ethereum",
-  8453: "Base",
-  80094: "Bera",
-  480: "Worldchain",
-  98866: "Plume",
-  130: "Unichain",
-  1868: "Soneium",
-  42161: "Arbitrum",
-  239: "TAC",
-  747474: "Katana",
-  137: "Polygon",
-  1135: "Lisk",
-};
-
 export function ChainManagement() {
   const queryClient = useQueryClient();
   const [editingChain, setEditingChain] = useState<number | null>(null);
   const [intervalValue, setIntervalValue] = useState<number>(300);
+  const [minGasEthValue, setMinGasEthValue] = useState<string>("");
+  const [gasCheckIntervalValue, setGasCheckIntervalValue] = useState<number>(300);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     data: chainsData,
@@ -43,16 +32,12 @@ export function ChainManagement() {
   });
 
   const updateChainMutation = useMutation({
-    mutationFn: ({
-      chainId,
-      data,
-    }: {
-      chainId: number;
-      data: { enabled?: boolean; executionInterval?: number };
-    }) => api.updateChain(chainId, data),
+    mutationFn: ({ chainId, data }: { chainId: number; data: UpdateChainRequest }) =>
+      api.updateChain(chainId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chains"] });
       setEditingChain(null);
+      setFormError(null);
     },
   });
 
@@ -63,18 +48,38 @@ export function ChainManagement() {
     });
   };
 
-  const handleUpdateInterval = (chainId: number) => {
+  const handleSaveEdit = (chainId: number) => {
+    setFormError(null);
+    const data: UpdateChainRequest = {};
+
     if (intervalValue > 0) {
-      updateChainMutation.mutate({
-        chainId,
-        data: { executionInterval: intervalValue },
-      });
+      data.executionInterval = intervalValue;
     }
+    if (gasCheckIntervalValue > 0) {
+      data.gasCheckIntervalSec = gasCheckIntervalValue;
+    }
+
+    const trimmed = minGasEthValue.trim();
+    if (trimmed === "") {
+      data.minGasWei = null;
+    } else {
+      try {
+        data.minGasWei = parseEther(trimmed).toString();
+      } catch {
+        setFormError("Min gas must be a valid number in ETH (e.g. 0.05) or empty to disable");
+        return;
+      }
+    }
+
+    updateChainMutation.mutate({ chainId, data });
   };
 
-  const startEditing = (chainId: number, currentInterval: number) => {
-    setEditingChain(chainId);
-    setIntervalValue(currentInterval);
+  const startEditing = (chain: ChainConfig) => {
+    setEditingChain(chain.chainId);
+    setIntervalValue(chain.executionInterval);
+    setGasCheckIntervalValue(chain.gasCheckIntervalSec);
+    setMinGasEthValue(chain.minGasWei ? formatEther(BigInt(chain.minGasWei)) : "");
+    setFormError(null);
   };
 
   if (isLoading) {
@@ -126,7 +131,7 @@ export function ChainManagement() {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="font-mono text-base px-3 py-1">
-                      {CHAIN_NAMES[chain.chainId] || `Chain ${chain.chainId}`}
+                      {chain.chainName}
                     </Badge>
                     <Badge variant="secondary" className="font-mono">
                       ID: {chain.chainId}
@@ -170,53 +175,92 @@ export function ChainManagement() {
                 </div>
               </div>
 
-              {/* Execution Interval */}
-              <div className="flex items-end gap-4">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor={`interval-${chain.chainId}`} className="text-sm">
-                    Execution Interval (seconds)
-                  </Label>
-                  {editingChain === chain.chainId ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id={`interval-${chain.chainId}`}
-                        type="number"
-                        min="1"
-                        value={intervalValue}
-                        onChange={(e) => setIntervalValue(parseInt(e.target.value))}
-                        className="flex-1"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleUpdateInterval(chain.chainId)}
-                        disabled={updateChainMutation.isPending}
-                      >
-                        {updateChainMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          "Save"
-                        )}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingChain(null)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="px-4 py-2 rounded-md bg-background border font-mono text-sm">
-                        {chain.executionInterval}s
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => startEditing(chain.chainId, chain.executionInterval)}
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  )}
+              {/* Editable settings : Interval, Min Gas, Gas Check Interval */}
+              {editingChain === chain.chainId ? (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor={`interval-${chain.chainId}`} className="text-sm">
+                      Execution Interval (seconds)
+                    </Label>
+                    <Input
+                      id={`interval-${chain.chainId}`}
+                      type="number"
+                      min="1"
+                      value={intervalValue}
+                      onChange={(e) => setIntervalValue(parseInt(e.target.value))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`mingas-${chain.chainId}`} className="text-sm">
+                      Min Gas Balance ({chain.nativeSymbol}){" "}
+                      <span className="text-muted-foreground text-xs">— empty disables alerts</span>
+                    </Label>
+                    <Input
+                      id={`mingas-${chain.chainId}`}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 0.05"
+                      value={minGasEthValue}
+                      onChange={(e) => setMinGasEthValue(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`gasinterval-${chain.chainId}`} className="text-sm">
+                      Gas Check Interval (seconds)
+                    </Label>
+                    <Input
+                      id={`gasinterval-${chain.chainId}`}
+                      type="number"
+                      min="1"
+                      value={gasCheckIntervalValue}
+                      onChange={(e) => setGasCheckIntervalValue(parseInt(e.target.value))}
+                    />
+                  </div>
+                  {formError && <p className="text-sm text-destructive">{formError}</p>}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSaveEdit(chain.chainId)}
+                      disabled={updateChainMutation.isPending}
+                    >
+                      {updateChainMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Save"
+                      )}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingChain(null)}>
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Execution Interval</p>
+                    <div className="px-3 py-2 rounded-md bg-background border font-mono text-sm">
+                      {chain.executionInterval}s
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Min Gas ({chain.nativeSymbol})</p>
+                    <div className="px-3 py-2 rounded-md bg-background border font-mono text-sm">
+                      {chain.minGasWei ? formatEther(BigInt(chain.minGasWei)) : "—"}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Gas Check Interval</p>
+                    <div className="px-3 py-2 rounded-md bg-background border font-mono text-sm">
+                      {chain.gasCheckIntervalSec}s
+                    </div>
+                  </div>
+                  <div className="col-span-3">
+                    <Button size="sm" variant="outline" onClick={() => startEditing(chain)}>
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Vaults List */}
               {chain.vaultWhitelist.length > 0 && (

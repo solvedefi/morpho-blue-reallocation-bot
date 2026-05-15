@@ -12,6 +12,7 @@ import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
 import { getChainName } from "../constants.js";
 import { MorphoClient } from "../contracts/MorphoClient.js";
+import { MinGasThresholds } from "../services/MinGasThresholds";
 import { Strategy } from "../strategies/strategy.js";
 
 export class ReallocationBot {
@@ -22,6 +23,7 @@ export class ReallocationBot {
   private strategy: Strategy;
   private morphoClient: MorphoClient;
   private config: Config;
+  private thresholds: MinGasThresholds;
 
   constructor(
     chainId: number,
@@ -30,6 +32,7 @@ export class ReallocationBot {
     vaultWhitelist: Address[],
     strategy: Strategy,
     config: Config,
+    thresholds: MinGasThresholds,
   ) {
     this.chainId = chainId;
     this.publicClient = publicClient;
@@ -38,6 +41,7 @@ export class ReallocationBot {
     this.strategy = strategy;
     this.morphoClient = new MorphoClient(publicClient, config);
     this.config = config;
+    this.thresholds = thresholds;
   }
 
   /**
@@ -163,6 +167,10 @@ export class ReallocationBot {
           console.log(
             `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
           );
+
+          if (receipt.status === "success") {
+            this.thresholds.record(this.chainId, receipt.gasUsed, receipt.effectiveGasPrice);
+          }
         } catch (err) {
           console.error(`Failed to reallocate on ${vaultData.vaultAddress}`);
 

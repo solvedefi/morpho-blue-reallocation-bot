@@ -50,9 +50,13 @@ export interface WhitelistedVault {
 
 export interface ChainConfig {
   chainId: number;
+  chainName: string;
+  nativeSymbol: string;
   executionInterval: number;
   enabled: boolean;
   vaultWhitelist: WhitelistedVault[];
+  minGasWei: string | null;
+  gasCheckIntervalSec: number;
 }
 
 export interface ChainsResponse {
@@ -63,6 +67,8 @@ export interface ChainsResponse {
 export interface UpdateChainRequest {
   enabled?: boolean;
   executionInterval?: number;
+  minGasWei?: string | null;
+  gasCheckIntervalSec?: number;
 }
 
 export interface AddVaultRequest {

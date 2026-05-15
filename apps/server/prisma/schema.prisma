@@ -55,13 +55,15 @@ model ApyStrategyConfig {
 
 // Chain operational configuration
 model ChainConfig {
-  id                Int              @id @default(autoincrement())
-  chainId           Int              @unique @map("chain_id")
-  executionInterval Int              @map("execution_interval") // in seconds
-  enabled           Boolean          @default(true)
-  createdAt         DateTime         @default(now()) @map("created_at")
-  updatedAt         DateTime         @updatedAt @map("updated_at")
-  vaultWhitelist    VaultWhitelist[]
+  id                  Int              @id @default(autoincrement())
+  chainId             Int              @unique @map("chain_id")
+  executionInterval   Int              @map("execution_interval")
+  enabled             Boolean          @default(true)
+  minGasWei           String?          @map("min_gas_wei")
+  gasCheckIntervalSec Int              @default(300) @map("gas_check_interval_sec")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+  vaultWhitelist      VaultWhitelist[]
 
   @@map("chain_config")
 }

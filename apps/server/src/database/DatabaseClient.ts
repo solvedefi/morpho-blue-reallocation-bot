@@ -2,6 +2,8 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import { Result, ok, err } from "neverthrow";
 import { Address, Hex } from "viem";
 
+import { DEFAULT_MIN_GAS_WEI } from "../constants";
+
 export interface ApyRangeConfig {
   min: number;
   max: number;
@@ -35,6 +37,8 @@ export interface ChainOperationalConfig {
   executionInterval: number; // in seconds
   vaultWhitelist: WhitelistedVault[];
   enabled: boolean;
+  minGasWei: bigint | null;
+  gasCheckIntervalSec: number;
 }
 
 export interface StrategyThresholds {
@@ -430,6 +434,8 @@ export class DatabaseClient {
         chainId: config.chainId,
         executionInterval: config.executionInterval,
         enabled: config.enabled,
+        minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
+        gasCheckIntervalSec: config.gasCheckIntervalSec,
         vaultWhitelist: config.vaultWhitelist.map(
           (v: { vaultAddress: string; vaultName: string | null }) => ({
             address: v.vaultAddress as Address,
@@ -468,6 +474,8 @@ export class DatabaseClient {
             chainId: config.chainId,
             executionInterval: config.executionInterval,
             enabled: config.enabled,
+            minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
+            gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
               (v: { vaultAddress: string; vaultName: string | null }) => ({
                 address: v.vaultAddress as Address,
@@ -506,6 +514,8 @@ export class DatabaseClient {
             chainId: config.chainId,
             executionInterval: config.executionInterval,
             enabled: config.enabled,
+            minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
+            gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
               (v: { vaultAddress: string; vaultName: string | null }) => ({
                 address: v.vaultAddress as Address,
@@ -529,12 +539,14 @@ export class DatabaseClient {
     enabled = true,
   ): Promise<Result<void, Error>> {
     try {
+      const defaultMinGas = DEFAULT_MIN_GAS_WEI[chainId];
       await this.prisma.chainConfig.upsert({
         where: { chainId },
         create: {
           chainId,
           executionInterval,
           enabled,
+          minGasWei: defaultMinGas !== undefined ? defaultMinGas.toString() : null,
         },
         update: {
           executionInterval,
@@ -737,6 +749,37 @@ export class DatabaseClient {
       return ok(undefined);
     } catch (error) {
       return err(new Error(`Failed to update strategy thresholds: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Update chain gas-monitor settings (threshold and/or check interval).
+   * Pass `null` for `minGasWei` to disable monitoring.
+   */
+  async updateChainGasMonitor(
+    chainId: number,
+    update: { minGasWei?: bigint | null; gasCheckIntervalSec?: number },
+  ): Promise<Result<null, Error>> {
+    try {
+      const data: { minGasWei?: string | null; gasCheckIntervalSec?: number } = {};
+      if (update.minGasWei !== undefined) {
+        data.minGasWei = update.minGasWei === null ? null : update.minGasWei.toString();
+      }
+      if (update.gasCheckIntervalSec !== undefined) {
+        data.gasCheckIntervalSec = update.gasCheckIntervalSec;
+      }
+
+      await this.prisma.chainConfig.update({
+        where: { chainId },
+        data,
+      });
+      return ok(null);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to update gas monitor config for chainId ${String(chainId)}: ${String(error)}`,
+        ),
+      );
     }
   }
 

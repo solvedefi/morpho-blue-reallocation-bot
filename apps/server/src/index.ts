@@ -10,7 +10,10 @@ import { chainConfigs, type Config } from "./config";
 import { getChainName } from "./constants";
 import { DatabaseClient, type ChainOperationalConfig } from "./database";
 import { createServer } from "./server";
+import { GasMonitor } from "./services/GasMonitor";
 import { MetadataService } from "./services/MetadataService";
+import { MinGasThresholds } from "./services/MinGasThresholds";
+import { SlackNotifier } from "./services/SlackNotifier";
 import { ApyRange } from "./strategies";
 
 interface RunningBotInfo {
@@ -21,6 +24,8 @@ interface RunningBotInfo {
   startedWithConfig: {
     executionInterval: number;
     vaultWhitelist: Address[];
+    minGasWei: bigint | null;
+    gasCheckIntervalSec: number;
   };
 }
 
@@ -143,6 +148,10 @@ async function main() {
   let apyConfig = apyConfigResult.value;
   logApyConfiguration(apyConfig);
 
+  const slack = new SlackNotifier();
+  const minGasThresholds = new MinGasThresholds();
+  const gasMonitor = new GasMonitor(slack, minGasThresholds);
+
   // Track running bots and their abort controllers
   const runningBots = new Map<number, RunningBotInfo>();
 
@@ -150,11 +159,22 @@ async function main() {
    * Helper function to check if bot config has changed
    */
   const hasConfigChanged = (
-    runningConfig: { executionInterval: number; vaultWhitelist: Address[] },
+    runningConfig: {
+      executionInterval: number;
+      vaultWhitelist: Address[];
+      minGasWei: bigint | null;
+      gasCheckIntervalSec: number;
+    },
     newConfig: ChainOperationalConfig,
   ): boolean => {
     // Check execution interval
     if (runningConfig.executionInterval !== newConfig.executionInterval) {
+      return true;
+    }
+    if (runningConfig.minGasWei !== newConfig.minGasWei) {
+      return true;
+    }
+    if (runningConfig.gasCheckIntervalSec !== newConfig.gasCheckIntervalSec) {
       return true;
     }
 
@@ -203,6 +223,7 @@ async function main() {
       if (!enabledChainIds.has(botChainId)) {
         console.log(`Stopping bot for disabled chain ${getChainName(botChainId)}...`);
         botInfo.abortController.abort();
+        gasMonitor.stop(botChainId);
         runningBots.delete(botChainId);
       }
     }
@@ -229,6 +250,7 @@ async function main() {
 
         // Stop existing bot
         existingBot.abortController.abort();
+        gasMonitor.stop(opConfig.chainId);
         runningBots.delete(opConfig.chainId);
 
         // Start new bot with updated config
@@ -290,12 +312,21 @@ async function main() {
       vaultAddresses,
       strategy,
       infraConfig,
+      minGasThresholds,
     );
 
     const abortController = new AbortController();
     void bot.run();
 
     const botTask = runBotInBackgroundWithAbort(bot, opConfig.executionInterval, abortController);
+
+    gasMonitor.start(
+      opConfig.chainId,
+      publicClient,
+      walletClient.account.address,
+      opConfig.minGasWei,
+      opConfig.gasCheckIntervalSec,
+    );
 
     runningBots.set(opConfig.chainId, {
       bot,
@@ -305,6 +336,8 @@ async function main() {
       startedWithConfig: {
         executionInterval: opConfig.executionInterval,
         vaultWhitelist: vaultAddresses,
+        minGasWei: opConfig.minGasWei,
+        gasCheckIntervalSec: opConfig.gasCheckIntervalSec,
       },
     });
   };
