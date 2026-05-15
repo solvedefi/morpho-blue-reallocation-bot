@@ -65,5 +65,3 @@ export const DEFAULT_MIN_GAS_WEI: Record<number, bigint> = {
   137: 20_000_000_000_000_000_000n, // Polygon: 20 POL
   1135: 1_000_000_000_000_000n, // Lisk: 0.001 ETH
 };
-
-export const TX_GAS_LOG_RETENTION_PER_CHAIN = 50;

@@ -12,6 +12,7 @@ import { DatabaseClient, type ChainOperationalConfig } from "./database";
 import { createServer } from "./server";
 import { GasMonitor } from "./services/GasMonitor";
 import { MetadataService } from "./services/MetadataService";
+import { MinGasThresholds } from "./services/MinGasThresholds";
 import { SlackNotifier } from "./services/SlackNotifier";
 import { ApyRange } from "./strategies";
 
@@ -148,7 +149,8 @@ async function main() {
   logApyConfiguration(apyConfig);
 
   const slack = new SlackNotifier();
-  const gasMonitor = new GasMonitor(slack, dbClient);
+  const minGasThresholds = new MinGasThresholds();
+  const gasMonitor = new GasMonitor(slack, minGasThresholds);
 
   // Track running bots and their abort controllers
   const runningBots = new Map<number, RunningBotInfo>();
@@ -310,8 +312,7 @@ async function main() {
       vaultAddresses,
       strategy,
       infraConfig,
-      dbClient,
-      slack,
+      minGasThresholds,
     );
 
     const abortController = new AbortController();
@@ -319,17 +320,13 @@ async function main() {
 
     const botTask = runBotInBackgroundWithAbort(bot, opConfig.executionInterval, abortController);
 
-    if (opConfig.minGasWei !== null) {
-      gasMonitor.start(
-        opConfig.chainId,
-        publicClient,
-        walletClient.account.address,
-        opConfig.minGasWei,
-        opConfig.gasCheckIntervalSec,
-      );
-    } else {
-      console.log(`Gas monitor disabled for ${getChainName(opConfig.chainId)} (minGasWei not set)`);
-    }
+    gasMonitor.start(
+      opConfig.chainId,
+      publicClient,
+      walletClient.account.address,
+      opConfig.minGasWei,
+      opConfig.gasCheckIntervalSec,
+    );
 
     runningBots.set(opConfig.chainId, {
       bot,

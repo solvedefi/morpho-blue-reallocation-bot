@@ -2,7 +2,7 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import { Result, ok, err } from "neverthrow";
 import { Address, Hex } from "viem";
 
-import { DEFAULT_MIN_GAS_WEI, TX_GAS_LOG_RETENTION_PER_CHAIN } from "../constants";
+import { DEFAULT_MIN_GAS_WEI } from "../constants";
 
 export interface ApyRangeConfig {
   min: number;
@@ -780,69 +780,6 @@ export class DatabaseClient {
           `Failed to update gas monitor config for chainId ${String(chainId)}: ${String(error)}`,
         ),
       );
-    }
-  }
-
-  /**
-   * Record gas usage of a reallocate tx. Trims log to most recent
-   * TX_GAS_LOG_RETENTION_PER_CHAIN entries per chain.
-   */
-  async recordTxGasUsage(
-    chainId: number,
-    txHash: Hex,
-    gasUsed: bigint,
-    gasPrice: bigint,
-    blockNumber: bigint,
-  ): Promise<Result<null, Error>> {
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.txGasLog.create({
-          data: {
-            chainId,
-            txHash,
-            gasUsed: gasUsed.toString(),
-            gasPrice: gasPrice.toString(),
-            blockNumber: blockNumber.toString(),
-          },
-        });
-
-        const keep = await tx.txGasLog.findMany({
-          where: { chainId },
-          orderBy: { createdAt: "desc" },
-          take: TX_GAS_LOG_RETENTION_PER_CHAIN,
-          select: { id: true },
-        });
-        // pruning all gas logs beyond the retention limit
-        await tx.txGasLog.deleteMany({
-          where: {
-            chainId,
-            id: { notIn: keep.map((r: { id: number }) => r.id) },
-          },
-        });
-      });
-      return ok(null);
-    } catch (error) {
-      return err(new Error(`Failed to record tx gas usage: ${String(error)}`));
-    }
-  }
-
-  /**
-   * Get the most recent gas-usage samples for a chain.
-   */
-  async getRecentGasSamples(
-    chainId: number,
-    limit: number,
-  ): Promise<Result<{ gasUsed: bigint }[], Error>> {
-    try {
-      const rows = await this.prisma.txGasLog.findMany({
-        where: { chainId },
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        select: { gasUsed: true },
-      });
-      return ok(rows.map((r: { gasUsed: string }) => ({ gasUsed: BigInt(r.gasUsed) })));
-    } catch (error) {
-      return err(new Error(`Failed to load gas samples: ${String(error)}`));
     }
   }
 

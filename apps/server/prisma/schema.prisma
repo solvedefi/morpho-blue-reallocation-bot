@@ -94,19 +94,6 @@ model StrategyThresholds {
   @@map("strategy_thresholds")
 }
 
-model TxGasLog {
-  id          Int      @id @default(autoincrement())
-  chainId     Int      @map("chain_id")
-  txHash      String   @map("tx_hash") @db.VarChar(66)
-  gasUsed     String   @map("gas_used")
-  gasPrice    String   @map("gas_price")
-  blockNumber String   @map("block_number")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@index([chainId, createdAt])
-  @@map("tx_gas_log")
-}
-
 // Vault-specific strategy threshold overrides
 model VaultStrategyThresholds {
   id                      Int      @id @default(autoincrement())
