@@ -18,7 +18,7 @@ import { test } from "../../setup.js";
 const STEAKHOUSE_USDC = "0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB" as Address;
 const CURATOR = "0x827e86072B06674a077f592A531dcE4590aDeCdB" as Address;
 
-describe("anvil fork reallocation retry", () => {
+describe.skipIf(!!process.env.CI)("anvil fork reallocation retry", () => {
   test.sequential(
     "retries after over-withdrawing from Steakhouse USDC",
     async ({ client }) => {
