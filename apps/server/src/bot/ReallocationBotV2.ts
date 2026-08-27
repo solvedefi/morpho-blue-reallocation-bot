@@ -13,13 +13,14 @@ import { vaultV2Abi } from "../../abis/VaultV2.js";
 import { type Config } from "../config";
 import { getChainName } from "../constants.js";
 import { MorphoV2Client } from "../contracts/MorphoV2Client.js";
-import { Reallocation, ReallocationAction, VaultV2Data } from "../contracts/typesV2";
+import { VaultV2Data } from "../contracts/typesV2";
 import { type DatabaseClient } from "../database";
 import { MinGasThresholds } from "../services/MinGasThresholds";
 import { type SlackNotifier } from "../services/SlackNotifier";
 import { alertDriftDetected, applyV2Diffs, type VaultV2Diff } from "../services/v2DriftDetector.js";
 import { StrategyV2 } from "../strategies-v2/strategy.js";
 
+import { encodeV2Reallocation } from "./encodeV2Reallocation.js";
 import { emitReallocationEvent } from "./events";
 
 /**
@@ -198,7 +199,7 @@ export class ReallocationBotV2 {
           return;
         }
 
-        const calls = encodeReallocation(reallocation);
+        const calls = encodeV2Reallocation(reallocation);
         console.log(
           `V2 reallocating on ${vaultData.vaultAddress} on chain ${chainName} — ${String(reallocation.deallocations.length)} deallocate(s) + ${String(reallocation.allocations.length)} allocate(s)`,
         );
@@ -267,46 +268,6 @@ export class ReallocationBotV2 {
   }
 }
 
-/**
- * Encode a `Reallocation` into the `bytes[]` payload of `VaultV2.multicall`.
- * Order: deallocations first (free up funds), then allocations. Mirrors the
- * upstream template's `encodeReallocation`.
- */
-function encodeReallocation(reallocation: Reallocation): Hex[] {
-  return [
-    ...reallocation.deallocations.map(encodeDeallocation),
-    ...reallocation.allocations.map(encodeAllocation),
-  ];
-}
-
-function encodeAllocation(action: ReallocationAction): Hex {
-  return encodeFunctionData({
-    abi: vaultV2Abi,
-    functionName: "allocate",
-    args: [action.adapterAddress, action.data, action.assets],
-  });
-}
-
-function encodeDeallocation(action: ReallocationAction): Hex {
-  return encodeFunctionData({
-    abi: vaultV2Abi,
-    functionName: "deallocate",
-    args: [action.adapterAddress, action.data, action.assets],
-  });
-}
-
-/**
- * Compare the data we just fetched against the DB-cached entry. Returns a
- * `VaultV2Diff` if drift is present, or `null` if everything matches.
- *
- * Built from data already in hand (no RPC). Two drift kinds are detected:
- *   - adapter swap: `onChainAdapter` differs from `entry.adapterAddress`
- *   - cap removal: any market with `caps.absolute === 0n` was previously
- *     in the DB list but has had its on-chain cap zeroed by the curator
- *
- * Reuses the `VaultV2Diff` shape from `services/v2DriftDetector.ts` so the
- * same `applyV2Diffs` function persists the result.
- */
 function detectDrift(
   chainId: number,
   entry: V2VaultEntry,
