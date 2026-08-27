@@ -1,0 +1,13 @@
+import { type Address, type Hex } from "viem";
+
+export const GAUNTLET_USDC_PRIME = "0x8c106EEDAd96553e64287A5A6839c3Cc78afA3D0" as Address;
+export const GAUNTLET_USDC_ADAPTER = "0xDF62f57Ea333a842Db200d4892c90F98204fa22F" as Address;
+export const GAUNTLET_USDC_ALLOCATOR = "0x9E33faAE38ff641094fa68c65c2cE600b3410585" as Address;
+
+export const GAUNTLET_USDC_MARKET_IDS: Hex[] = [
+  "0x64d65c9a2d91c36d56fbc42d69e979335320169b3df63bf92789e2c8883fcc64",
+  "0x3a85e619751152991742810df6ec69ce473daef99e28a64ab2340d7b7ccfee49",
+  "0xb323495f7e4148be5643a4ea4a8221eef163e4bccfdedc2a6f4696baacbc86cc",
+  "0x7e585a933ffe8443c371b4f8cfeb4430f5f6a14c2f32a898c26662c67a1cb8b8",
+  "0x94b823e6bd8ea533b4e33fbc307faea0b307301bc48763acc4d4aa4def7636cd",
+];
