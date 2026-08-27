@@ -108,6 +108,15 @@ VAULT_WHITELIST_1=0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183,0x8eB67A509616cd6A7
 EXECUTION_INTERVAL_1=900
 ```
 
+**Retry policy (optional, global):**
+
+- `REALLOC_RETRY_MAX_ATTEMPTS` (default `4`)
+- `REALLOC_RETRY_HAIRCUTS` (default `1,0.85,0.7,0.55`)
+- `REALLOC_RETRY_USAGE_THRESHOLD` (default `0.97`)
+- `REALLOC_RETRY_LARGE_WITHDRAWAL_RATIO` (default `0.03`)
+- `REALLOC_RETRY_IDLE_FLOOR_RATIO` (default `0.01`)
+- `REALLOC_RETRY_DELAY_SECONDS` (default `1`)
+
 ### Strategies config
 
 Some strategies require some chains and vaults specific configutation.

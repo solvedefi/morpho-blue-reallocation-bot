@@ -16,7 +16,10 @@ apps/server/
 │   ├── index.ts                 # Main entry point - starts server & bots
 │   ├── server.ts                # HTTP API (Hono)
 │   ├── bot/
-│   │   └── ReallocationBot.ts   # Bot orchestration
+│   │   ├── ReallocationBot.ts   # Bot orchestration
+│   │   ├── conservativeRetry.ts # Conservative replan on liquidity failures
+│   │   ├── retryPolicy.ts       # Retry env configuration
+│   │   └── simulateWithRetry.ts # Simulation retry loop
 │   ├── contracts/
 │   │   ├── MorphoClient.ts      # Blockchain client
 │   │   ├── helpers.ts           # IRM calculations
@@ -55,6 +58,18 @@ Configuration management endpoints:
 - Executes reallocation strategies automatically
 - Supports hot-reload of configuration changes
 - Runs on configurable intervals per chain
+- Retries failed liquidity simulations with conservative replanning before sending transactions
+
+#### Retry configuration (optional)
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `REALLOC_RETRY_MAX_ATTEMPTS` | `4` | Maximum simulation attempts per vault run |
+| `REALLOC_RETRY_HAIRCUTS` | `1,0.85,0.7,0.55` | Withdrawal haircuts per attempt |
+| `REALLOC_RETRY_USAGE_THRESHOLD` | `0.97` | Market utilization above which withdrawals are haircut |
+| `REALLOC_RETRY_LARGE_WITHDRAWAL_RATIO` | `0.03` | Withdrawals above this vault share are haircut |
+| `REALLOC_RETRY_IDLE_FLOOR_RATIO` | `0.01` | Minimum idle liquidity target after retry |
+| `REALLOC_RETRY_DELAY_SECONDS` | `1` | Delay between retry attempts |
 
 ### 3. Database Integration
 
