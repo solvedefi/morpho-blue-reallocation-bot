@@ -1,5 +1,7 @@
 import { formatEther, type Address } from "viem";
 
+import type { DriftAlertPayload } from "./v2DriftDetector";
+
 const SLACK_FETCH_TIMEOUT_MS = 5_000;
 
 export class SlackNotifier {
@@ -123,6 +125,48 @@ export function recoveryAlert(ctx: GasAlertContext): SlackMessage {
       detailsSection(ctx, null),
       divider(),
       contextLine(":sparkles: Reallocations are running normally again."),
+    ],
+  };
+}
+
+/**
+ * V2 cap-drift alert — fires whenever the bot's DB cache diverges from the
+ * on-chain caps on a V2 vault. Severity flips to "critical" when the DB
+ * write failed (the bot is operating on stale state).
+ */
+export function driftDetectedAlert(payload: DriftAlertPayload): SlackMessage {
+  const applyFailed = (payload.applyErrors?.length ?? 0) > 0;
+  const emoji = applyFailed ? ":rotating_light:" : ":warning:";
+  const title = applyFailed
+    ? "V2 drift detected — DB apply FAILED"
+    : "V2 drift detected (auto-applied)";
+
+  const lines = [`*Chain:* \`${String(payload.chainId)}\``, `*Vault:* \`${payload.vaultAddress}\``];
+  if (payload.adapterUpdate) {
+    lines.push(
+      `*Adapter:* \`${shortAddress(payload.adapterUpdate.from)}\` → \`${shortAddress(payload.adapterUpdate.to)}\``,
+    );
+  }
+  if (payload.marketsRemoved.length > 0) {
+    lines.push(`*Markets removed (cap → 0):* ${String(payload.marketsRemoved.length)}`);
+    for (const id of payload.marketsRemoved) lines.push(`  • \`${id}\``);
+  }
+  if (applyFailed) {
+    lines.push(`*Apply errors:*`);
+    for (const e of payload.applyErrors ?? []) lines.push(`  • \`${e}\``);
+  }
+
+  return {
+    text: `${emoji} ${title} — chain ${String(payload.chainId)} vault ${shortAddress(payload.vaultAddress)}`,
+    blocks: [
+      header(`${emoji} ${title}`),
+      { type: "section", text: { type: "mrkdwn", text: lines.join("\n") } },
+      divider(),
+      contextLine(
+        applyFailed
+          ? ":arrow_up: *Action required* — the bot's view of the vault is stale; fix the DB write before the next tick reallocates."
+          : ":information_source: Bot auto-applied the on-chain state to its DB cache. No action needed unless this repeats.",
+      ),
     ],
   };
 }

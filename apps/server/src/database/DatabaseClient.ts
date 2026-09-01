@@ -27,9 +27,19 @@ export interface ApyConfiguration {
   defaultMaxApy: number;
 }
 
+export type VaultVersion = "V1" | "V2";
+
 export interface WhitelistedVault {
   address: Address;
   name?: string | null;
+  vaultVersion: VaultVersion;
+}
+
+export interface V2VaultEntryRow {
+  chainId: number;
+  vaultAddress: Address;
+  adapterAddress: Address;
+  marketIds: Hex[];
 }
 
 export interface ChainOperationalConfig {
@@ -437,9 +447,10 @@ export class DatabaseClient {
         minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
         gasCheckIntervalSec: config.gasCheckIntervalSec,
         vaultWhitelist: config.vaultWhitelist.map(
-          (v: { vaultAddress: string; vaultName: string | null }) => ({
+          (v: { vaultAddress: string; vaultName: string | null; vaultVersion: string }) => ({
             address: v.vaultAddress as Address,
             name: v.vaultName,
+            vaultVersion: v.vaultVersion === "V2" ? ("V2" as const) : ("V1" as const),
           }),
         ),
       });
@@ -477,9 +488,10 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null }) => ({
+              (v: { vaultAddress: string; vaultName: string | null; vaultVersion: string }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
+                vaultVersion: v.vaultVersion === "V2" ? ("V2" as const) : ("V1" as const),
               }),
             ),
           }),
@@ -517,9 +529,10 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null }) => ({
+              (v: { vaultAddress: string; vaultName: string | null; vaultVersion: string }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
+                vaultVersion: v.vaultVersion === "V2" ? ("V2" as const) : ("V1" as const),
               }),
             ),
           }),
@@ -527,6 +540,123 @@ export class DatabaseClient {
       );
     } catch (error) {
       return err(new Error(`Failed to get all chain configs: ${String(error)}`));
+    }
+  }
+
+  /**
+   * Get V2 vault entries (vault + adapter + curated market list) for a chain.
+   * Each row from `vault_v2_markets` is grouped by vault address.
+   */
+  async getV2VaultMarkets(chainId: number): Promise<Result<V2VaultEntryRow[], Error>> {
+    try {
+      const rows = await this.prisma.vaultV2Markets.findMany({
+        where: { chainId },
+        orderBy: [{ vaultAddress: "asc" }, { marketId: "asc" }],
+      });
+
+      const grouped = new Map<string, V2VaultEntryRow>();
+      for (const row of rows) {
+        const key = row.vaultAddress;
+        const existing = grouped.get(key);
+        if (existing) {
+          existing.marketIds.push(row.marketId as Hex);
+        } else {
+          grouped.set(key, {
+            chainId: row.chainId,
+            vaultAddress: row.vaultAddress as Address,
+            adapterAddress: row.adapterAddress as Address,
+            marketIds: [row.marketId as Hex],
+          });
+        }
+      }
+      return ok([...grouped.values()]);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to load V2 vault markets for chainId ${String(chainId)}: ${String(error)}`,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Remove a market row from a V2 vault's curated list.
+   *
+   * NOT exposed via HTTP — only callable from operational tooling
+   * (`apps/server/scripts/sync-v2-markets.ts`). Hand-editing the cache
+   * via API would let the bot diverge from on-chain caps without
+   * surfacing the divergence; the sync CLI guarantees a diff is shown
+   * + applied atomically.
+   */
+  async removeV2VaultMarket(
+    chainId: number,
+    vaultAddress: Address,
+    marketId: Hex,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultV2Markets.delete({
+        where: { chainId_vaultAddress_marketId: { chainId, vaultAddress, marketId } },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to remove V2 market ${marketId} for vault ${vaultAddress}: ${String(error)}`,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Add a (vault, market) row to `vault_v2_markets`. Callers MUST validate
+   * the on-chain cap before invoking this — the HTTP endpoint at
+   * `POST /chains/:chainId/v2-markets` reads `vault.absoluteCap(capId)` and
+   * rejects with 0; that read-back is what makes the DB physically
+   * incapable of holding a market the vault wouldn't permit.
+   */
+  async addV2VaultMarket(
+    chainId: number,
+    vaultAddress: Address,
+    adapterAddress: Address,
+    marketId: Hex,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultV2Markets.upsert({
+        where: { chainId_vaultAddress_marketId: { chainId, vaultAddress, marketId } },
+        create: { chainId, vaultAddress, adapterAddress, marketId },
+        update: { adapterAddress },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to add V2 market ${marketId} for vault ${vaultAddress}: ${String(error)}`,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Update the adapter address on every market row of a V2 vault. Used by
+   * the sync CLI when the on-chain adapter has changed (rare).
+   */
+  async updateV2VaultAdapter(
+    chainId: number,
+    vaultAddress: Address,
+    newAdapterAddress: Address,
+  ): Promise<Result<void, Error>> {
+    try {
+      await this.prisma.vaultV2Markets.updateMany({
+        where: { chainId, vaultAddress },
+        data: { adapterAddress: newAdapterAddress },
+      });
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new Error(
+          `Failed to update adapter for V2 vault ${vaultAddress} on chain ${String(chainId)}: ${String(error)}`,
+        ),
+      );
     }
   }
 
@@ -568,16 +698,11 @@ export class DatabaseClient {
     chainId: number,
     vaultAddress: Address,
     vaultName: string,
+    vaultVersion: VaultVersion = "V1",
   ): Promise<Result<void, Error>> {
     try {
-      // Check if the vault already exists and is enabled
       const existingVault = await this.prisma.vaultWhitelist.findUnique({
-        where: {
-          chainId_vaultAddress: {
-            chainId,
-            vaultAddress,
-          },
-        },
+        where: { chainId_vaultAddress: { chainId, vaultAddress } },
       });
 
       if (existingVault?.enabled) {
@@ -585,22 +710,9 @@ export class DatabaseClient {
       }
 
       await this.prisma.vaultWhitelist.upsert({
-        where: {
-          chainId_vaultAddress: {
-            chainId,
-            vaultAddress,
-          },
-        },
-        create: {
-          chainId,
-          vaultAddress,
-          vaultName,
-          enabled: true,
-        },
-        update: {
-          enabled: true,
-          vaultName,
-        },
+        where: { chainId_vaultAddress: { chainId, vaultAddress } },
+        create: { chainId, vaultAddress, vaultName, vaultVersion, enabled: true },
+        update: { enabled: true, vaultName, vaultVersion },
       });
       return ok(undefined);
     } catch (error) {

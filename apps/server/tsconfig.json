@@ -9,6 +9,6 @@
     "noEmit": false,
     "baseUrl": "."
   },
-  "include": ["src/**/*", "abis/**/*", "test/**/*"],
+  "include": ["src/**/*", "abis/**/*", "test/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"]
 }

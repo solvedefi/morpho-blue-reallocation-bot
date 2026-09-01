@@ -4,10 +4,16 @@ import { join } from "node:path";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { zValidator } from "@hono/zod-validator";
 import { Hono, Context } from "hono";
-import { isAddress, isHex, type Address, type Hex } from "viem";
+import { createPublicClient, http, isAddress, isHex, type Address, type Hex } from "viem";
+import { readContract } from "viem/actions";
 import { z } from "zod";
 
+import { morphoBlueAbi } from "../abis/MorphoBlue";
+import { vaultV2Abi } from "../abis/VaultV2";
+
+import { chainConfigs } from "./config";
 import { getChainName, getNativeSymbol } from "./constants";
+import { marketV1CapId } from "./contracts/MorphoV2Client";
 import { DatabaseClient } from "./database";
 import { MetadataService } from "./services/MetadataService";
 
@@ -94,6 +100,16 @@ const updateChainSchema = z
 const addVaultToWhitelistSchema = z.object({
   vaultAddress: z.string().refine((val) => isAddress(val), {
     message: "Invalid Ethereum address",
+  }),
+  vaultVersion: z.enum(["V1", "V2"]).default("V1"),
+});
+
+const addV2MarketSchema = z.object({
+  vaultAddress: z.string().refine((val) => isAddress(val), {
+    message: "Invalid Ethereum address",
+  }),
+  marketId: z.string().refine((val) => isHex(val) && val.length === 66, {
+    message: "Invalid market ID (must be 32-byte hex)",
   }),
 });
 
@@ -510,7 +526,7 @@ export function createServer(
 
   app.post("/chains/:chainId/vaults", zValidator("json", addVaultToWhitelistSchema), async (c) => {
     const chainId = parseInt(c.req.param("chainId"));
-    const { vaultAddress } = c.req.valid("json");
+    const { vaultAddress, vaultVersion } = c.req.valid("json");
 
     if (isNaN(chainId)) {
       return c.json(
@@ -542,7 +558,12 @@ export function createServer(
     const vaultName = vaultNameResult.value;
     console.log(`Fetched vault name for ${vaultAddress} on chain ${String(chainId)}:`, vaultName);
 
-    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address, vaultName);
+    const result = await dbClient.addVaultToWhitelist(
+      chainId,
+      vaultAddress as Address,
+      vaultName,
+      vaultVersion,
+    );
 
     if (result.isErr()) {
       console.error("Error adding vault to whitelist:", result.error);
@@ -572,6 +593,7 @@ export function createServer(
         chainId,
         vaultAddress,
         vaultName,
+        vaultVersion,
       },
     });
   });
@@ -676,6 +698,145 @@ export function createServer(
       });
     },
   );
+
+  // ---- V2 vault market list (read-only) ----
+  // Source of truth for "which markets is the V2 vault allowed to use" is
+  // the on-chain caps map; this endpoint exposes our cached view of that
+  // (the rows seeded into `vault_v2_markets` and consumed by the V2 bot).
+  app.get("/chains/:chainId/v2-markets", async (c) => {
+    const chainId = parseInt(c.req.param("chainId"));
+    if (isNaN(chainId)) {
+      return c.json({ success: false, error: "Invalid chain ID" }, 400);
+    }
+    const result = await dbClient.getV2VaultMarkets(chainId);
+    if (result.isErr()) {
+      console.error("Error loading V2 vault markets:", result.error);
+      return c.json({ success: false, error: "Failed to load V2 vault markets" }, 500);
+    }
+    return c.json({ success: true, data: result.value });
+  });
+
+  // Add a market to a V2 vault's curated list. Validates against the on-chain cap before inserting.
+  // Endpoint introduced since we don't index the chain and cannot use V2 contract to read the cap (in case of new cap for vaults)
+  app.post("/chains/:chainId/v2-markets", zValidator("json", addV2MarketSchema), async (c) => {
+    const chainId = parseInt(c.req.param("chainId"));
+    if (isNaN(chainId)) {
+      return c.json({ success: false, error: "Invalid chain ID" }, 400);
+    }
+
+    const { vaultAddress, marketId } = c.req.valid("json");
+    const vault = vaultAddress as Address;
+    const market = marketId as Hex;
+
+    const infraConfig = chainConfigs[chainId];
+    if (!infraConfig) {
+      return c.json({ success: false, error: `Chain ${String(chainId)} not configured` }, 400);
+    }
+
+    const rpcUrl =
+      process.env[`RPC_URL_${String(chainId)}`] ?? infraConfig.chain.rpcUrls.default.http[0];
+    const publicClient = createPublicClient({ chain: infraConfig.chain, transport: http(rpcUrl) });
+
+    // Single-adapter assumption: Re7 V2 vaults run one MorphoMarketV1AdapterV2.
+    // If a vault has multiple adapters this picks adapters[0]; the cap read
+    // below would then fail for markets capped under any other adapter.
+    let adapterAddress: Address;
+    try {
+      adapterAddress = await readContract(publicClient, {
+        address: vault,
+        abi: vaultV2Abi,
+        functionName: "adapters",
+        args: [0n],
+      });
+    } catch (error) {
+      console.error(`POST /v2-markets: failed to read adapter for ${vault}:`, error);
+      return c.json(
+        {
+          success: false,
+          error: `Could not read adapter for vault ${vault} — confirm it's a V2 vault on chain ${String(chainId)}.`,
+        },
+        400,
+      );
+    }
+
+    let paramsTuple: readonly [Address, Address, Address, Address, bigint];
+    try {
+      paramsTuple = await readContract(publicClient, {
+        address: infraConfig.morpho,
+        abi: morphoBlueAbi,
+        functionName: "idToMarketParams",
+        args: [market],
+      });
+    } catch (error) {
+      console.error(`POST /v2-markets: idToMarketParams failed for ${market}:`, error);
+      return c.json({ success: false, error: "Failed to read market params from MorphoBlue" }, 500);
+    }
+
+    const params = {
+      loanToken: paramsTuple[0],
+      collateralToken: paramsTuple[1],
+      oracle: paramsTuple[2],
+      irm: paramsTuple[3],
+      lltv: paramsTuple[4],
+    };
+
+    // MorphoBlue returns the zero tuple for unknown market IDs (no revert).
+    // Reject before doing anything else.
+    if (params.loanToken === "0x0000000000000000000000000000000000000000") {
+      return c.json(
+        {
+          success: false,
+          error: `Market ${market} does not exist on MorphoBlue (chain ${String(chainId)}).`,
+        },
+        400,
+      );
+    }
+
+    const capId = marketV1CapId(params, adapterAddress);
+    let absoluteCap: bigint;
+    try {
+      absoluteCap = await readContract(publicClient, {
+        address: vault,
+        abi: vaultV2Abi,
+        functionName: "absoluteCap",
+        args: [capId],
+      });
+    } catch (error) {
+      console.error(`POST /v2-markets: absoluteCap read failed for ${vault}:`, error);
+      return c.json({ success: false, error: "Failed to read cap from V2 vault" }, 500);
+    }
+
+    if (absoluteCap === 0n) {
+      return c.json(
+        {
+          success: false,
+          error: `Vault ${vault} has no cap for market ${market} (absoluteCap == 0). Ask the curator to set a cap on-chain first.`,
+        },
+        400,
+      );
+    }
+
+    const insertResult = await dbClient.addV2VaultMarket(chainId, vault, adapterAddress, market);
+    if (insertResult.isErr()) {
+      console.error("POST /v2-markets: insert failed:", insertResult.error);
+      return c.json({ success: false, error: insertResult.error.message }, 500);
+    }
+
+    if (onConfigChange) {
+      await onConfigChange();
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        chainId,
+        vaultAddress: vault,
+        adapterAddress,
+        marketId: market,
+        absoluteCap: absoluteCap.toString(),
+      },
+    });
+  });
 
   app.get("/health", (c) => {
     return c.json({ status: "ok", timestamp: new Date().toISOString() });

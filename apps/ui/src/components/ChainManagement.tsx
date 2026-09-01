@@ -6,6 +6,8 @@ import { formatEther, parseEther } from "viem";
 import type { ChainConfig, UpdateChainRequest } from "../lib/api";
 import { api } from "../lib/api";
 
+import { V2VaultMarketsControl } from "./V2VaultMarketsControl";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,7 +171,9 @@ export function ChainManagement() {
                   </div>
                   <Switch
                     checked={chain.enabled}
-                    onCheckedChange={() => handleToggleEnabled(chain.chainId, chain.enabled)}
+                    onCheckedChange={() => {
+                      handleToggleEnabled(chain.chainId, chain.enabled);
+                    }}
                     disabled={updateChainMutation.isPending}
                   />
                 </div>
@@ -187,7 +191,9 @@ export function ChainManagement() {
                       type="number"
                       min="1"
                       value={intervalValue}
-                      onChange={(e) => setIntervalValue(parseInt(e.target.value))}
+                      onChange={(e) => {
+                        setIntervalValue(parseInt(e.target.value));
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -201,7 +207,9 @@ export function ChainManagement() {
                       inputMode="decimal"
                       placeholder="e.g. 0.05"
                       value={minGasEthValue}
-                      onChange={(e) => setMinGasEthValue(e.target.value)}
+                      onChange={(e) => {
+                        setMinGasEthValue(e.target.value);
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
@@ -213,14 +221,18 @@ export function ChainManagement() {
                       type="number"
                       min="1"
                       value={gasCheckIntervalValue}
-                      onChange={(e) => setGasCheckIntervalValue(parseInt(e.target.value))}
+                      onChange={(e) => {
+                        setGasCheckIntervalValue(parseInt(e.target.value));
+                      }}
                     />
                   </div>
                   {formError && <p className="text-sm text-destructive">{formError}</p>}
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
-                      onClick={() => handleSaveEdit(chain.chainId)}
+                      onClick={() => {
+                        handleSaveEdit(chain.chainId);
+                      }}
                       disabled={updateChainMutation.isPending}
                     >
                       {updateChainMutation.isPending ? (
@@ -229,7 +241,13 @@ export function ChainManagement() {
                         "Save"
                       )}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingChain(null)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingChain(null);
+                      }}
+                    >
                       Cancel
                     </Button>
                   </div>
@@ -272,7 +290,24 @@ export function ChainManagement() {
                         key={vault.address}
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors pl-2"
                       >
-                        • {vault.name ? `${vault.name} (${vault.address})` : vault.address}
+                        <div className="flex items-center gap-2">
+                          <span>•</span>
+                          <Badge
+                            variant={vault.vaultVersion === "V2" ? "default" : "secondary"}
+                            className="font-mono text-[10px] h-4 px-1.5"
+                          >
+                            {vault.vaultVersion}
+                          </Badge>
+                          <span>
+                            {vault.name ? `${vault.name} (${vault.address})` : vault.address}
+                          </span>
+                        </div>
+                        {vault.vaultVersion === "V2" && (
+                          <V2VaultMarketsControl
+                            chainId={chain.chainId}
+                            vaultAddress={vault.address}
+                          />
+                        )}
                       </li>
                     ))}
                   </ul>
