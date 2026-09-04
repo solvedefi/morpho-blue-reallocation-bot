@@ -6,7 +6,7 @@ import {
   type Client,
   type Transport,
 } from "viem";
-import { sendTransaction, simulateContract, waitForTransactionReceipt } from "viem/actions";
+import { sendTransaction, waitForTransactionReceipt } from "viem/actions";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
@@ -14,6 +14,13 @@ import { getChainName } from "../constants.js";
 import { MorphoClient } from "../contracts/MorphoClient.js";
 import { MinGasThresholds } from "../services/MinGasThresholds";
 import { Strategy } from "../strategies/strategy.js";
+import { VaultData } from "../utils/types";
+
+import { isLiquiditySimulationFailure } from "./liquidityErrors";
+import { toReallocateArgs } from "./reallocateArgs";
+import { loadRetryPolicyFromEnv } from "./retryPolicy";
+import { simulateReallocateWithRetry } from "./simulateWithRetry";
+import { withVaultRunLock } from "./vaultRunLock";
 
 export class ReallocationBot {
   private chainId: number;
@@ -24,6 +31,7 @@ export class ReallocationBot {
   private morphoClient: MorphoClient;
   private config: Config;
   private thresholds: MinGasThresholds;
+  private retryPolicy = loadRetryPolicyFromEnv();
 
   constructor(
     chainId: number,
@@ -78,124 +86,116 @@ export class ReallocationBot {
     }
 
     await Promise.all(
-      vaultsData.map(async (vaultData) => {
-        const reallocationResult = await this.strategy.findReallocation(vaultData);
-
-        // Handle error case - filter out errors
-
-        if (reallocationResult.isErr()) {
-          console.error(
-            `Failed to find reallocation for vault ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}:`,
-          );
-          console.error(reallocationResult.error);
-          return;
-        }
-
-        // Extract reallocation (safe after isErr() check)
-
-        const reallocation = reallocationResult.value;
-
-        if (!reallocation) {
-          console.log(
-            `No reallocation found on ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}`,
-          );
-          return;
-        }
-
-        console.log(`Reallocating on ${vaultData.vaultAddress}`);
-
-        try {
-          // Simulate transaction first to catch errors before sending
-          console.log(
-            `Simulating reallocation for ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}...`,
-          );
-
-          await simulateContract(this.publicClient, {
-            address: vaultData.vaultAddress,
-            abi: metaMorphoAbi,
-            functionName: "reallocate",
-            // Type assertion needed due to viem's strict readonly type inference from ABI
-            args: [reallocation] as unknown as readonly [
-              readonly {
-                marketParams: {
-                  loanToken: `0x${string}`;
-                  collateralToken: `0x${string}`;
-                  oracle: `0x${string}`;
-                  irm: `0x${string}`;
-                  lltv: bigint;
-                };
-                assets: bigint;
-              }[],
-            ],
-            account: this.walletClient.account,
-          });
-
-          console.log(
-            `Simulation successful for ${vaultData.vaultAddress}, executing transaction...`,
-          );
-
-          // Execute transaction
-          const calldata = encodeFunctionData({
-            abi: metaMorphoAbi,
-            functionName: "reallocate",
-            // Type assertion needed due to viem's strict readonly type inference from ABI
-            args: [reallocation] as unknown as readonly [
-              readonly {
-                marketParams: {
-                  loanToken: `0x${string}`;
-                  collateralToken: `0x${string}`;
-                  oracle: `0x${string}`;
-                  irm: `0x${string}`;
-                  lltv: bigint;
-                };
-                assets: bigint;
-              }[],
-            ],
-          });
-
-          const txHash = await sendTransaction(this.walletClient, {
-            to: vaultData.vaultAddress,
-            data: calldata,
-          });
-
-          console.log(
-            `Transaction sent for ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
-          );
-          const receipt = await waitForTransactionReceipt(this.publicClient, {
-            hash: txHash,
-          });
-          console.log(
-            `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
-          );
-
-          if (receipt.status === "success") {
-            this.thresholds.record(this.chainId, receipt.gasUsed, receipt.effectiveGasPrice);
-          }
-        } catch (err) {
-          console.error(`Failed to reallocate on ${vaultData.vaultAddress}`);
-
-          if (err instanceof Error) {
-            const errorMessage = err.message;
-
-            // Log specific Morpho contract errors
-            if (errorMessage.includes("NotAllocatorRole")) {
-              console.error("Error: The account is not an allocator for this vault");
-            } else if (errorMessage.includes("InconsistentReallocation")) {
-              console.error(
-                "Error: Reallocation amounts are inconsistent (withdrawals != deposits)",
-              );
-            } else if (errorMessage.includes("NotEnoughLiquidity")) {
-              console.error("Error: Not enough liquidity in one of the markets");
-            } else if (errorMessage.includes("MarketNotEnabled")) {
-              console.error("Error: One of the markets is not enabled for this vault");
-            } else if (errorMessage.includes("SupplyCapExceeded")) {
-              console.error("Error: Supply cap would be exceeded");
-            }
-          }
-
-          console.error("Reallocation error:", err);
-        }
-      }),
+      vaultsData.map((vaultData) =>
+        withVaultRunLock(vaultData.vaultAddress, () => this.reallocateVault(vaultData)),
+      ),
     );
+  }
+
+  private async reallocateVault(vaultData: VaultData) {
+    const reallocationResult = await this.strategy.findReallocation(vaultData);
+
+    // Handle error case - filter out errors
+
+    if (reallocationResult.isErr()) {
+      console.error(
+        `Failed to find reallocation for vault ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}:`,
+      );
+      console.error(reallocationResult.error);
+      return;
+    }
+
+    // Extract reallocation (safe after isErr() check)
+
+    const initialReallocation = reallocationResult.value;
+
+    if (!initialReallocation) {
+      console.log(
+        `No reallocation found on ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}`,
+      );
+      return;
+    }
+
+    console.log(`Reallocating on ${vaultData.vaultAddress}`);
+
+    try {
+      // Simulate transaction first to catch errors before sending
+      console.log(
+        `Simulating reallocation for ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}...`,
+      );
+
+      const simulation = await simulateReallocateWithRetry(
+        this.publicClient,
+        vaultData.vaultAddress,
+        this.walletClient.account,
+        initialReallocation,
+        vaultData,
+        this.retryPolicy,
+      );
+
+      if (!simulation) {
+        console.error(`Simulation failed for ${vaultData.vaultAddress} after all retry attempts`);
+        return;
+      }
+
+      const { allocations: reallocation, attempt } = simulation;
+      if (attempt > 1) {
+        console.log(
+          `Simulation succeeded for ${vaultData.vaultAddress} on attempt ${String(attempt)}/${String(this.retryPolicy.maxAttempts)}`,
+        );
+      } else {
+        console.log(
+          `Simulation successful for ${vaultData.vaultAddress}, executing transaction...`,
+        );
+      }
+
+      // Execute transaction
+      const calldata = encodeFunctionData({
+        abi: metaMorphoAbi,
+        functionName: "reallocate",
+        // Type assertion needed due to viem's strict readonly type inference from ABI
+        args: toReallocateArgs(reallocation),
+      });
+
+      const txHash = await sendTransaction(this.walletClient, {
+        to: vaultData.vaultAddress,
+        data: calldata,
+      });
+
+      console.log(
+        `Transaction sent for ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}`,
+      );
+      const receipt = await waitForTransactionReceipt(this.publicClient, {
+        hash: txHash,
+      });
+      console.log(
+        `Reallocated on ${vaultData.vaultAddress}, on chain ${getChainName(this.chainId)}, tx: ${txHash}, status: ${receipt.status}`,
+      );
+
+      if (receipt.status === "success") {
+        this.thresholds.record(this.chainId, receipt.gasUsed, receipt.effectiveGasPrice);
+      }
+    } catch (err) {
+      console.error(`Failed to reallocate on ${vaultData.vaultAddress}`);
+
+      if (err instanceof Error) {
+        const errorMessage = err.message;
+
+        // Log specific Morpho contract errors
+        if (errorMessage.includes("NotAllocatorRole")) {
+          console.error("Error: The account is not an allocator for this vault");
+        } else if (errorMessage.includes("InconsistentReallocation")) {
+          console.error("Error: Reallocation amounts are inconsistent (withdrawals != deposits)");
+        } else if (isLiquiditySimulationFailure(err)) {
+          console.error("Error: Not enough liquidity in one of the markets after retries");
+        } else if (errorMessage.includes("MarketNotEnabled")) {
+          console.error("Error: One of the markets is not enabled for this vault");
+        } else if (errorMessage.includes("SupplyCapExceeded")) {
+          console.error("Error: Supply cap would be exceeded");
+        }
+      }
+
+      console.error("Reallocation error:", err);
+    }
   }
 }
