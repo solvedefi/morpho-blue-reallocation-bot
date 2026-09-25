@@ -31,6 +31,12 @@ services:
       - "80:80"
     volumes:
       - ~/.aws:/root/.aws:ro
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: "eu-west-2"
+        awslogs-group: "reallocation-bot"
+        awslogs-stream: "app"
 
 volumes:
   postgres_data:
