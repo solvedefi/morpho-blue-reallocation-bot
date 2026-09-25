@@ -25,6 +25,7 @@ services:
     restart: unless-stopped
     environment:
       PORT: 80
+      DATABASE_URL: postgresql://morpho_user:morpho_password@postgres:5432/morpho_bot
     env_file:
       - .env
     ports:
