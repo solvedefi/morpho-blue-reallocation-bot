@@ -46,6 +46,7 @@ export interface UpdateStrategyRequest {
 export interface WhitelistedVault {
   address: string;
   name: string;
+  type: string;
 }
 
 export interface ChainConfig {
@@ -69,10 +70,6 @@ export interface UpdateChainRequest {
   executionInterval?: number;
   minGasWei?: string | null;
   gasCheckIntervalSec?: number;
-}
-
-export interface AddVaultRequest {
-  vaultAddress: string;
 }
 
 export interface UpdateVaultStatusRequest {
@@ -152,30 +149,6 @@ export const api = {
     if (!response.ok) {
       const error = (await response.json()) as ErrorResponse;
       throw new Error(error.error ?? "Failed to update chain");
-    }
-    return response.json() as Promise<SuccessResponse>;
-  },
-
-  async addVaultToWhitelist(chainId: number, data: AddVaultRequest): Promise<SuccessResponse> {
-    const response = await fetch(`/chains/${String(chainId)}/vaults`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = (await response.json()) as ErrorResponse;
-      throw new Error(error.error ?? "Failed to add vault");
-    }
-    return response.json() as Promise<SuccessResponse>;
-  },
-
-  async removeVaultFromWhitelist(chainId: number, vaultAddress: string): Promise<SuccessResponse> {
-    const response = await fetch(`/chains/${String(chainId)}/vaults/${vaultAddress}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) {
-      const error = (await response.json()) as ErrorResponse;
-      throw new Error(error.error ?? "Failed to remove vault");
     }
     return response.json() as Promise<SuccessResponse>;
   },

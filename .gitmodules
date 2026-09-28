@@ -1,0 +1,4 @@
+[submodule "vaults-source-of-truth"]
+	path = vaults-source-of-truth
+	url = git@github.com:solvedefi/vaults-source-of-truth.git
+	branch = main

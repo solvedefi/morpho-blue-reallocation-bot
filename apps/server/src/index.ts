@@ -15,6 +15,7 @@ import { MetadataService } from "./services/MetadataService";
 import { MinGasThresholds } from "./services/MinGasThresholds";
 import { SlackNotifier } from "./services/SlackNotifier";
 import { ApyRange } from "./strategies";
+import { loadVaultsCsv } from "./utils/vaultsCsv";
 
 interface RunningBotInfo {
   bot: ReallocationBot;
@@ -137,6 +138,18 @@ async function main() {
   if (connectResult.isErr()) {
     console.error("Failed to connect to database:", connectResult.error.message);
     process.exit(1);
+  }
+
+  const { vaults: csvVaults, warnings: csvWarnings } = loadVaultsCsv();
+  for (const warning of csvWarnings) console.warn(`vaults.csv: ${warning}`);
+  const syncResult = await dbClient.syncVaultsFromCsv(csvVaults);
+  if (syncResult.isErr()) {
+    console.error(syncResult.error.message);
+    process.exit(1);
+  }
+  console.log(`Synced ${String(csvVaults.length)} vault(s) from vaults.csv`);
+  for (const v of syncResult.value) {
+    console.log(`  Removed ${v.vaultAddress} on chain ${String(v.chainId)} (not in vaults.csv)`);
   }
 
   const apyConfigResult = await dbClient.loadApyConfiguration();
@@ -275,6 +288,10 @@ async function main() {
       console.warn(
         `No infrastructure config found for chainId ${String(opConfig.chainId)}, skipping...`,
       );
+      return;
+    }
+    if (opConfig.vaultWhitelist.length === 0) {
+      console.log(`No morpho-v1 vaults on ${getChainName(opConfig.chainId)}, skipping...`);
       return;
     }
 

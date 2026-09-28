@@ -84,9 +84,12 @@ For each chain, the following secrets must be set:
 - `RPC_URL`: The RPC URL of the chain that will be used by the bot.
 - `REALLOCATOR_PRIVATE_KEY`: The private key of the EOA that will be used to execute the reallocations.
 
-**Vault Whitelist**: The bot will only rebalance assets within vaults that are whitelisted:
+**Vault Whitelist**: vaults come from [`vaults-source-of-truth/vaults.csv`](https://github.com/solvedefi/vaults-source-of-truth), a git submodule. On startup the server upserts every `morpho-v1` and `morpho-v2` row into `vault_whitelist`; only `morpho-v1` vaults are reallocated. To add a vault, open a PR on that repo; deploys pull the latest `main`.
 
-- `VAULT_WHITELIST`: List of MetaMorpho vaults addresses.
+```
+git clone --recurse-submodules <repo>          # fresh clone
+git submodule update --init --remote           # existing clone / pull latest CSV
+```
 
 **Execution Interval**: The bot will run once every N seconds, with this value as N:
 
@@ -96,7 +99,6 @@ The secrets must be set in the `.env` file at the root of the repository, with t
 
 - `RPC_URL_<chainId>`
 - `REALLOCATOR_PRIVATE_KEY_<chainId>`
-- `VAULT_WHITELIST_<chainId>`
 - `EXECUTION_INTERVAL_<chainId>`
 
 Example for mainnet (chainId 1):
@@ -104,7 +106,6 @@ Example for mainnet (chainId 1):
 ```
 RPC_URL_1=https://eth-mainnet.g.alchemy.com/v2/<your-alchemy-api-key>
 REALLOCATOR_PRIVATE_KEY_1=0x1234567890123456789012345678901234567890123456789012345678901234
-VAULT_WHITELIST_1=0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183,0x8eB67A509616cd6A7c1B3c8C21D48FF57df3d458
 EXECUTION_INTERVAL_1=900
 ```
 

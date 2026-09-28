@@ -3,6 +3,7 @@ import { Result, ok, err } from "neverthrow";
 import { Address, Hex } from "viem";
 
 import { DEFAULT_MIN_GAS_WEI } from "../constants";
+import { type CsvVault, REALLOCATABLE_VAULT_TYPE } from "../utils/vaultsCsv";
 
 export interface ApyRangeConfig {
   min: number;
@@ -30,6 +31,7 @@ export interface ApyConfiguration {
 export interface WhitelistedVault {
   address: Address;
   name?: string | null;
+  type: string;
 }
 
 export interface ChainOperationalConfig {
@@ -423,7 +425,7 @@ export class DatabaseClient {
         where: { chainId },
         include: {
           vaultWhitelist: {
-            where: { enabled: true },
+            where: { enabled: true, vaultType: REALLOCATABLE_VAULT_TYPE },
           },
         },
       });
@@ -437,9 +439,10 @@ export class DatabaseClient {
         minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
         gasCheckIntervalSec: config.gasCheckIntervalSec,
         vaultWhitelist: config.vaultWhitelist.map(
-          (v: { vaultAddress: string; vaultName: string | null }) => ({
+          (v: { vaultAddress: string; vaultName: string | null; vaultType: string }) => ({
             address: v.vaultAddress as Address,
             name: v.vaultName,
+            type: v.vaultType,
           }),
         ),
       });
@@ -477,9 +480,10 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null }) => ({
+              (v: { vaultAddress: string; vaultName: string | null; vaultType: string }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
+                type: v.vaultType,
               }),
             ),
           }),
@@ -499,7 +503,7 @@ export class DatabaseClient {
         where: { enabled: true },
         include: {
           vaultWhitelist: {
-            where: { enabled: true },
+            where: { enabled: true, vaultType: REALLOCATABLE_VAULT_TYPE },
           },
         },
       });
@@ -517,9 +521,10 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null }) => ({
+              (v: { vaultAddress: string; vaultName: string | null; vaultType: string }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
+                type: v.vaultType,
               }),
             ),
           }),
@@ -562,76 +567,73 @@ export class DatabaseClient {
   }
 
   /**
-   * Add vault to whitelist
+   * Make vault_whitelist mirror vaults.csv: upsert every CSV vault (creating missing
+   * chain configs with defaults, never overwriting `enabled`) and delete vaults that
+   * are no longer in the CSV together with their APY and strategy threshold overrides.
+   * Returns the deleted vaults.
    */
-  async addVaultToWhitelist(
-    chainId: number,
-    vaultAddress: Address,
-    vaultName: string,
-  ): Promise<Result<void, Error>> {
+  async syncVaultsFromCsv(
+    vaults: CsvVault[],
+  ): Promise<Result<{ chainId: number; vaultAddress: string }[], Error>> {
+    // A missing or broken CSV must not wipe the whitelist.
+    if (vaults.length === 0)
+      return err(new Error("vaults.csv has no Morpho vaults, refusing to sync"));
+
     try {
-      // Check if the vault already exists and is enabled
-      const existingVault = await this.prisma.vaultWhitelist.findUnique({
-        where: {
-          chainId_vaultAddress: {
-            chainId,
-            vaultAddress,
-          },
-        },
-      });
+      const inCsv = new Set(vaults.map((v) => `${String(v.chainId)}:${v.address.toLowerCase()}`));
+      const removed = (
+        await this.prisma.vaultWhitelist.findMany({ select: { chainId: true, vaultAddress: true } })
+      ).filter((v) => !inCsv.has(`${String(v.chainId)}:${v.vaultAddress.toLowerCase()}`));
 
-      if (existingVault?.enabled) {
-        return err(new Error(`Vault ${vaultAddress} is already whitelisted on this chain`));
-      }
+      // Overrides may be stored with different address casing than the whitelist.
+      const overrideWhere = removed.map((v) => ({
+        chainId: v.chainId,
+        vaultAddress: { equals: v.vaultAddress, mode: "insensitive" as const },
+      }));
 
-      await this.prisma.vaultWhitelist.upsert({
-        where: {
-          chainId_vaultAddress: {
-            chainId,
-            vaultAddress,
-          },
-        },
-        create: {
-          chainId,
-          vaultAddress,
-          vaultName,
-          enabled: true,
-        },
-        update: {
-          enabled: true,
-          vaultName,
-        },
-      });
-      return ok(undefined);
+      const deletes =
+        removed.length === 0
+          ? []
+          : [
+              this.prisma.vaultWhitelist.deleteMany({
+                where: {
+                  OR: removed.map((v) => ({ chainId: v.chainId, vaultAddress: v.vaultAddress })),
+                },
+              }),
+              this.prisma.vaultApyConfig.deleteMany({ where: { OR: overrideWhere } }),
+              this.prisma.vaultStrategyThresholds.deleteMany({ where: { OR: overrideWhere } }),
+            ];
+
+      await this.prisma.$transaction([
+        ...deletes,
+        ...[...new Set(vaults.map((v) => v.chainId))].map((chainId) => {
+          const defaultMinGas = DEFAULT_MIN_GAS_WEI[chainId];
+          return this.prisma.chainConfig.upsert({
+            where: { chainId },
+            create: {
+              chainId,
+              executionInterval: 300,
+              minGasWei: defaultMinGas !== undefined ? defaultMinGas.toString() : null,
+            },
+            update: {},
+          });
+        }),
+        ...vaults.map((v) =>
+          this.prisma.vaultWhitelist.upsert({
+            where: { chainId_vaultAddress: { chainId: v.chainId, vaultAddress: v.address } },
+            create: {
+              chainId: v.chainId,
+              vaultAddress: v.address,
+              vaultName: v.name,
+              vaultType: v.type,
+            },
+            update: { vaultName: v.name, vaultType: v.type },
+          }),
+        ),
+      ]);
+      return ok(removed);
     } catch (error) {
-      return err(new Error(`Failed to add vault ${vaultAddress} to whitelist: ${String(error)}`));
-    }
-  }
-
-  /**
-   * Remove vault from whitelist (soft delete by setting enabled = false)
-   */
-  async removeVaultFromWhitelist(
-    chainId: number,
-    vaultAddress: Address,
-  ): Promise<Result<void, Error>> {
-    try {
-      await this.prisma.vaultWhitelist.update({
-        where: {
-          chainId_vaultAddress: {
-            chainId,
-            vaultAddress,
-          },
-        },
-        data: {
-          enabled: false,
-        },
-      });
-      return ok(undefined);
-    } catch (error) {
-      return err(
-        new Error(`Failed to remove vault ${vaultAddress} from whitelist: ${String(error)}`),
-      );
+      return err(new Error(`Failed to sync vaults from CSV: ${String(error)}`));
     }
   }
 

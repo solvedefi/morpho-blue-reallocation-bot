@@ -91,12 +91,6 @@ const updateChainSchema = z
     { message: "At least one field must be provided" },
   );
 
-const addVaultToWhitelistSchema = z.object({
-  vaultAddress: z.string().refine((val) => isAddress(val), {
-    message: "Invalid Ethereum address",
-  }),
-});
-
 const updateVaultSchema = z.object({
   enabled: z.boolean(),
 });
@@ -505,122 +499,6 @@ export function createServer(
     return c.json({
       success: true,
       message: "Chain configuration updated successfully",
-    });
-  });
-
-  app.post("/chains/:chainId/vaults", zValidator("json", addVaultToWhitelistSchema), async (c) => {
-    const chainId = parseInt(c.req.param("chainId"));
-    const { vaultAddress } = c.req.valid("json");
-
-    if (isNaN(chainId)) {
-      return c.json(
-        {
-          success: false,
-          error: "Invalid chain ID",
-        },
-        400,
-      );
-    }
-
-    // Fetch vault name from blockchain - this is mandatory
-    const vaultNameResult = await metadataService.fetchVaultName(chainId, vaultAddress as Address);
-
-    if (vaultNameResult.isErr()) {
-      console.error(
-        `Failed to fetch vault name for ${vaultAddress} on chain ${String(chainId)}:`,
-        vaultNameResult.error.message,
-      );
-      return c.json(
-        {
-          success: false,
-          error: `Could not fetch vault name for ${vaultAddress}. The address may not be a valid MetaMorpho vault or the chain RPC may be unavailable.`,
-        },
-        400,
-      );
-    }
-
-    const vaultName = vaultNameResult.value;
-    console.log(`Fetched vault name for ${vaultAddress} on chain ${String(chainId)}:`, vaultName);
-
-    const result = await dbClient.addVaultToWhitelist(chainId, vaultAddress as Address, vaultName);
-
-    if (result.isErr()) {
-      console.error("Error adding vault to whitelist:", result.error);
-
-      // Check if it's a duplicate vault error
-      const errorMessage = result.error.message;
-      const isDuplicateError = errorMessage.includes("already whitelisted");
-
-      return c.json(
-        {
-          success: false,
-          error: isDuplicateError ? errorMessage : "Failed to add vault to whitelist",
-        },
-        isDuplicateError ? 400 : 500,
-      );
-    }
-
-    // Trigger configuration reload
-    if (onConfigChange) {
-      await onConfigChange();
-    }
-
-    return c.json({
-      success: true,
-      message: "Vault added to whitelist successfully",
-      data: {
-        chainId,
-        vaultAddress,
-        vaultName,
-      },
-    });
-  });
-
-  app.delete("/chains/:chainId/vaults/:vaultAddress", async (c) => {
-    const chainId = parseInt(c.req.param("chainId"));
-    const vaultAddress = c.req.param("vaultAddress");
-
-    if (isNaN(chainId)) {
-      return c.json(
-        {
-          success: false,
-          error: "Invalid chain ID",
-        },
-        400,
-      );
-    }
-
-    if (!isAddress(vaultAddress)) {
-      return c.json(
-        {
-          success: false,
-          error: "Invalid vault address",
-        },
-        400,
-      );
-    }
-
-    const result = await dbClient.removeVaultFromWhitelist(chainId, vaultAddress);
-
-    if (result.isErr()) {
-      console.error("Error removing vault from whitelist:", result.error);
-      return c.json(
-        {
-          success: false,
-          error: "Failed to remove vault from whitelist",
-        },
-        500,
-      );
-    }
-
-    // Trigger configuration reload
-    if (onConfigChange) {
-      await onConfigChange();
-    }
-
-    return c.json({
-      success: true,
-      message: "Vault removed from whitelist successfully",
     });
   });
 

@@ -2,7 +2,6 @@ import { Result, err, ok } from "neverthrow";
 import { createPublicClient, http, type Address, type Hex, type PublicClient } from "viem";
 
 import { erc20Abi } from "../../abis/ERC20";
-import { metaMorphoAbi } from "../../abis/MetaMorpho";
 import { morphoBlueAbi } from "../../abis/MorphoBlue";
 import { chainConfigs } from "../config";
 
@@ -61,31 +60,6 @@ export class MetadataService {
 
     this.clients.set(chainId, client);
     return client;
-  }
-
-  /**
-   * Fetch vault name from MetaMorpho contract
-   */
-  async fetchVaultName(chainId: number, vaultAddress: Address): Promise<Result<string, Error>> {
-    const client = this.getClient(chainId);
-    if (!client) {
-      return err(new Error(`No client available for chainId ${String(chainId)}`));
-    }
-
-    try {
-      const name = await client.readContract({
-        address: vaultAddress,
-        abi: metaMorphoAbi,
-        functionName: "name",
-      });
-      return ok(name);
-    } catch (error) {
-      return err(
-        new Error(
-          `Failed to fetch vault name for ${vaultAddress} on chain ${String(chainId)}: ${String(error)}`,
-        ),
-      );
-    }
   }
 
   /**

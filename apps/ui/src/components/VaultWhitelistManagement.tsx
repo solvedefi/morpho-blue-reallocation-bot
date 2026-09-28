@@ -1,15 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Plus, Loader2, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Wallet } from "lucide-react";
 
 import type { ChainConfig } from "../lib/api";
 import { api } from "../lib/api";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum",
@@ -27,10 +23,6 @@ const CHAIN_NAMES: Record<number, string> = {
 };
 
 export function VaultWhitelistManagement() {
-  const queryClient = useQueryClient();
-  const [selectedChainId, setSelectedChainId] = useState<number | null>(null);
-  const [newVaultAddress, setNewVaultAddress] = useState("");
-
   const {
     data: chainsData,
     isLoading,
@@ -40,39 +32,6 @@ export function VaultWhitelistManagement() {
     queryFn: api.getChains,
     refetchInterval: 5000,
   });
-
-  const addVaultMutation = useMutation({
-    mutationFn: ({ chainId, vaultAddress }: { chainId: number; vaultAddress: string }) =>
-      api.addVaultToWhitelist(chainId, { vaultAddress }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chains"] });
-      setNewVaultAddress("");
-      setSelectedChainId(null);
-    },
-  });
-
-  const removeVaultMutation = useMutation({
-    mutationFn: ({ chainId, vaultAddress }: { chainId: number; vaultAddress: string }) =>
-      api.removeVaultFromWhitelist(chainId, vaultAddress),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chains"] });
-    },
-  });
-
-  const handleAddVault = () => {
-    if (selectedChainId && newVaultAddress) {
-      addVaultMutation.mutate({
-        chainId: selectedChainId,
-        vaultAddress: newVaultAddress,
-      });
-    }
-  };
-
-  const handleRemoveVault = (chainId: number, vaultAddress: string) => {
-    if (confirm(`Are you sure you want to remove vault ${vaultAddress}?`)) {
-      removeVaultMutation.mutate({ chainId, vaultAddress });
-    }
-  };
 
   if (isLoading) {
     return (
@@ -102,77 +61,6 @@ export function VaultWhitelistManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Add Vault Form */}
-      <Card className="border-green-500/20 bg-card/50 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5 text-green-500" />
-            Add Vault to Whitelist
-          </CardTitle>
-          <CardDescription>Add a new vault to monitor on a specific chain</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="chain-select">Chain</Label>
-              <select
-                id="chain-select"
-                value={selectedChainId || ""}
-                onChange={(e) => setSelectedChainId(Number(e.target.value))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="">Select a chain...</option>
-                {chains.map((chain: ChainConfig) => (
-                  <option key={chain.chainId} value={chain.chainId}>
-                    {CHAIN_NAMES[chain.chainId] || `Chain ${chain.chainId}`} (ID: {chain.chainId})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="vault-address">Vault Address</Label>
-              <Input
-                id="vault-address"
-                placeholder="0x..."
-                value={newVaultAddress}
-                onChange={(e) => setNewVaultAddress(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <Button
-            onClick={handleAddVault}
-            disabled={!selectedChainId || !newVaultAddress || addVaultMutation.isPending}
-            className="w-full"
-          >
-            {addVaultMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding Vault...
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Vault
-              </>
-            )}
-          </Button>
-
-          {addVaultMutation.isError && (
-            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
-              <p className="text-sm">{addVaultMutation.error.message}</p>
-            </div>
-          )}
-
-          {addVaultMutation.isSuccess && (
-            <div className="bg-green-500/10 border border-green-500/20 text-green-500 px-4 py-3 rounded-lg">
-              <p className="text-sm">Vault added successfully!</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Vault List */}
       <Card className="border-primary/20 bg-card/50 backdrop-blur-sm">
         <CardHeader>
@@ -181,7 +69,7 @@ export function VaultWhitelistManagement() {
             Vault Whitelist
           </CardTitle>
           <CardDescription>
-            Manage vaults across {chains.length} chains •{" "}
+            Synced from vaults-source-of-truth/vaults.csv on startup • {chains.length} chains •{" "}
             {chains.reduce(
               (acc: number, chain: ChainConfig) => acc + chain.vaultWhitelist.length,
               0,
@@ -226,16 +114,9 @@ export function VaultWhitelistManagement() {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleRemoveVault(chain.chainId, vault.address)}
-                          disabled={removeVaultMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Badge variant={vault.type === "morpho-v1" ? "default" : "secondary"}>
+                        {vault.type === "morpho-v1" ? "V1" : "V2 (not reallocated)"}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -244,18 +125,6 @@ export function VaultWhitelistManagement() {
           ))}
         </CardContent>
       </Card>
-
-      {removeVaultMutation.isError && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
-          <p className="text-sm">{removeVaultMutation.error?.message}</p>
-        </div>
-      )}
-
-      {removeVaultMutation.isSuccess && (
-        <div className="bg-green-500/10 border border-green-500/20 text-green-500 px-4 py-3 rounded-lg">
-          <p className="text-sm">Vault updated successfully!</p>
-        </div>
-      )}
     </div>
   );
 }
