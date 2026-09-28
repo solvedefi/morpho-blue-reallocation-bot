@@ -1,0 +1,23 @@
+# Production: connects to the company Postgres, no local database.
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+services:
+  reallocation_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 80
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env to the company Postgres connection string}
+    env_file:
+      - .env
+    ports:
+      - "80:80"
+    volumes:
+      - ~/.aws:/root/.aws:ro
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: "eu-west-2"
+        awslogs-group: "reallocation-bot"
+        awslogs-stream: "app"
