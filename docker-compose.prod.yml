@@ -12,7 +12,13 @@ services:
     env_file:
       - .env
     ports:
-      - "80:80"
+      - "${HOST_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     volumes:
       - ~/.aws:/root/.aws:ro
     logging:

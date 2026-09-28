@@ -84,10 +84,19 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ steps.defaults.outputs.ssh_port }}
+          # Without set -e only the last command's exit code counts, so failed steps were reported as success.
           script: |
+            set -e
             cd ${{ steps.defaults.outputs.deploy_path }}
-            git pull
+            git pull --ff-only
             git submodule update --init --remote vaults-source-of-truth
-            docker compose -f docker-compose.prod.yml down reallocation_bot
-            docker compose -f docker-compose.prod.yml up -d --build reallocation_bot
+            # Build before touching the running container, so a failed build leaves it up.
+            docker compose -f docker-compose.prod.yml build reallocation_bot
+            # --wait fails the deploy unless the container becomes healthy (see healthcheck).
+            docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 180 reallocation_bot || {
+              echo "::error::reallocation_bot did not become healthy"
+              docker compose -f docker-compose.prod.yml ps -a
+              docker compose -f docker-compose.prod.yml logs --tail 200 reallocation_bot
+              exit 1
+            }
             docker image prune -f
