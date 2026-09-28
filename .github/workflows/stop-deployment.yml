@@ -55,16 +55,16 @@ jobs:
 
             echo "Current directory: $(pwd)"
 
-            # Check if docker-compose.yml exists
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "WARNING: docker-compose.yml not found in $(pwd)"
+            # Check if docker-compose.prod.yml exists
+            if [ ! -f "docker-compose.prod.yml" ]; then
+              echo "WARNING: docker-compose.prod.yml not found in $(pwd)"
               echo "Files in directory:"
               ls -la
             fi
 
             # Stop and remove containers
             echo "Stopping containers..."
-            docker compose down
+            docker compose -f docker-compose.prod.yml down
 
             echo "Containers stopped successfully!"
 
