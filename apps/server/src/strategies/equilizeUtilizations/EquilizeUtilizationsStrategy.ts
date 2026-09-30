@@ -23,9 +23,19 @@ import { MarketAllocation, VaultData } from "../../utils/types";
 import { Strategy } from "../strategy";
 
 export class EquilizeUtilizations implements Strategy {
+  /**
+   * @param targetUtilizations lowercase vault address -> fixed target utilization (WAD).
+   * Vaults not listed converge to their weighted-average utilization.
+   */
+  constructor(private targetUtilizations = new Map<string, bigint>()) {}
+
   findReallocation(vaultData: VaultData): Result<MarketAllocation[] | undefined, Error> {
     try {
-      const marketsData = Array.from(vaultData.marketsData.values()).filter((marketData) => {
+      const allMarketsData = Array.from(vaultData.marketsData.values());
+      const idleMarket = allMarketsData.find(
+        (marketData) => marketData.params.collateralToken === zeroAddress,
+      );
+      const marketsData = allMarketsData.filter((marketData) => {
         return (
           // idle market
           marketData.params.collateralToken !== zeroAddress &&
@@ -38,10 +48,13 @@ export class EquilizeUtilizations implements Strategy {
         );
       });
 
-      const targetUtilization = wDivDown(
-        marketsData.reduce((acc, marketData) => acc + marketData.state.totalBorrowAssets, 0n),
-        marketsData.reduce((acc, marketData) => acc + marketData.state.totalSupplyAssets, 0n),
-      );
+      const fixedTarget = this.targetUtilizations.get(vaultData.vaultAddress.toLowerCase());
+      const targetUtilization =
+        fixedTarget ??
+        wDivDown(
+          marketsData.reduce((acc, marketData) => acc + marketData.state.totalBorrowAssets, 0n),
+          marketsData.reduce((acc, marketData) => acc + marketData.state.totalSupplyAssets, 0n),
+        );
 
       let totalWithdrawableAmount = 0n;
       let totalDepositableAmount = 0n;
@@ -63,6 +76,25 @@ export class EquilizeUtilizations implements Strategy {
           this.getMinUtilizationDeltaBips(marketData.chainId, vaultData.vaultAddress);
       }
 
+      // A fixed target doesn't net out across markets: idle absorbs the surplus or covers the deficit.
+      let idleWithdrawal = 0n;
+      let idleDeposit = 0n;
+      if (fixedTarget !== undefined && idleMarket) {
+        if (totalWithdrawableAmount > totalDepositableAmount) {
+          idleDeposit = min(
+            totalWithdrawableAmount - totalDepositableAmount,
+            idleMarket.cap - idleMarket.vaultAssets,
+          );
+          totalDepositableAmount += idleDeposit;
+        } else {
+          idleWithdrawal = min(
+            totalDepositableAmount - totalWithdrawableAmount,
+            idleMarket.vaultAssets,
+          );
+          totalWithdrawableAmount += idleWithdrawal;
+        }
+      }
+
       const toReallocate = min(totalWithdrawableAmount, totalDepositableAmount);
 
       if (toReallocate === 0n || !didExceedMinUtilizationDelta) {
@@ -70,8 +102,8 @@ export class EquilizeUtilizations implements Strategy {
         return ok(undefined);
       }
 
-      let remainingWithdrawal = toReallocate;
-      let remainingDeposit = toReallocate;
+      let remainingWithdrawal = toReallocate - idleWithdrawal;
+      let remainingDeposit = toReallocate - idleDeposit;
 
       const withdrawals: MarketAllocation[] = [];
       const deposits: MarketAllocation[] = [];
@@ -84,17 +116,23 @@ export class EquilizeUtilizations implements Strategy {
             getDepositableAmount(marketData, targetUtilization),
             remainingDeposit,
           );
+          if (deposit === 0n) continue;
           remainingDeposit -= deposit;
 
           deposits.push({
             marketParams: marketData.params,
-            assets: remainingDeposit === 0n ? maxUint256 : marketData.vaultAssets + deposit,
+            // maxUint256 sweeps rounding dust; idle takes that role when it receives a deposit
+            assets:
+              remainingDeposit === 0n && idleDeposit === 0n
+                ? maxUint256
+                : marketData.vaultAssets + deposit,
           });
         } else {
           const withdrawal = min(
             getWithdrawableAmount(marketData, targetUtilization),
             remainingWithdrawal,
           );
+          if (withdrawal === 0n) continue;
           remainingWithdrawal -= withdrawal;
 
           withdrawals.push({
@@ -104,6 +142,16 @@ export class EquilizeUtilizations implements Strategy {
         }
 
         if (remainingWithdrawal === 0n && remainingDeposit === 0n) break;
+      }
+
+      if (idleMarket && idleWithdrawal > 0n) {
+        withdrawals.push({
+          marketParams: idleMarket.params,
+          assets: idleMarket.vaultAssets - idleWithdrawal,
+        });
+      }
+      if (idleMarket && idleDeposit > 0n) {
+        deposits.push({ marketParams: idleMarket.params, assets: maxUint256 });
       }
 
       return ok([...withdrawals, ...deposits]);

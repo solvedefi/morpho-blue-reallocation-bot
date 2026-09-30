@@ -10,6 +10,7 @@ import { z } from "zod";
 import { getChainName, getNativeSymbol } from "./constants";
 import { DatabaseClient } from "./database";
 import { MetadataService } from "./services/MetadataService";
+import { VAULT_STRATEGIES } from "./strategies/vaultStrategies";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 
@@ -91,9 +92,16 @@ const updateChainSchema = z
     { message: "At least one field must be provided" },
   );
 
-const updateVaultSchema = z.object({
-  enabled: z.boolean(),
-});
+const updateVaultSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    strategy: z.enum(VAULT_STRATEGIES).optional(),
+    // percent, used by equalizeUtilizations; null resets to the weighted average
+    targetUtilization: z.number().gt(0).lte(100).nullable().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: "Provide enabled, strategy and/or targetUtilization",
+  });
 
 export function createServer(
   dbClient: DatabaseClient,
@@ -508,7 +516,7 @@ export function createServer(
     async (c) => {
       const chainId = parseInt(c.req.param("chainId"));
       const vaultAddress = c.req.param("vaultAddress");
-      const { enabled } = c.req.valid("json");
+      const update = c.req.valid("json");
 
       if (isNaN(chainId)) {
         return c.json(
@@ -530,14 +538,14 @@ export function createServer(
         );
       }
 
-      const result = await dbClient.updateVaultEnabled(chainId, vaultAddress, enabled);
+      const result = await dbClient.updateVault(chainId, vaultAddress, update);
 
       if (result.isErr()) {
-        console.error("Error updating vault enabled status:", result.error);
+        console.error("Error updating vault:", result.error);
         return c.json(
           {
             success: false,
-            error: "Failed to update vault status",
+            error: "Failed to update vault",
           },
           500,
         );
@@ -550,7 +558,7 @@ export function createServer(
 
       return c.json({
         success: true,
-        message: "Vault status updated successfully",
+        message: "Vault updated successfully",
       });
     },
   );

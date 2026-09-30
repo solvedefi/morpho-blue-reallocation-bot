@@ -32,6 +32,8 @@ export interface WhitelistedVault {
   address: Address;
   name?: string | null;
   type: string;
+  strategy: string;
+  targetUtilization: number | null; // percent
 }
 
 export interface ChainOperationalConfig {
@@ -439,10 +441,18 @@ export class DatabaseClient {
         minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
         gasCheckIntervalSec: config.gasCheckIntervalSec,
         vaultWhitelist: config.vaultWhitelist.map(
-          (v: { vaultAddress: string; vaultName: string | null; vaultType: string }) => ({
+          (v: {
+            vaultAddress: string;
+            vaultName: string | null;
+            vaultType: string;
+            strategy: string;
+            targetUtilization: Prisma.Decimal | null;
+          }) => ({
             address: v.vaultAddress as Address,
             name: v.vaultName,
             type: v.vaultType,
+            strategy: v.strategy,
+            targetUtilization: v.targetUtilization?.toNumber() ?? null,
           }),
         ),
       });
@@ -480,10 +490,18 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null; vaultType: string }) => ({
+              (v: {
+                vaultAddress: string;
+                vaultName: string | null;
+                vaultType: string;
+                strategy: string;
+                targetUtilization: Prisma.Decimal | null;
+              }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
                 type: v.vaultType,
+                strategy: v.strategy,
+                targetUtilization: v.targetUtilization?.toNumber() ?? null,
               }),
             ),
           }),
@@ -521,10 +539,18 @@ export class DatabaseClient {
             minGasWei: config.minGasWei !== null ? BigInt(config.minGasWei) : null,
             gasCheckIntervalSec: config.gasCheckIntervalSec,
             vaultWhitelist: config.vaultWhitelist.map(
-              (v: { vaultAddress: string; vaultName: string | null; vaultType: string }) => ({
+              (v: {
+                vaultAddress: string;
+                vaultName: string | null;
+                vaultType: string;
+                strategy: string;
+                targetUtilization: Prisma.Decimal | null;
+              }) => ({
                 address: v.vaultAddress as Address,
                 name: v.vaultName,
                 type: v.vaultType,
+                strategy: v.strategy,
+                targetUtilization: v.targetUtilization?.toNumber() ?? null,
               }),
             ),
           }),
@@ -675,12 +701,12 @@ export class DatabaseClient {
   }
 
   /**
-   * Update vault enabled status
+   * Update vault enabled status, strategy and/or target utilization
    */
-  async updateVaultEnabled(
+  async updateVault(
     chainId: number,
     vaultAddress: Address,
-    enabled: boolean,
+    data: { enabled?: boolean; strategy?: string; targetUtilization?: number | null },
   ): Promise<Result<null, Error>> {
     try {
       await this.prisma.vaultWhitelist.update({
@@ -690,13 +716,11 @@ export class DatabaseClient {
             vaultAddress,
           },
         },
-        data: { enabled },
+        data,
       });
       return ok(null);
     } catch (error) {
-      return err(
-        new Error(`Failed to update vault ${vaultAddress} enabled status: ${String(error)}`),
-      );
+      return err(new Error(`Failed to update vault ${vaultAddress}: ${String(error)}`));
     }
   }
 

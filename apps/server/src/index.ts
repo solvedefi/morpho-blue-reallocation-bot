@@ -14,7 +14,7 @@ import { GasMonitor } from "./services/GasMonitor";
 import { MetadataService } from "./services/MetadataService";
 import { MinGasThresholds } from "./services/MinGasThresholds";
 import { SlackNotifier } from "./services/SlackNotifier";
-import { ApyRange } from "./strategies";
+import { VaultStrategies } from "./strategies";
 import { loadVaultsCsv } from "./utils/vaultsCsv";
 
 interface RunningBotInfo {
@@ -270,7 +270,7 @@ async function main() {
         startBotForChain(opConfig, privateKey, apyConfig);
       } else {
         // Only strategy/APY config changed - update in place
-        const newStrategy = new ApyRange(apyConfig);
+        const newStrategy = new VaultStrategies(apyConfig, opConfig.vaultWhitelist);
         existingBot.bot.updateStrategy(newStrategy);
       }
     }
@@ -321,7 +321,7 @@ async function main() {
     // Extract addresses from vault whitelist
     const vaultAddresses = opConfig.vaultWhitelist.map((v) => v.address);
 
-    const strategy = new ApyRange(config);
+    const strategy = new VaultStrategies(config, opConfig.vaultWhitelist);
     const bot = new ReallocationBot(
       opConfig.chainId,
       publicClient,
@@ -414,4 +414,7 @@ async function main() {
   });
 }
 
-main().catch(console.error);
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -76,6 +76,10 @@ model VaultWhitelist {
   vaultName    String      @map("vault_name") @db.VarChar(100)
   vaultType    String      @default("morpho-v1") @map("vault_type") @db.VarChar(20)
   enabled      Boolean     @default(true)
+  // "apyRange" | "equalizeUtilizations"; not touched by the vaults.csv sync
+  strategy     String      @default("apyRange") @db.VarChar(32)
+  // Fixed utilization target in percent for equalizeUtilizations; null = weighted average
+  targetUtilization Decimal? @map("target_utilization") @db.Decimal(5, 2)
   createdAt    DateTime    @default(now()) @map("created_at")
   chainConfig  ChainConfig @relation(fields: [chainId], references: [chainId], onDelete: Cascade)
 
