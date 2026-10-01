@@ -1,12 +1,14 @@
 import {
   encodeFunctionData,
+  zeroAddress,
   type Account,
+  type Hex,
   type Address,
   type Chain,
   type Client,
   type Transport,
 } from "viem";
-import { sendTransaction, waitForTransactionReceipt } from "viem/actions";
+import { sendTransaction, simulateContract, waitForTransactionReceipt } from "viem/actions";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
@@ -14,11 +16,13 @@ import { getChainName } from "../constants.js";
 import { MorphoClient } from "../contracts/MorphoClient.js";
 import { MinGasThresholds } from "../services/MinGasThresholds";
 import { Strategy } from "../strategies/strategy.js";
+import { freeMarketLiquidity } from "../utils/marketLiquidity";
 import { VaultData } from "../utils/types";
 
+import { planEmergencyWithdraw } from "./emergencyWithdraw";
 import { isLiquiditySimulationFailure } from "./liquidityErrors";
 import { toReallocateArgs } from "./reallocateArgs";
-import { loadRetryPolicyFromEnv } from "./retryPolicy";
+import { loadRetryPolicyFromEnv, sleepSeconds } from "./retryPolicy";
 import { simulateReallocateWithRetry } from "./simulateWithRetry";
 import { withVaultRunLock } from "./vaultRunLock";
 
@@ -90,6 +94,88 @@ export class ReallocationBot {
         withVaultRunLock(vaultData.vaultAddress, () => this.reallocateVault(vaultData)),
       ),
     );
+  }
+
+  hasVault(vaultAddress: Address): boolean {
+    return this.vaultWhitelist.some((v) => v.toLowerCase() === vaultAddress.toLowerCase());
+  }
+
+  /**
+   * Pull everything possible from `marketId` into the vault's idle market, retrying
+   * until the market's free liquidity is exhausted (~100% utilization) or attempts run out.
+   */
+  async emergencyWithdrawToIdle(vaultAddress: Address, marketId: Hex, maxAttempts: number) {
+    return withVaultRunLock(vaultAddress, async () => {
+      const txs: Hex[] = [];
+      const errors: string[] = [];
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const vaultResult = await this.morphoClient.fetchVaultData(vaultAddress);
+        if (vaultResult.isErr()) {
+          errors.push(`attempt ${String(attempt)}: ${vaultResult.error.message}`);
+          await sleepSeconds(this.retryPolicy.retryDelaySeconds);
+          continue;
+        }
+        const markets = [...vaultResult.value.marketsData.values()];
+        const market = markets.find((m) => m.id.toLowerCase() === marketId.toLowerCase());
+        const idle = markets.find((m) => m.params.collateralToken === zeroAddress);
+        if (!market) throw new Error(`Market ${marketId} is not in vault ${vaultAddress}`);
+        if (!idle) throw new Error(`Vault ${vaultAddress} has no idle market`);
+
+        const allocations = planEmergencyWithdraw(market, idle);
+        if (!allocations) {
+          const { totalSupplyAssets, totalBorrowAssets } = market.state;
+          return {
+            done: true,
+            attempts: attempt,
+            txs,
+            errors,
+            vaultAssetsLeft: market.vaultAssets.toString(),
+            freeLiquidity: freeMarketLiquidity(market.state).toString(),
+            utilization:
+              totalSupplyAssets === 0n
+                ? 1
+                : Number((totalBorrowAssets * 10_000n) / totalSupplyAssets) / 10_000,
+            idleRoom: (idle.cap > idle.vaultAssets ? idle.cap - idle.vaultAssets : 0n).toString(),
+          };
+        }
+
+        try {
+          const args = toReallocateArgs(allocations);
+          await simulateContract(this.publicClient, {
+            address: vaultAddress,
+            abi: metaMorphoAbi,
+            functionName: "reallocate",
+            args,
+            account: this.walletClient.account,
+          });
+          const txHash = await sendTransaction(this.walletClient, {
+            to: vaultAddress,
+            data: encodeFunctionData({ abi: metaMorphoAbi, functionName: "reallocate", args }),
+          });
+          txs.push(txHash);
+          const receipt = await waitForTransactionReceipt(this.publicClient, { hash: txHash });
+          console.log(
+            `EMERGENCY ${vaultAddress} ${marketId} attempt ${String(attempt)}: tx ${txHash} ${receipt.status}`,
+          );
+          if (receipt.status === "success") {
+            this.thresholds.record(this.chainId, receipt.gasUsed, receipt.effectiveGasPrice);
+            continue; // re-read immediately: borrowers may have repaid, freeing more
+          }
+          errors.push(`attempt ${String(attempt)}: tx ${txHash} reverted`);
+        } catch (err) {
+          const msg =
+            err instanceof Error
+              ? ((err as { shortMessage?: string }).shortMessage ?? err.message)
+              : String(err);
+          console.error(`EMERGENCY ${vaultAddress} ${marketId} attempt ${String(attempt)}:`, err);
+          errors.push(`attempt ${String(attempt)}: ${msg}`);
+        }
+        await sleepSeconds(this.retryPolicy.retryDelaySeconds);
+      }
+
+      return { done: false, attempts: maxAttempts, txs, errors };
+    });
   }
 
   private async reallocateVault(vaultData: VaultData) {

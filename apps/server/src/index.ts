@@ -361,7 +361,12 @@ async function main() {
 
   // Start the HTTP server with configuration reload callback
   const metadataService = new MetadataService();
-  const server: Hono = createServer(dbClient, metadataService, reloadConfiguration);
+  const server: Hono = createServer(
+    dbClient,
+    metadataService,
+    reloadConfiguration,
+    (chainId) => runningBots.get(chainId)?.bot,
+  );
   const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   console.log(`Starting HTTP server on port ${String(port)}...`);

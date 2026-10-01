@@ -7,6 +7,7 @@ import { Hono, Context } from "hono";
 import { isAddress, isHex, type Address, type Hex } from "viem";
 import { z } from "zod";
 
+import { type ReallocationBot } from "./bot";
 import { getChainName, getNativeSymbol } from "./constants";
 import { DatabaseClient } from "./database";
 import { MetadataService } from "./services/MetadataService";
@@ -103,10 +104,22 @@ const updateVaultSchema = z
     message: "Provide enabled, strategy and/or targetUtilization",
   });
 
+const emergencyWithdrawSchema = z.object({
+  chainId: z.number(),
+  vaultAddress: z.string().refine((val) => isAddress(val), {
+    message: "Invalid Ethereum address",
+  }),
+  marketId: z.string().refine((val) => isHex(val) && val.length === 66, {
+    message: "Invalid market ID (must be 32-byte hex)",
+  }),
+  maxAttempts: z.number().int().min(1).max(20).default(5),
+});
+
 export function createServer(
   dbClient: DatabaseClient,
   metadataService: MetadataService,
   onConfigChange?: OnConfigChangeCallback,
+  getBot?: (chainId: number) => ReallocationBot | undefined,
 ) {
   const app = new Hono();
 
@@ -560,6 +573,63 @@ export function createServer(
         success: true,
         message: "Vault updated successfully",
       });
+    },
+  );
+
+  // Move everything possible from a market into the vault's idle market, retrying until ~100% util
+  app.post(
+    "/emergency/withdraw-to-idle",
+    zValidator("json", emergencyWithdrawSchema),
+    async (c) => {
+      const { chainId, vaultAddress, marketId, maxAttempts } = c.req.valid("json");
+
+      const bot = getBot?.(chainId);
+      if (!bot) {
+        return c.json(
+          { success: false, error: `No running bot for chain ${String(chainId)}` },
+          404,
+        );
+      }
+      if (!bot.hasVault(vaultAddress as Address)) {
+        return c.json(
+          { success: false, error: `Vault ${vaultAddress} is not managed by the bot` },
+          404,
+        );
+      }
+
+      // Stop the regular bot from reallocating back into the market. Done first; the vault
+      // lock keeps the old bot instance out while the emergency loop runs.
+      const disableResult = await dbClient.updateVault(chainId, vaultAddress as Address, {
+        enabled: false,
+      });
+      if (disableResult.isErr()) {
+        console.error("Emergency: failed to disable vault:", disableResult.error);
+      } else if (onConfigChange) {
+        await onConfigChange();
+      }
+      const vaultDisabled = disableResult.isOk();
+
+      try {
+        const result = await bot.emergencyWithdrawToIdle(
+          vaultAddress as Address,
+          marketId as Hex,
+          maxAttempts,
+        );
+        return c.json(
+          { success: result.done, data: { ...result, vaultDisabled } },
+          result.done ? 200 : 500,
+        );
+      } catch (error) {
+        console.error("Emergency withdraw failed:", error);
+        return c.json(
+          {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+            vaultDisabled,
+          },
+          400,
+        );
+      }
     },
   );
 
