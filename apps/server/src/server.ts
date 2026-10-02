@@ -8,10 +8,12 @@ import { isAddress, isHex, type Address, type Hex } from "viem";
 import { z } from "zod";
 
 import { type ReallocationBot } from "./bot";
+import { haltVault, resumeVault } from "./bot/emergencyHalt";
 import { getChainName, getNativeSymbol } from "./constants";
 import { DatabaseClient } from "./database";
 import { MetadataService } from "./services/MetadataService";
 import { VAULT_STRATEGIES } from "./strategies/vaultStrategies";
+import { REALLOCATABLE_VAULT_TYPE } from "./utils/vaultsCsv";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 
@@ -119,7 +121,7 @@ export function createServer(
   dbClient: DatabaseClient,
   metadataService: MetadataService,
   onConfigChange?: OnConfigChangeCallback,
-  getBot?: (chainId: number) => ReallocationBot | undefined,
+  getEmergencyBot?: (chainId: number) => ReallocationBot | undefined,
 ) {
   const app = new Hono();
 
@@ -552,6 +554,7 @@ export function createServer(
       }
 
       const result = await dbClient.updateVault(chainId, vaultAddress, update);
+      if (result.isOk() && update.enabled === true) resumeVault(chainId, vaultAddress);
 
       if (result.isErr()) {
         console.error("Error updating vault:", result.error);
@@ -582,45 +585,72 @@ export function createServer(
     zValidator("json", emergencyWithdrawSchema),
     async (c) => {
       const { chainId, vaultAddress, marketId, maxAttempts } = c.req.valid("json");
+      const tag = `[EMERGENCY] chain=${String(chainId)} vault=${vaultAddress} market=${marketId}`;
+      console.warn(`${tag} request received (maxAttempts=${String(maxAttempts)})`);
 
-      const bot = getBot?.(chainId);
+      // Looked up in the DB, not the running bot: the vault stays reachable after the first
+      // call disables it, and the stored address casing is what updateVault needs.
+      const vaultResult = await dbClient.findVault(chainId, vaultAddress);
+      if (vaultResult.isErr()) {
+        console.error(`${tag} failed to look up vault:`, vaultResult.error);
+        return c.json({ success: false, error: "Failed to look up vault" }, 500);
+      }
+      const vault = vaultResult.value;
+      if (!vault || vault.vaultType !== REALLOCATABLE_VAULT_TYPE) {
+        console.error(`${tag} rejected: vault not whitelisted as ${REALLOCATABLE_VAULT_TYPE}`);
+        return c.json(
+          { success: false, error: `Vault ${vaultAddress} is not a whitelisted morpho-v1 vault` },
+          404,
+        );
+      }
+
+      const bot = getEmergencyBot?.(chainId);
       if (!bot) {
+        console.error(`${tag} rejected: chain not supported or bot not started yet`);
         return c.json(
-          { success: false, error: `No running bot for chain ${String(chainId)}` },
-          404,
-        );
-      }
-      if (!bot.hasVault(vaultAddress as Address)) {
-        return c.json(
-          { success: false, error: `Vault ${vaultAddress} is not managed by the bot` },
+          { success: false, error: `Cannot run emergency on chain ${String(chainId)}` },
           404,
         );
       }
 
-      // Stop the regular bot from reallocating back into the market. Done first; the vault
-      // lock keeps the old bot instance out while the emergency loop runs.
-      const disableResult = await dbClient.updateVault(chainId, vaultAddress as Address, {
-        enabled: false,
-      });
-      if (disableResult.isErr()) {
-        console.error("Emergency: failed to disable vault:", disableResult.error);
-      } else if (onConfigChange) {
-        await onConfigChange();
+      // Stop the regular bot from reallocating back into the market, before moving funds:
+      // halt in memory (also stops an in-flight regular run) and disable in the DB (survives
+      // restarts, drops the vault from the bot on reload). Undo with PATCH {enabled:true}.
+      haltVault(chainId, vault.vaultAddress);
+      console.log(`${tag} vault halted for the regular bot`);
+      let vaultDisabled = !vault.enabled;
+      if (vaultDisabled) {
+        console.log(`${tag} vault already disabled for the regular bot`);
+      } else {
+        const disableResult = await dbClient.updateVault(chainId, vault.vaultAddress, {
+          enabled: false,
+        });
+        if (disableResult.isErr()) {
+          // still withdraw (the in-memory halt holds), but report failure so the caller retries
+          console.error(
+            `${tag} failed to disable vault in DB, proceeding anyway:`,
+            disableResult.error,
+          );
+        } else {
+          vaultDisabled = true;
+          console.log(`${tag} vault disabled for the regular bot`);
+          if (onConfigChange) await onConfigChange();
+        }
       }
-      const vaultDisabled = disableResult.isOk();
 
       try {
         const result = await bot.emergencyWithdrawToIdle(
-          vaultAddress as Address,
+          vault.vaultAddress,
           marketId as Hex,
           maxAttempts,
         );
-        return c.json(
-          { success: result.done, data: { ...result, vaultDisabled } },
-          result.done ? 200 : 500,
+        console.log(
+          `${tag} finished: done=${String(result.done)} attempts=${String(result.attempts)} txs=${result.txs.join(",") || "none"}`,
         );
+        const success = result.done && vaultDisabled;
+        return c.json({ success, data: { ...result, vaultDisabled } }, success ? 200 : 500);
       } catch (error) {
-        console.error("Emergency withdraw failed:", error);
+        console.error(`${tag} failed:`, error);
         return c.json(
           {
             success: false,

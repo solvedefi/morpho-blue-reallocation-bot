@@ -19,6 +19,7 @@ import { Strategy } from "../strategies/strategy.js";
 import { freeMarketLiquidity } from "../utils/marketLiquidity";
 import { VaultData } from "../utils/types";
 
+import { isVaultHalted } from "./emergencyHalt";
 import { planEmergencyWithdraw } from "./emergencyWithdraw";
 import { isLiquiditySimulationFailure } from "./liquidityErrors";
 import { toReallocateArgs } from "./reallocateArgs";
@@ -96,22 +97,23 @@ export class ReallocationBot {
     );
   }
 
-  hasVault(vaultAddress: Address): boolean {
-    return this.vaultWhitelist.some((v) => v.toLowerCase() === vaultAddress.toLowerCase());
-  }
-
   /**
    * Pull everything possible from `marketId` into the vault's idle market, retrying
    * until the market's free liquidity is exhausted (~100% utilization) or attempts run out.
    */
   async emergencyWithdrawToIdle(vaultAddress: Address, marketId: Hex, maxAttempts: number) {
+    const tag = `[EMERGENCY] chain=${getChainName(this.chainId)} vault=${vaultAddress} market=${marketId}`;
+    console.log(`${tag} waiting for vault lock`);
     return withVaultRunLock(vaultAddress, async () => {
+      console.log(`${tag} lock acquired, starting (maxAttempts=${String(maxAttempts)})`);
       const txs: Hex[] = [];
       const errors: string[] = [];
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const at = `${tag} attempt ${String(attempt)}/${String(maxAttempts)}`;
         const vaultResult = await this.morphoClient.fetchVaultData(vaultAddress);
         if (vaultResult.isErr()) {
+          console.error(`${at}: failed to fetch vault data:`, vaultResult.error.message);
           errors.push(`attempt ${String(attempt)}: ${vaultResult.error.message}`);
           await sleepSeconds(this.retryPolicy.retryDelaySeconds);
           continue;
@@ -119,12 +121,33 @@ export class ReallocationBot {
         const markets = [...vaultResult.value.marketsData.values()];
         const market = markets.find((m) => m.id.toLowerCase() === marketId.toLowerCase());
         const idle = markets.find((m) => m.params.collateralToken === zeroAddress);
-        if (!market) throw new Error(`Market ${marketId} is not in vault ${vaultAddress}`);
-        if (!idle) throw new Error(`Vault ${vaultAddress} has no idle market`);
+        if (!market) {
+          console.error(`${at}: market is not in the vault's withdraw queue`);
+          throw new Error(`Market ${marketId} is not in vault ${vaultAddress}`);
+        }
+        if (!idle) {
+          console.error(`${at}: vault has no idle market`);
+          throw new Error(`Vault ${vaultAddress} has no idle market`);
+        }
+
+        const { totalSupplyAssets, totalBorrowAssets } = market.state;
+        const utilization =
+          totalSupplyAssets === 0n
+            ? 1
+            : Number((totalBorrowAssets * 10_000n) / totalSupplyAssets) / 10_000;
+        const idleRoom = idle.cap > idle.vaultAssets ? idle.cap - idle.vaultAssets : 0n;
+        console.log(
+          `${at}: utilization=${(utilization * 100).toFixed(2)}% freeLiquidity=${String(freeMarketLiquidity(market.state))} vaultAssets=${String(market.vaultAssets)} idleRoom=${String(idleRoom)}`,
+        );
 
         const allocations = planEmergencyWithdraw(market, idle);
         if (!allocations) {
-          const { totalSupplyAssets, totalBorrowAssets } = market.state;
+          console.log(
+            `${at}: DONE, nothing more to pull (txs=${String(txs.length)}, errors=${String(errors.length)})`,
+          );
+          if (idleRoom === 0n && market.vaultAssets > 0n) {
+            console.warn(`${at}: stopped because idle market cap is full`);
+          }
           return {
             done: true,
             attempts: attempt,
@@ -132,13 +155,15 @@ export class ReallocationBot {
             errors,
             vaultAssetsLeft: market.vaultAssets.toString(),
             freeLiquidity: freeMarketLiquidity(market.state).toString(),
-            utilization:
-              totalSupplyAssets === 0n
-                ? 1
-                : Number((totalBorrowAssets * 10_000n) / totalSupplyAssets) / 10_000,
-            idleRoom: (idle.cap > idle.vaultAssets ? idle.cap - idle.vaultAssets : 0n).toString(),
+            utilization,
+            idleRoom: idleRoom.toString(),
           };
         }
+
+        const target = allocations[0]?.assets ?? 0n;
+        console.log(
+          `${at}: plan target=${String(target)} (${target === 0n ? "full exit" : `withdraw ${String(market.vaultAssets - target)}`}), simulating...`,
+        );
 
         try {
           const args = toReallocateArgs(allocations);
@@ -154,31 +179,43 @@ export class ReallocationBot {
             data: encodeFunctionData({ abi: metaMorphoAbi, functionName: "reallocate", args }),
           });
           txs.push(txHash);
+          console.log(`${at}: tx sent ${txHash}, waiting for receipt...`);
           const receipt = await waitForTransactionReceipt(this.publicClient, { hash: txHash });
           console.log(
-            `EMERGENCY ${vaultAddress} ${marketId} attempt ${String(attempt)}: tx ${txHash} ${receipt.status}`,
+            `${at}: tx ${txHash} ${receipt.status} (block ${String(receipt.blockNumber)}, gasUsed ${String(receipt.gasUsed)})`,
           );
           if (receipt.status === "success") {
             this.thresholds.record(this.chainId, receipt.gasUsed, receipt.effectiveGasPrice);
             continue; // re-read immediately: borrowers may have repaid, freeing more
           }
+          console.error(`${at}: tx ${txHash} reverted`);
           errors.push(`attempt ${String(attempt)}: tx ${txHash} reverted`);
         } catch (err) {
           const msg =
             err instanceof Error
               ? ((err as { shortMessage?: string }).shortMessage ?? err.message)
               : String(err);
-          console.error(`EMERGENCY ${vaultAddress} ${marketId} attempt ${String(attempt)}:`, err);
+          console.error(`${at}: failed: ${msg}`, err);
           errors.push(`attempt ${String(attempt)}: ${msg}`);
         }
         await sleepSeconds(this.retryPolicy.retryDelaySeconds);
       }
 
+      console.error(
+        `${tag} GAVE UP after ${String(maxAttempts)} attempts (txs=${String(txs.length)}): ${errors.join(" | ")}`,
+      );
       return { done: false, attempts: maxAttempts, txs, errors };
     });
   }
 
   private async reallocateVault(vaultData: VaultData) {
+    if (isVaultHalted(this.chainId, vaultData.vaultAddress)) {
+      console.warn(
+        `[EMERGENCY] skipping regular reallocation of halted vault ${vaultData.vaultAddress} on chain ${getChainName(this.chainId)}`,
+      );
+      return;
+    }
+
     const reallocationResult = await this.strategy.findReallocation(vaultData);
 
     // Handle error case - filter out errors

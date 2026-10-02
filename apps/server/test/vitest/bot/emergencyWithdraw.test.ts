@@ -74,6 +74,13 @@ describe("planEmergencyWithdraw", () => {
     expect(
       planEmergencyWithdraw(market(COLL, { supply: 1_000_000n, borrow: 0n, vault: 0n }), idle),
     ).toBeNull();
+    // leftover just above one buffer (what a previous withdrawal leaves behind) is done, not dust to chase
+    expect(
+      planEmergencyWithdraw(
+        market(COLL, { supply: 1_000_000n, borrow: 999_850n, vault: 1_000_000n }),
+        idle,
+      ),
+    ).toBeNull();
     const fullIdle = market(zeroAddress, { supply: 5n, borrow: 0n, vault: 5n, cap: 5n });
     expect(
       planEmergencyWithdraw(
