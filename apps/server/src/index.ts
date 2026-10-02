@@ -83,6 +83,33 @@ async function getPrivateKey(): Promise<Hex> {
   return reallocatorPrivateKey as Hex;
 }
 
+function createChainClients(chainId: number, infraConfig: Config, pk: Hex) {
+  const rpcUrl = getRpcUrl(chainId, infraConfig.chain.rpcUrls.default.http[0]);
+
+  // Create public client for reading contract data
+  const publicClient = createPublicClient({
+    chain: infraConfig.chain,
+    transport: http(rpcUrl, {
+      timeout: 60_000, // 60 second timeout
+      retryCount: 3, // Retry failed requests 3 times
+      retryDelay: 1000, // Wait 1 second between retries
+    }),
+  });
+
+  // Create wallet client for writing transactions
+  const walletClient = createWalletClient({
+    chain: infraConfig.chain,
+    transport: http(rpcUrl, {
+      timeout: 60_000,
+      retryCount: 3,
+      retryDelay: 1000,
+    }),
+    account: privateKeyToAccount(pk),
+  });
+
+  return { publicClient, walletClient };
+}
+
 async function runBotInBackgroundWithAbort(
   bot: ReallocationBot,
   executionInterval: number,
@@ -295,28 +322,7 @@ async function main() {
       return;
     }
 
-    const rpcUrl = getRpcUrl(opConfig.chainId, infraConfig.chain.rpcUrls.default.http[0]);
-
-    // Create public client for reading contract data
-    const publicClient = createPublicClient({
-      chain: infraConfig.chain,
-      transport: http(rpcUrl, {
-        timeout: 60_000, // 60 second timeout
-        retryCount: 3, // Retry failed requests 3 times
-        retryDelay: 1000, // Wait 1 second between retries
-      }),
-    });
-
-    // Create wallet client for writing transactions
-    const walletClient = createWalletClient({
-      chain: infraConfig.chain,
-      transport: http(rpcUrl, {
-        timeout: 60_000,
-        retryCount: 3,
-        retryDelay: 1000,
-      }),
-      account: privateKeyToAccount(pk),
-    });
+    const { publicClient, walletClient } = createChainClients(opConfig.chainId, infraConfig, pk);
 
     // Extract addresses from vault whitelist
     const vaultAddresses = opConfig.vaultWhitelist.map((v) => v.address);
@@ -359,9 +365,44 @@ async function main() {
     });
   };
 
+  // Emergency withdrawals must work for vaults the regular bot no longer runs (they are
+  // disabled on the first emergency call), so fall back to a standalone, never-scheduled bot.
+  const emergencyKey: { pk?: Hex } = {}; // pk set once the private key is loaded below
+  const emergencyBots = new Map<number, ReallocationBot>();
+  const getEmergencyBot = (chainId: number): ReallocationBot | undefined => {
+    const running = runningBots.get(chainId)?.bot;
+    if (running) return running;
+    const infraConfig: Config | undefined = chainConfigs[chainId];
+    if (!infraConfig || !emergencyKey.pk) return undefined;
+    let bot = emergencyBots.get(chainId);
+    if (!bot) {
+      const { publicClient, walletClient } = createChainClients(
+        chainId,
+        infraConfig,
+        emergencyKey.pk,
+      );
+      bot = new ReallocationBot(
+        chainId,
+        publicClient,
+        walletClient,
+        [],
+        new VaultStrategies(apyConfig, []),
+        infraConfig,
+        minGasThresholds,
+      );
+      emergencyBots.set(chainId, bot);
+    }
+    return bot;
+  };
+
   // Start the HTTP server with configuration reload callback
   const metadataService = new MetadataService();
-  const server: Hono = createServer(dbClient, metadataService, reloadConfiguration);
+  const server: Hono = createServer(
+    dbClient,
+    metadataService,
+    reloadConfiguration,
+    getEmergencyBot,
+  );
   const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   console.log(`Starting HTTP server on port ${String(port)}...`);
@@ -399,6 +440,7 @@ async function main() {
 
   // Get private key (shared across all chains)
   const privateKey = await getPrivateKey();
+  emergencyKey.pk = privateKey;
 
   // Start bots for all enabled chains
   for (const opConfig of chainOperationalConfigs) {

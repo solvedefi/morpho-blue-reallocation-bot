@@ -701,6 +701,24 @@ export class DatabaseClient {
   }
 
   /**
+   * Find a whitelisted vault regardless of enabled status; address match is case-insensitive
+   */
+  async findVault(
+    chainId: number,
+    vaultAddress: string,
+  ): Promise<Result<{ vaultAddress: Address; vaultType: string; enabled: boolean } | null, Error>> {
+    try {
+      const vault = await this.prisma.vaultWhitelist.findFirst({
+        where: { chainId, vaultAddress: { equals: vaultAddress, mode: "insensitive" } },
+        select: { vaultAddress: true, vaultType: true, enabled: true },
+      });
+      return ok(vault && { ...vault, vaultAddress: vault.vaultAddress as Address });
+    } catch (error) {
+      return err(new Error(`Failed to find vault ${vaultAddress}: ${String(error)}`));
+    }
+  }
+
+  /**
    * Update vault enabled status, strategy and/or target utilization
    */
   async updateVault(
