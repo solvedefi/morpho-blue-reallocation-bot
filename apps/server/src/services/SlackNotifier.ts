@@ -1,5 +1,7 @@
 import { formatEther, type Address } from "viem";
 
+import { logger } from "../logger";
+
 const SLACK_FETCH_TIMEOUT_MS = 5_000;
 
 export class SlackNotifier {
@@ -8,7 +10,7 @@ export class SlackNotifier {
   constructor(webhookUrl?: string) {
     this.webhookUrl = webhookUrl ?? process.env.SLACK_WEBHOOK_URL;
     if (!this.webhookUrl) {
-      console.warn("SLACK_WEBHOOK_URL not set — Slack alerts disabled");
+      logger.warn("SLACK_WEBHOOK_URL not set, Slack alerts disabled");
     }
   }
 
@@ -27,10 +29,10 @@ export class SlackNotifier {
         signal: AbortSignal.timeout(SLACK_FETCH_TIMEOUT_MS),
       });
       if (!res.ok) {
-        console.error(`Slack webhook returned ${String(res.status)}: ${await res.text()}`);
+        logger.error({ status: res.status, body: await res.text() }, "Slack webhook failed");
       }
     } catch (err) {
-      console.error("Failed to post Slack alert:", err);
+      logger.error({ err }, "Failed to post Slack alert");
     }
   }
 }

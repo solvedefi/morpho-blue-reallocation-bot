@@ -4,6 +4,7 @@ import { createPublicClient, http, type Address, type Hex, type PublicClient } f
 import { erc20Abi } from "../../abis/ERC20";
 import { morphoBlueAbi } from "../../abis/MorphoBlue";
 import { chainConfigs } from "../config";
+import { logger } from "../logger";
 
 export interface MarketMetadata {
   collateralSymbol: string;
@@ -35,7 +36,7 @@ export class MetadataService {
 
     const chainConfig = chainConfigs[chainId];
     if (!chainConfig) {
-      console.warn(`No chain config found for chainId ${String(chainId)}`);
+      logger.warn({ chainId }, "No chain config found");
       return null;
     }
 
@@ -45,7 +46,7 @@ export class MetadataService {
     const rpcUrl = envRpcUrl ?? defaultRpcUrl;
 
     if (!rpcUrl) {
-      console.warn(`No RPC URL found for chainId ${String(chainId)}`);
+      logger.warn({ chainId }, "No RPC URL found");
       return null;
     }
 

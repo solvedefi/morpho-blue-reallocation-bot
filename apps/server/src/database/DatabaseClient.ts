@@ -3,6 +3,7 @@ import { Result, ok, err } from "neverthrow";
 import { Address, Hex } from "viem";
 
 import { DEFAULT_MIN_GAS_WEI } from "../constants";
+import { logger } from "../logger";
 import { type CsvVault, REALLOCATABLE_VAULT_TYPE } from "../utils/vaultsCsv";
 
 export interface ApyRangeConfig {
@@ -61,7 +62,7 @@ export class DatabaseClient {
   async connect(): Promise<Result<null, Error>> {
     try {
       await this.prisma.$connect();
-      console.log("Database connected successfully");
+      logger.info("Database connected");
       return ok(null);
     } catch (error) {
       return err(new Error(`Failed to connect to database: ${String(error)}`));

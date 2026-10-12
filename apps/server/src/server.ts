@@ -11,6 +11,7 @@ import { type ReallocationBot } from "./bot";
 import { haltVault, resumeVault } from "./bot/emergencyHalt";
 import { getChainName, getNativeSymbol } from "./constants";
 import { DatabaseClient } from "./database";
+import { logger } from "./logger";
 import { MetadataService } from "./services/MetadataService";
 import { VAULT_STRATEGIES } from "./strategies/vaultStrategies";
 import { REALLOCATABLE_VAULT_TYPE } from "./utils/vaultsCsv";
@@ -129,7 +130,7 @@ export function createServer(
     const configResult = await dbClient.loadApyConfiguration();
 
     if (configResult.isErr()) {
-      console.error("Error loading configuration:", configResult.error);
+      logger.error({ err: configResult.error }, "Error loading configuration");
       return c.json(
         {
           success: false,
@@ -177,7 +178,7 @@ export function createServer(
     );
 
     if (result.isErr()) {
-      console.error("Error updating vault APY range:", result.error);
+      logger.error({ err: result.error }, "Error updating vault APY range");
       return c.json(
         {
           success: false,
@@ -235,9 +236,9 @@ export function createServer(
     );
 
     if (marketMetadataResult.isErr()) {
-      console.error(
-        `Failed to fetch market metadata for ${marketId} on chain ${String(chainId)}:`,
-        marketMetadataResult.error.message,
+      logger.error(
+        { err: marketMetadataResult.error, chainId, marketId },
+        "Failed to fetch market metadata",
       );
       return c.json(
         {
@@ -249,12 +250,7 @@ export function createServer(
     }
 
     const marketMetadata = marketMetadataResult.value;
-    console.log(
-      `Fetched market metadata for ${marketId} on chain ${String(chainId)}:`,
-      marketMetadata.collateralSymbol,
-      "/",
-      marketMetadata.loanSymbol,
-    );
+    logger.info({ chainId, marketId, ...marketMetadata }, "Fetched market metadata");
 
     const result = await dbClient.upsertMarketApyRange(chainId, marketId as Hex, minApy, maxApy, {
       collateralSymbol: marketMetadata.collateralSymbol,
@@ -262,7 +258,7 @@ export function createServer(
     });
 
     if (result.isErr()) {
-      console.error("Error updating market APY range:", result.error);
+      logger.error({ err: result.error }, "Error updating market APY range");
       return c.json(
         {
           success: false,
@@ -349,7 +345,7 @@ export function createServer(
     const result = await dbClient.updateApyStrategyConfig(updateData);
 
     if (result.isErr()) {
-      console.error("Error updating strategy configuration:", result.error);
+      logger.error({ err: result.error }, "Error updating strategy configuration");
       return c.json(
         {
           success: false,
@@ -377,7 +373,7 @@ export function createServer(
     const result = await dbClient.deleteVaultApyRange(chainId, vaultAddress as Address);
 
     if (result.isErr()) {
-      console.error("Error deleting vault APY range:", result.error);
+      logger.error({ err: result.error }, "Error deleting vault APY range");
       return c.json(
         {
           success: false,
@@ -404,7 +400,7 @@ export function createServer(
     const result = await dbClient.deleteMarketApyRange(chainId, marketId as Hex);
 
     if (result.isErr()) {
-      console.error("Error deleting market APY range:", result.error);
+      logger.error({ err: result.error }, "Error deleting market APY range");
       return c.json(
         {
           success: false,
@@ -430,7 +426,7 @@ export function createServer(
     const chainsResult = await dbClient.getAllChainConfigsForUI();
 
     if (chainsResult.isErr()) {
-      console.error("Error loading chains:", chainsResult.error);
+      logger.error({ err: chainsResult.error }, "Error loading chains");
       return c.json(
         {
           success: false,
@@ -469,7 +465,7 @@ export function createServer(
     if (enabled !== undefined) {
       const result = await dbClient.updateChainEnabled(chainId, enabled);
       if (result.isErr()) {
-        console.error("Error updating chain enabled status:", result.error);
+        logger.error({ err: result.error }, "Error updating chain enabled status");
         return c.json(
           {
             success: false,
@@ -484,7 +480,7 @@ export function createServer(
     if (executionInterval !== undefined) {
       const result = await dbClient.updateChainExecutionInterval(chainId, executionInterval);
       if (result.isErr()) {
-        console.error("Error updating chain execution interval:", result.error);
+        logger.error({ err: result.error }, "Error updating chain execution interval");
         return c.json(
           {
             success: false,
@@ -503,7 +499,7 @@ export function createServer(
         gasCheckIntervalSec,
       });
       if (result.isErr()) {
-        console.error("Error updating chain gas monitor:", result.error);
+        logger.error({ err: result.error }, "Error updating chain gas monitor");
         return c.json(
           {
             success: false,
@@ -557,7 +553,7 @@ export function createServer(
       if (result.isOk() && update.enabled === true) resumeVault(chainId, vaultAddress);
 
       if (result.isErr()) {
-        console.error("Error updating vault:", result.error);
+        logger.error({ err: result.error }, "Error updating vault");
         return c.json(
           {
             success: false,
@@ -585,19 +581,24 @@ export function createServer(
     zValidator("json", emergencyWithdrawSchema),
     async (c) => {
       const { chainId, vaultAddress, marketId, maxAttempts } = c.req.valid("json");
-      const tag = `[EMERGENCY] chain=${String(chainId)} vault=${vaultAddress} market=${marketId}`;
-      console.warn(`${tag} request received (maxAttempts=${String(maxAttempts)})`);
+      const log = logger.child({
+        evt: "emergency_withdraw",
+        chainId,
+        vault: vaultAddress,
+        marketId,
+      });
+      log.warn({ maxAttempts }, "Request received");
 
       // Looked up in the DB, not the running bot: the vault stays reachable after the first
       // call disables it, and the stored address casing is what updateVault needs.
       const vaultResult = await dbClient.findVault(chainId, vaultAddress);
       if (vaultResult.isErr()) {
-        console.error(`${tag} failed to look up vault:`, vaultResult.error);
+        log.error({ err: vaultResult.error }, "Failed to look up vault");
         return c.json({ success: false, error: "Failed to look up vault" }, 500);
       }
       const vault = vaultResult.value;
       if (!vault || vault.vaultType !== REALLOCATABLE_VAULT_TYPE) {
-        console.error(`${tag} rejected: vault not whitelisted as ${REALLOCATABLE_VAULT_TYPE}`);
+        log.error(`Rejected: vault not whitelisted as ${REALLOCATABLE_VAULT_TYPE}`);
         return c.json(
           { success: false, error: `Vault ${vaultAddress} is not a whitelisted morpho-v1 vault` },
           404,
@@ -606,7 +607,7 @@ export function createServer(
 
       const bot = getEmergencyBot?.(chainId);
       if (!bot) {
-        console.error(`${tag} rejected: chain not supported or bot not started yet`);
+        log.error("Rejected: chain not supported or bot not started yet");
         return c.json(
           { success: false, error: `Cannot run emergency on chain ${String(chainId)}` },
           404,
@@ -617,23 +618,23 @@ export function createServer(
       // halt in memory (also stops an in-flight regular run) and disable in the DB (survives
       // restarts, drops the vault from the bot on reload). Undo with PATCH {enabled:true}.
       haltVault(chainId, vault.vaultAddress);
-      console.log(`${tag} vault halted for the regular bot`);
+      log.info("Vault halted for the regular bot");
       let vaultDisabled = !vault.enabled;
       if (vaultDisabled) {
-        console.log(`${tag} vault already disabled for the regular bot`);
+        log.info("Vault already disabled for the regular bot");
       } else {
         const disableResult = await dbClient.updateVault(chainId, vault.vaultAddress, {
           enabled: false,
         });
         if (disableResult.isErr()) {
           // still withdraw (the in-memory halt holds), but report failure so the caller retries
-          console.error(
-            `${tag} failed to disable vault in DB, proceeding anyway:`,
-            disableResult.error,
+          log.error(
+            { err: disableResult.error },
+            "Failed to disable vault in DB, proceeding anyway",
           );
         } else {
           vaultDisabled = true;
-          console.log(`${tag} vault disabled for the regular bot`);
+          log.info("Vault disabled for the regular bot");
           if (onConfigChange) await onConfigChange();
         }
       }
@@ -644,13 +645,14 @@ export function createServer(
           marketId as Hex,
           maxAttempts,
         );
-        console.log(
-          `${tag} finished: done=${String(result.done)} attempts=${String(result.attempts)} txs=${result.txs.join(",") || "none"}`,
+        log.info(
+          { done: result.done, attempts: result.attempts, txs: result.txs },
+          "Emergency withdraw finished",
         );
         const success = result.done && vaultDisabled;
         return c.json({ success, data: { ...result, vaultDisabled } }, success ? 200 : 500);
       } catch (error) {
-        console.error(`${tag} failed:`, error);
+        log.error({ err: error }, "Emergency withdraw failed");
         return c.json(
           {
             success: false,
@@ -682,7 +684,7 @@ export function createServer(
       const html = await readFile(indexPath, "utf-8");
       return c.html(html);
     } catch (error) {
-      console.error("Error serving index.html:", error);
+      logger.error({ err: error }, "Error serving index.html");
       return c.text("UI not found. Error: " + String(error), 404);
     }
   });

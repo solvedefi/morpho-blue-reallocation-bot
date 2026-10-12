@@ -9,6 +9,7 @@ import { ReallocationBot } from "./bot";
 import { chainConfigs, type Config } from "./config";
 import { getChainName } from "./constants";
 import { DatabaseClient, type ChainOperationalConfig } from "./database";
+import { logger } from "./logger";
 import { createServer } from "./server";
 import { GasMonitor } from "./services/GasMonitor";
 import { MetadataService } from "./services/MetadataService";
@@ -45,7 +46,7 @@ async function getSecretsFromAWS(secretName: string): Promise<string> {
     const response = await client.send(command);
     return response.SecretString ?? "";
   } catch (error) {
-    console.error("Error retrieving secret:", error);
+    logger.error({ err: error }, "Error retrieving secret");
     throw error;
   }
 }
@@ -116,17 +117,15 @@ async function runBotInBackgroundWithAbort(
   abortController: AbortController,
 ): Promise<void> {
   const intervalId = setInterval(() => {
-    try {
-      void bot.run();
-    } catch (err) {
-      console.error("Bot run failed:", err);
-    }
+    bot.run().catch((err: unknown) => {
+      logger.error({ err }, "Bot run failed");
+    });
   }, executionInterval * 1000);
 
   // Listen for abort signal
   abortController.signal.addEventListener("abort", () => {
     clearInterval(intervalId);
-    console.log("Bot execution stopped");
+    logger.info("Bot execution stopped");
   });
 
   // Keep the promise pending until aborted
@@ -163,25 +162,25 @@ async function main() {
 
   const connectResult = await dbClient.connect();
   if (connectResult.isErr()) {
-    console.error("Failed to connect to database:", connectResult.error.message);
+    logger.fatal({ err: connectResult.error }, "Failed to connect to database");
     process.exit(1);
   }
 
   const { vaults: csvVaults, warnings: csvWarnings } = loadVaultsCsv();
-  for (const warning of csvWarnings) console.warn(`vaults.csv: ${warning}`);
+  for (const warning of csvWarnings) logger.warn(`vaults.csv: ${warning}`);
   const syncResult = await dbClient.syncVaultsFromCsv(csvVaults);
   if (syncResult.isErr()) {
-    console.error(syncResult.error.message);
+    logger.fatal({ err: syncResult.error }, "Failed to sync vaults.csv");
     process.exit(1);
   }
-  console.log(`Synced ${String(csvVaults.length)} vault(s) from vaults.csv`);
+  logger.info({ count: csvVaults.length }, "Synced vaults from vaults.csv");
   for (const v of syncResult.value) {
-    console.log(`  Removed ${v.vaultAddress} on chain ${String(v.chainId)} (not in vaults.csv)`);
+    logger.info({ vault: v.vaultAddress, chainId: v.chainId }, "Removed vault not in vaults.csv");
   }
 
   const apyConfigResult = await dbClient.loadApyConfiguration();
   if (apyConfigResult.isErr()) {
-    console.error("Failed to load APY configuration:", apyConfigResult.error.message);
+    logger.fatal({ err: apyConfigResult.error }, "Failed to load APY configuration");
     process.exit(1);
   }
 
@@ -236,22 +235,22 @@ async function main() {
   };
 
   const reloadConfiguration = async () => {
-    console.log("\nConfiguration change detected. Reloading...");
+    logger.info("Configuration change detected, reloading");
     const newApyConfigResult = await dbClient.loadApyConfiguration();
 
     if (newApyConfigResult.isErr()) {
-      console.error("❌ Failed to reload configuration:", newApyConfigResult.error.message);
+      logger.error({ err: newApyConfigResult.error }, "Failed to reload configuration");
       return;
     }
 
     apyConfig = newApyConfigResult.value;
-    console.log("Configuration reloaded successfully");
+    logger.info("Configuration reloaded");
     logApyConfiguration(apyConfig);
 
     // Reload chain configs to handle all changes
     const chainConfigsResult = await dbClient.getAllChainConfigs();
     if (chainConfigsResult.isErr()) {
-      console.error("❌ Failed to reload chain configs:", chainConfigsResult.error.message);
+      logger.error({ err: chainConfigsResult.error }, "Failed to reload chain configs");
       return;
     }
 
@@ -261,7 +260,10 @@ async function main() {
     // Stop bots for disabled chains
     for (const [botChainId, botInfo] of runningBots) {
       if (!enabledChainIds.has(botChainId)) {
-        console.log(`Stopping bot for disabled chain ${getChainName(botChainId)}...`);
+        logger.info(
+          { chainId: botChainId, chain: getChainName(botChainId) },
+          "Stopping bot for disabled chain",
+        );
         botInfo.abortController.abort();
         gasMonitor.stop(botChainId);
         runningBots.delete(botChainId);
@@ -274,18 +276,24 @@ async function main() {
 
       if (!existingBot) {
         // New chain - start bot
-        console.log(`Starting bot for newly enabled chain ${getChainName(opConfig.chainId)}...`);
+        logger.info(
+          { chainId: opConfig.chainId, chain: getChainName(opConfig.chainId) },
+          "Starting bot for newly enabled chain",
+        );
         startBotForChain(opConfig, privateKey, apyConfig);
       } else if (hasConfigChanged(existingBot.startedWithConfig, opConfig)) {
         // Config changed - restart bot
-        console.log(
-          `Configuration changed for chain ${getChainName(opConfig.chainId)}, restarting bot...`,
-        );
-        console.log(
-          `  Old config: interval=${String(existingBot.startedWithConfig.executionInterval)}s, vaults=${String(existingBot.startedWithConfig.vaultWhitelist.length)}`,
-        );
-        console.log(
-          `  New config: interval=${String(opConfig.executionInterval)}s, vaults=${String(opConfig.vaultWhitelist.length)}`,
+        logger.info(
+          {
+            chainId: opConfig.chainId,
+            chain: getChainName(opConfig.chainId),
+            old: {
+              interval: existingBot.startedWithConfig.executionInterval,
+              vaults: existingBot.startedWithConfig.vaultWhitelist.length,
+            },
+            new: { interval: opConfig.executionInterval, vaults: opConfig.vaultWhitelist.length },
+          },
+          "Chain configuration changed, restarting bot",
         );
 
         // Stop existing bot
@@ -302,7 +310,7 @@ async function main() {
       }
     }
 
-    console.log("All bots updated with new configuration\n");
+    logger.info("All bots updated with new configuration");
   };
 
   const startBotForChain = (
@@ -312,13 +320,14 @@ async function main() {
   ) => {
     const infraConfig: Config | undefined = chainConfigs[opConfig.chainId];
     if (!infraConfig) {
-      console.warn(
-        `No infrastructure config found for chainId ${String(opConfig.chainId)}, skipping...`,
-      );
+      logger.warn({ chainId: opConfig.chainId }, "No infrastructure config found, skipping");
       return;
     }
     if (opConfig.vaultWhitelist.length === 0) {
-      console.log(`No morpho-v1 vaults on ${getChainName(opConfig.chainId)}, skipping...`);
+      logger.info(
+        { chainId: opConfig.chainId, chain: getChainName(opConfig.chainId) },
+        "No morpho-v1 vaults, skipping",
+      );
       return;
     }
 
@@ -405,34 +414,38 @@ async function main() {
   );
   const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
-  console.log(`Starting HTTP server on port ${String(port)}...`);
+  logger.info({ port }, "Starting HTTP server");
   serve(
     {
       fetch: server.fetch,
       port,
     },
     (info: { port: number; address: string }) => {
-      console.log(`Server is running on http://localhost:${String(info.port)}`);
+      logger.info({ port: info.port }, "Server is running");
     },
   );
 
   // Load operational configs from database
   const chainConfigsResult = await dbClient.getAllChainConfigs();
   if (chainConfigsResult.isErr()) {
-    console.error("Failed to load chain configs:", chainConfigsResult.error.message);
+    logger.fatal({ err: chainConfigsResult.error }, "Failed to load chain configs");
     process.exit(1);
   }
 
   const chainOperationalConfigs = chainConfigsResult.value;
-  console.log(`Found ${String(chainOperationalConfigs.length)} enabled chain(s):`);
   for (const opConfig of chainOperationalConfigs) {
-    console.log(
-      `  Chain ${String(opConfig.chainId)}: ${String(opConfig.vaultWhitelist.length)} vault(s), interval: ${String(opConfig.executionInterval)}s`,
+    logger.info(
+      {
+        chainId: opConfig.chainId,
+        vaults: opConfig.vaultWhitelist.length,
+        interval: opConfig.executionInterval,
+      },
+      "Enabled chain",
     );
   }
 
   if (chainOperationalConfigs.length === 0) {
-    console.warn(
+    logger.warn(
       "No chain configs found in database. Please add chain configs before running the bot.",
     );
     return;
@@ -444,11 +457,14 @@ async function main() {
 
   // Start bots for all enabled chains
   for (const opConfig of chainOperationalConfigs) {
-    console.log(`\nStarting bot for chain ${getChainName(opConfig.chainId)}...`);
+    logger.info(
+      { chainId: opConfig.chainId, chain: getChainName(opConfig.chainId) },
+      "Starting bot",
+    );
     startBotForChain(opConfig, privateKey, apyConfig);
   }
 
-  console.log("\nAll bots started successfully!\n");
+  logger.info("All bots started");
 
   // Keep the process running
   await new Promise(() => {
@@ -457,6 +473,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error(error);
+  logger.fatal({ err: error }, "Fatal error");
   process.exit(1);
 });

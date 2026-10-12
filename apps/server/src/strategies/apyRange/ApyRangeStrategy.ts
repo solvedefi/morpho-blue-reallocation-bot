@@ -301,30 +301,6 @@ export class ApyRange implements Strategy {
 
       return ok(reallocationFilteredByCap);
     } catch (error) {
-      //console log all params for debugging
-      for (const market of vaultData.marketsData.values()) {
-        console.log();
-        console.log("chainId", market.chainId);
-        console.log("id", market.id);
-        console.log("params.loanToken", market.params.loanToken);
-        console.log("params.collateralToken", market.params.collateralToken);
-        console.log("params.oracle", market.params.oracle);
-        console.log("params.irm", market.params.irm);
-        console.log("params.lltv", market.params.lltv);
-        console.log("state.totalSupplyAssets", market.state.totalSupplyAssets);
-        console.log("state.totalBorrowAssets", market.state.totalBorrowAssets);
-        console.log("state.totalBorrowShares", market.state.totalBorrowShares);
-        console.log("state.totalSupplyShares", market.state.totalSupplyShares);
-        console.log("state.lastUpdate", market.state.lastUpdate);
-        console.log("state.fee", market.state.fee);
-        console.log("vaultAssets", market.vaultAssets);
-        console.log("rateAtTarget", market.rateAtTarget);
-        console.log("apyAt100Utilization", market.apyAt100Utilization);
-        console.log("cap", market.cap);
-        console.log("loanTokenDecimals", market.loanTokenDecimals);
-        console.log();
-      }
-
       return err(
         new Error(
           `Failed to find reallocation for vault ${vaultData.vaultAddress}: ${String(error)}`,

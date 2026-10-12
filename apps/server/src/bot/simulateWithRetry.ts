@@ -2,6 +2,7 @@ import { type Account, type Address, type Chain, type Client, type Transport } f
 import { simulateContract } from "viem/actions";
 
 import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
+import { logger } from "../logger";
 import { MarketAllocation, VaultData } from "../utils/types";
 
 import { applyConservativeRetry } from "./conservativeRetry";
@@ -63,8 +64,9 @@ export async function simulateReallocateWithRetry(
       if (!isLiquiditySimulationFailure(err) || attempt >= policy.maxAttempts) {
         throw err;
       }
-      console.warn(
-        `Liquidity simulation failed for ${vaultAddress} on attempt ${String(attempt)}/${String(policy.maxAttempts)}, retrying...`,
+      logger.warn(
+        { vault: vaultAddress, attempt, maxAttempts: policy.maxAttempts },
+        "Liquidity simulation failed, retrying",
       );
       await sleepSeconds(policy.retryDelaySeconds);
     }

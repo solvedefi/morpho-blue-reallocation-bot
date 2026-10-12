@@ -2,6 +2,7 @@ import { formatEther, type Address, type Chain, type Client, type Transport } fr
 import { getBalance } from "viem/actions";
 
 import { getChainName, getNativeSymbol } from "../constants.js";
+import { logger } from "../logger";
 
 import { MinGasThresholds } from "./MinGasThresholds";
 import { approachingGasAlert, lowGasAlert, recoveryAlert, SlackNotifier } from "./SlackNotifier";
@@ -45,7 +46,7 @@ export class GasMonitor {
       try {
         await this.check(chainId, publicClient, account, adminOverride);
       } catch (err) {
-        console.error(`Gas monitor: tick failed on ${getChainName(chainId)}:`, err);
+        logger.error({ err, chainId, chain: getChainName(chainId) }, "Gas monitor tick failed");
       } finally {
         if (!this.stopped.has(chainId)) {
           const handle = setTimeout(() => void tick(), intervalSec * 1000);
@@ -56,9 +57,7 @@ export class GasMonitor {
 
     void tick();
 
-    console.log(
-      `Gas monitor started for chain ${getChainName(chainId)} (every ${String(intervalSec)}s)`,
-    );
+    logger.info({ chainId, chain: getChainName(chainId), intervalSec }, "Gas monitor started");
   }
 
   stop(chainId: number): void {
@@ -85,12 +84,13 @@ export class GasMonitor {
   ): Promise<void> {
     const chainName = getChainName(chainId);
     const nativeSymbol = getNativeSymbol(chainId);
+    const log = logger.child({ chainId, chain: chainName });
 
     let balance: bigint;
     try {
       balance = await getBalance(publicClient, { address: account });
     } catch (err) {
-      console.error(`Gas monitor: failed to fetch balance on ${chainName}:`, err);
+      log.error({ err }, "Gas monitor failed to fetch balance");
       return;
     }
 
@@ -98,36 +98,30 @@ export class GasMonitor {
     const prev = this.state.get(chainId) ?? "ok";
     const next = deriveState(balance, threshold);
 
-    // Structured per-tick observation for log shippers.
-    console.log(
-      JSON.stringify({
-        evt: "gas_check",
-        chainId,
-        chain: chainName,
-        balance: balance.toString(),
-        threshold: threshold.toString(),
-        state: next,
-      }),
-    );
+    const balanceFields = {
+      balance: balance.toString(),
+      threshold: threshold.toString(),
+      balanceEth: formatEther(balance),
+      nativeSymbol,
+    };
+    log.info({ evt: "gas_check", ...balanceFields, state: next }, "Gas check");
 
     // Alert policy:
     //   low         → fire every tick (sustained nag until topped up)
     //   approaching → fire once on entry into the state
     //   ok          → fire recovery once on exit from a non-ok state
     if (next === "low") {
-      console.warn(`[gas] LOW on ${chainName}: ${formatEther(balance)} ${nativeSymbol}`);
+      log.warn({ evt: "gas_low", ...balanceFields }, "Gas LOW");
       await this.slack.send(
         lowGasAlert({ chainName, chainId, account, nativeSymbol, balance, threshold }),
       );
     } else if (next === "approaching" && prev !== "approaching") {
-      console.warn(
-        `[gas] APPROACHING on ${chainName}: ${formatEther(balance)} ${nativeSymbol} (threshold ${formatEther(threshold)})`,
-      );
+      log.warn({ evt: "gas_approaching", ...balanceFields }, "Gas approaching threshold");
       await this.slack.send(
         approachingGasAlert({ chainName, chainId, account, nativeSymbol, balance, threshold }),
       );
     } else if (next === "ok" && prev !== "ok") {
-      console.log(`[gas] Recovered on ${chainName}: ${formatEther(balance)} ${nativeSymbol}`);
+      log.info({ evt: "gas_recovered", ...balanceFields }, "Gas recovered");
       await this.slack.send(recoveryAlert({ chainName, chainId, account, nativeSymbol, balance }));
     }
 
