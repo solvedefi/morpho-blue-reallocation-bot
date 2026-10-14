@@ -2,7 +2,11 @@ import { Address, decodeAbiParameters, decodeFunctionData, maxUint256, zeroAddre
 import { describe, expect, it } from "vitest";
 
 import { vaultV2Abi } from "../../../abis/VaultV2.js";
-import { reallocateCall, toVaultV2Calls } from "../../../src/bot/reallocateArgs.js";
+import {
+  describeReallocation,
+  reallocateCall,
+  toVaultV2Calls,
+} from "../../../src/bot/reallocateArgs.js";
 import { marketIdFromParams } from "../../../src/utils/marketId.js";
 import { MarketParams, VaultData, VaultMarketData } from "../../../src/utils/types.js";
 
@@ -125,5 +129,32 @@ describe("toVaultV2Calls", () => {
     const v1 = { ...vault, vaultType: undefined };
     expect(reallocateCall(v1, []).functionName).toBe("reallocate");
     expect(reallocateCall(vault, []).functionName).toBe("multicall");
+  });
+
+  it("describes v2 moves and v1 targets for logs", () => {
+    const plan = [
+      { marketParams: A.params, assets: 40n },
+      { marketParams: B.params, assets: maxUint256 },
+    ];
+    expect(describeReallocation(vault, plan)).toEqual([
+      {
+        action: "deallocate",
+        marketId: A.id,
+        collateral: A.params.collateralToken,
+        adapter: ADAPTER,
+        assets: "60",
+      },
+      {
+        action: "allocate",
+        marketId: B.id,
+        collateral: B.params.collateralToken,
+        adapter: ADAPTER,
+        assets: "60",
+      },
+    ]);
+    expect(describeReallocation({ ...vault, vaultType: undefined }, plan)[1]).toMatchObject({
+      action: "target",
+      assets: "max",
+    });
   });
 });

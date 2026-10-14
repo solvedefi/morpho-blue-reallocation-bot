@@ -35,6 +35,14 @@ const marketParamsAbi = [
   },
 ] as const;
 
+export interface VaultV2Move {
+  action: "allocate" | "deallocate";
+  marketId: Hex;
+  adapter: Hex;
+  params: MarketAllocation["marketParams"];
+  assets: bigint;
+}
+
 /**
  * Translates MetaMorpho-style absolute targets into VaultV2 allocate/deallocate deltas,
  * deallocations first so they fund the allocations. Same semantics as v1 `reallocate`:
@@ -42,14 +50,13 @@ const marketParamsAbi = [
  * call: idle is the vault's token balance, so lowering its target frees funds and raising it
  * just leaves the remainder in the vault.
  */
-export function toVaultV2Calls(vaultData: VaultData, allocations: MarketAllocation[]): Hex[] {
-  const deallocations: Hex[] = [];
-  const allocationsOut: {
-    adapter: Hex;
-    params: MarketAllocation["marketParams"];
-    assets: bigint;
-  }[] = [];
-  const fillRest: typeof allocationsOut = [];
+export function planVaultV2Moves(
+  vaultData: VaultData,
+  allocations: MarketAllocation[],
+): VaultV2Move[] {
+  const deallocations: VaultV2Move[] = [];
+  const allocationsOut: VaultV2Move[] = [];
+  const fillRest: VaultV2Move[] = [];
   let freed = 0n;
 
   for (const { marketParams, assets } of allocations) {
@@ -58,18 +65,18 @@ export function toVaultV2Calls(vaultData: VaultData, allocations: MarketAllocati
     if (!market) throw new Error(`Market ${id} not found in vault data`);
     const isIdle = marketParams.collateralToken === zeroAddress;
     if (!isIdle && !market.adapter) throw new Error(`Market ${id} has no v2 adapter`);
-    const adapter = market.adapter ?? zeroAddress;
+    const move = { marketId: id, adapter: market.adapter ?? zeroAddress, params: marketParams };
 
     if (assets === maxUint256) {
-      if (!isIdle) fillRest.push({ adapter, params: marketParams, assets: 0n });
+      if (!isIdle) fillRest.push({ ...move, action: "allocate", assets: 0n });
     } else if (assets < market.vaultAssets) {
       const amount = market.vaultAssets - assets;
       freed += amount;
-      if (!isIdle) deallocations.push(encodeV2("deallocate", adapter, marketParams, amount));
+      if (!isIdle) deallocations.push({ ...move, action: "deallocate", assets: amount });
     } else if (assets > market.vaultAssets && !isIdle) {
       const amount = assets - market.vaultAssets;
       freed -= amount;
-      allocationsOut.push({ adapter, params: marketParams, assets: amount });
+      allocationsOut.push({ ...move, action: "allocate", assets: amount });
     }
   }
 
@@ -79,12 +86,32 @@ export function toVaultV2Calls(vaultData: VaultData, allocations: MarketAllocati
     allocationsOut.push(entry);
   }
 
-  return [
-    ...deallocations,
-    ...allocationsOut
-      .filter((a) => a.assets > 0n)
-      .map((a) => encodeV2("allocate", a.adapter, a.params, a.assets)),
-  ];
+  return [...deallocations, ...allocationsOut.filter((a) => a.assets > 0n)];
+}
+
+export function toVaultV2Calls(vaultData: VaultData, allocations: MarketAllocation[]): Hex[] {
+  return planVaultV2Moves(vaultData, allocations).map((m) =>
+    encodeV2(m.action, m.adapter, m.params, m.assets),
+  );
+}
+
+/** What a reallocation will do on-chain, for logs: v2 deltas, or v1 targets. Bigints as strings. */
+export function describeReallocation(vaultData: VaultData, allocations: MarketAllocation[]) {
+  if (vaultData.vaultType === "morpho-v2") {
+    return planVaultV2Moves(vaultData, allocations).map((m) => ({
+      action: m.action,
+      marketId: m.marketId,
+      collateral: m.params.collateralToken,
+      adapter: m.adapter,
+      assets: String(m.assets),
+    }));
+  }
+  return allocations.map((a) => ({
+    action: "target",
+    marketId: marketIdFromParams(a.marketParams),
+    collateral: a.marketParams.collateralToken,
+    assets: a.assets === maxUint256 ? "max" : String(a.assets),
+  }));
 }
 
 function encodeV2(

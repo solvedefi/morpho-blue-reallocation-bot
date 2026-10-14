@@ -24,7 +24,7 @@ import { type MorphoVaultType } from "../utils/vaultsCsv";
 import { isVaultHalted } from "./emergencyHalt";
 import { planEmergencyWithdraw } from "./emergencyWithdraw";
 import { isLiquiditySimulationFailure } from "./liquidityErrors";
-import { reallocateCall } from "./reallocateArgs";
+import { describeReallocation, reallocateCall } from "./reallocateArgs";
 import { loadRetryPolicyFromEnv, sleepSeconds } from "./retryPolicy";
 import { simulateReallocateWithRetry } from "./simulateWithRetry";
 import { withVaultRunLock } from "./vaultRunLock";
@@ -122,7 +122,12 @@ export class ReallocationBot {
     maxAttempts: number,
     vaultType: MorphoVaultType = "morpho-v1",
   ) {
-    const log = this.log.child({ evt: "emergency_withdraw", vault: vaultAddress, marketId });
+    const log = this.log.child({
+      evt: "emergency_withdraw",
+      vault: vaultAddress,
+      vaultType,
+      marketId,
+    });
     log.info("Waiting for vault lock");
     return withVaultRunLock(vaultAddress, async () => {
       log.info({ maxAttempts }, "Lock acquired, starting");
@@ -142,7 +147,11 @@ export class ReallocationBot {
         const market = markets.find((m) => m.id.toLowerCase() === marketId.toLowerCase());
         const idle = markets.find((m) => m.params.collateralToken === zeroAddress);
         if (!market) {
-          at.error("Market is not in the vault's withdraw queue");
+          at.error(
+            vaultType === "morpho-v2"
+              ? "Market is not held by any of the vault's adapters (not in marketIds)"
+              : "Market is not in the vault's withdraw queue",
+          );
           throw new Error(`Market ${marketId} is not in vault ${vaultAddress}`);
         }
         if (!idle) {
@@ -169,7 +178,8 @@ export class ReallocationBot {
         const allocations = planEmergencyWithdraw(market, idle);
         if (!allocations) {
           at.info({ txs, errors: errors.length }, "Done, nothing more to pull");
-          if (idleRoom === 0n && market.vaultAssets > 0n) {
+          // v2 idle is the vault's balance and has no cap
+          if (vaultType === "morpho-v1" && idleRoom === 0n && market.vaultAssets > 0n) {
             at.warn("Stopped because idle market cap is full");
           }
           return {
@@ -186,7 +196,11 @@ export class ReallocationBot {
 
         const target = allocations[0]?.assets ?? 0n;
         at.info(
-          { target: String(target), withdraw: String(market.vaultAssets - target) },
+          {
+            target: String(target),
+            withdraw: String(market.vaultAssets - target),
+            moves: describeReallocation(vaultResult.value, allocations),
+          },
           "Planned, simulating",
         );
 
@@ -236,7 +250,10 @@ export class ReallocationBot {
   }
 
   private async reallocateVault(vaultData: VaultData) {
-    const log = this.log.child({ vault: vaultData.vaultAddress });
+    const log = this.log.child({
+      vault: vaultData.vaultAddress,
+      vaultType: vaultData.vaultType ?? "morpho-v1",
+    });
     if (isVaultHalted(this.chainId, vaultData.vaultAddress)) {
       log.warn("Skipping regular reallocation of halted vault");
       return;
@@ -285,7 +302,11 @@ export class ReallocationBot {
       }
 
       const { allocations: reallocation, attempt } = simulation;
-      log.info({ attempt, maxAttempts: this.retryPolicy.maxAttempts }, "Simulation succeeded");
+      const moves = describeReallocation(vaultData, reallocation);
+      log.info(
+        { attempt, maxAttempts: this.retryPolicy.maxAttempts, moves },
+        "Simulation succeeded",
+      );
 
       const call = reallocateCall(vaultData, reallocation);
       if (call.functionName === "multicall" && call.args[0].length === 0) {
@@ -305,7 +326,16 @@ export class ReallocationBot {
       const receipt = await waitForTransactionReceipt(this.publicClient, {
         hash: txHash,
       });
-      log.info({ evt: "reallocated", txHash, status: receipt.status }, "Reallocated");
+      log.info(
+        {
+          evt: "reallocated",
+          txHash,
+          status: receipt.status,
+          gasUsed: String(receipt.gasUsed),
+          moves,
+        },
+        "Reallocated",
+      );
       if (receipt.status !== "success") {
         log.error(
           { txHash, markets: marketsSnapshot(vaultData, reallocation) },

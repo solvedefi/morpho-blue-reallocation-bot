@@ -1,4 +1,4 @@
-import { maxUint256 } from "viem";
+import { maxUint256, zeroAddress } from "viem";
 
 import { marketIdFromParams } from "./marketId";
 import { MarketAllocation, MarketState, VaultData, VaultMarketData } from "./types";
@@ -24,6 +24,10 @@ export function marketsSnapshot(vaultData: VaultData, allocations?: MarketAlloca
     return {
       id: m.id,
       collateralToken: m.params.collateralToken,
+      // v2: adapter holding the market; null for v1 markets and the virtual idle market
+      adapter: m.adapter ?? null,
+      // v2 idle is the vault's token balance, shown as a market with collateral 0x0
+      virtualIdle: vaultData.vaultType === "morpho-v2" && m.params.collateralToken === zeroAddress,
       decimals: m.loanTokenDecimals,
       vaultAssets: String(m.vaultAssets),
       cap: String(m.cap),

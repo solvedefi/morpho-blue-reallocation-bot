@@ -218,8 +218,8 @@ export class MorphoClient {
         allowFailure: false,
       });
 
-      // ponytail: assumes every adapter is a MorphoMarketV1AdapterV2 (true for all Re7 v2 vaults).
-      // Any other adapter type reverts here and the vault is skipped with an error log.
+      // Only MorphoMarketV1AdapterV2 is supported (true for all Re7 v2 vaults); any other
+      // adapter type has no marketIdsLength, so the vault is skipped with a named error.
       // marketIds only lists markets the adapter currently holds, so the bot never opens new markets.
       const lengths = await multicall(this.client, {
         contracts: adapters.map((adapter) => ({
@@ -227,10 +227,19 @@ export class MorphoClient {
           abi: marketV1AdapterV2Abi,
           functionName: "marketIdsLength" as const,
         })),
-        allowFailure: false,
+        allowFailure: true,
       });
+      const unsupported = adapters.filter((_, i) => lengths[i]?.status !== "success");
+      if (unsupported.length > 0) {
+        throw new Error(
+          `Unsupported adapter(s) ${unsupported.join(", ")}: not a MorphoMarketV1AdapterV2`,
+        );
+      }
       const slots = adapters.flatMap((adapter, i) =>
-        Array.from({ length: Number(lengths[i]) }, (_, j) => ({ adapter, j: BigInt(j) })),
+        Array.from({ length: Number(lengths[i]?.result ?? 0n) }, (_, j) => ({
+          adapter,
+          j: BigInt(j),
+        })),
       );
       const marketIds = await multicall(this.client, {
         contracts: slots.map(({ adapter, j }) => ({
