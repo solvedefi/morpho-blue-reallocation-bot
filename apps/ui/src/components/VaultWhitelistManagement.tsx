@@ -115,7 +115,7 @@ export function VaultWhitelistManagement() {
                       </div>
 
                       <Badge variant={vault.type === "morpho-v1" ? "default" : "secondary"}>
-                        {vault.type === "morpho-v1" ? "V1" : "V2 (not reallocated)"}
+                        {vault.type === "morpho-v1" ? "V1" : "V2"}
                       </Badge>
                     </div>
                   ))}

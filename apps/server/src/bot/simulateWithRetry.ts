@@ -1,13 +1,12 @@
 import { type Account, type Address, type Chain, type Client, type Transport } from "viem";
 import { simulateContract } from "viem/actions";
 
-import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { logger } from "../logger";
 import { MarketAllocation, VaultData } from "../utils/types";
 
 import { applyConservativeRetry } from "./conservativeRetry";
 import { isLiquiditySimulationFailure } from "./liquidityErrors";
-import { ReallocateArgs, toReallocateArgs } from "./reallocateArgs";
+import { reallocateCall, type ReallocateCall } from "./reallocateArgs";
 import {
   loadRetryPolicyFromEnv,
   settingsForAttempt,
@@ -22,13 +21,7 @@ export interface SimulateWithRetryResult {
 
 type SimulateReallocate = (
   publicClient: Client<Transport, Chain>,
-  params: {
-    address: Address;
-    abi: typeof metaMorphoAbi;
-    functionName: "reallocate";
-    args: ReallocateArgs;
-    account: Account;
-  },
+  params: ReallocateCall & { address: Address; account: Account },
 ) => Promise<unknown>;
 
 export async function simulateReallocateWithRetry(
@@ -53,10 +46,8 @@ export async function simulateReallocateWithRetry(
 
     try {
       await simulate(publicClient, {
+        ...reallocateCall(vaultData, allocations),
         address: vaultAddress,
-        abi: metaMorphoAbi,
-        functionName: "reallocate",
-        args: toReallocateArgs(allocations),
         account,
       });
       return { allocations, attempt };

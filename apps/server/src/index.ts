@@ -326,7 +326,7 @@ async function main() {
     if (opConfig.vaultWhitelist.length === 0) {
       logger.info(
         { chainId: opConfig.chainId, chain: getChainName(opConfig.chainId) },
-        "No morpho-v1 vaults, skipping",
+        "No morpho vaults, skipping",
       );
       return;
     }
@@ -345,6 +345,7 @@ async function main() {
       strategy,
       infraConfig,
       minGasThresholds,
+      opConfig.vaultWhitelist.filter((v) => v.type === "morpho-v2").map((v) => v.address),
     );
 
     const abortController = new AbortController();

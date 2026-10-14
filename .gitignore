@@ -23,3 +23,7 @@ yarn-error.log*
 
 .vscode
 plan.md
+
+# local scratch
+morpho-v2-architecture.excalidraw.json
+setUtilization.ts

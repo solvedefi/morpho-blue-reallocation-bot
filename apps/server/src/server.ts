@@ -14,7 +14,7 @@ import { DatabaseClient } from "./database";
 import { logger } from "./logger";
 import { MetadataService } from "./services/MetadataService";
 import { VAULT_STRATEGIES } from "./strategies/vaultStrategies";
-import { REALLOCATABLE_VAULT_TYPE } from "./utils/vaultsCsv";
+import { type MorphoVaultType, REALLOCATABLE_VAULT_TYPES } from "./utils/vaultsCsv";
 
 export type OnConfigChangeCallback = () => Promise<void>;
 
@@ -597,10 +597,10 @@ export function createServer(
         return c.json({ success: false, error: "Failed to look up vault" }, 500);
       }
       const vault = vaultResult.value;
-      if (!vault || vault.vaultType !== REALLOCATABLE_VAULT_TYPE) {
-        log.error(`Rejected: vault not whitelisted as ${REALLOCATABLE_VAULT_TYPE}`);
+      if (!vault || !REALLOCATABLE_VAULT_TYPES.includes(vault.vaultType as MorphoVaultType)) {
+        log.error("Rejected: vault not whitelisted as a morpho vault");
         return c.json(
-          { success: false, error: `Vault ${vaultAddress} is not a whitelisted morpho-v1 vault` },
+          { success: false, error: `Vault ${vaultAddress} is not a whitelisted morpho vault` },
           404,
         );
       }
@@ -644,6 +644,7 @@ export function createServer(
           vault.vaultAddress,
           marketId as Hex,
           maxAttempts,
+          vault.vaultType as MorphoVaultType,
         );
         log.info(
           { done: result.done, attempts: result.attempts, txs: result.txs },
