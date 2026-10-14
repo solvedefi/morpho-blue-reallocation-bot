@@ -4,7 +4,7 @@ import { Address, Hex } from "viem";
 
 import { DEFAULT_MIN_GAS_WEI } from "../constants";
 import { logger } from "../logger";
-import { type CsvVault, REALLOCATABLE_VAULT_TYPE } from "../utils/vaultsCsv";
+import { type CsvVault, REALLOCATABLE_VAULT_TYPES } from "../utils/vaultsCsv";
 
 export interface ApyRangeConfig {
   min: number;
@@ -428,7 +428,7 @@ export class DatabaseClient {
         where: { chainId },
         include: {
           vaultWhitelist: {
-            where: { enabled: true, vaultType: REALLOCATABLE_VAULT_TYPE },
+            where: { enabled: true, vaultType: { in: REALLOCATABLE_VAULT_TYPES } },
           },
         },
       });
@@ -522,7 +522,7 @@ export class DatabaseClient {
         where: { enabled: true },
         include: {
           vaultWhitelist: {
-            where: { enabled: true, vaultType: REALLOCATABLE_VAULT_TYPE },
+            where: { enabled: true, vaultType: { in: REALLOCATABLE_VAULT_TYPES } },
           },
         },
       });

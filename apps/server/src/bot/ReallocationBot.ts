@@ -11,7 +11,6 @@ import {
 } from "viem";
 import { sendTransaction, simulateContract, waitForTransactionReceipt } from "viem/actions";
 
-import { metaMorphoAbi } from "../../abis/MetaMorpho.js";
 import { type Config } from "../config";
 import { getChainName } from "../constants.js";
 import { MorphoClient } from "../contracts/MorphoClient.js";
@@ -20,11 +19,12 @@ import { MinGasThresholds } from "../services/MinGasThresholds";
 import { Strategy } from "../strategies/strategy.js";
 import { freeMarketLiquidity, marketsSnapshot } from "../utils/marketLiquidity";
 import { VaultData } from "../utils/types";
+import { type MorphoVaultType } from "../utils/vaultsCsv";
 
 import { isVaultHalted } from "./emergencyHalt";
 import { planEmergencyWithdraw } from "./emergencyWithdraw";
 import { isLiquiditySimulationFailure } from "./liquidityErrors";
-import { toReallocateArgs } from "./reallocateArgs";
+import { reallocateCall } from "./reallocateArgs";
 import { loadRetryPolicyFromEnv, sleepSeconds } from "./retryPolicy";
 import { simulateReallocateWithRetry } from "./simulateWithRetry";
 import { withVaultRunLock } from "./vaultRunLock";
@@ -40,6 +40,7 @@ export class ReallocationBot {
   private thresholds: MinGasThresholds;
   private retryPolicy = loadRetryPolicyFromEnv();
   private log: Logger;
+  private v2Vaults: Set<string>;
 
   constructor(
     chainId: number,
@@ -49,7 +50,9 @@ export class ReallocationBot {
     strategy: Strategy,
     config: Config,
     thresholds: MinGasThresholds,
+    v2Vaults: Address[] = [],
   ) {
+    this.v2Vaults = new Set(v2Vaults.map((v) => v.toLowerCase()));
     this.chainId = chainId;
     this.publicClient = publicClient;
     this.walletClient = walletClient;
@@ -72,7 +75,12 @@ export class ReallocationBot {
   async run() {
     const { vaultWhitelist } = this;
     const vaultsDataResults = await Promise.all(
-      vaultWhitelist.map((vault) => this.morphoClient.fetchVaultData(vault)),
+      vaultWhitelist.map((vault) =>
+        this.fetchVaultData(
+          vault,
+          this.v2Vaults.has(vault.toLowerCase()) ? "morpho-v2" : "morpho-v1",
+        ),
+      ),
     );
 
     // Filter out errors and log them
@@ -98,11 +106,22 @@ export class ReallocationBot {
     );
   }
 
+  private fetchVaultData(vault: Address, vaultType: MorphoVaultType) {
+    return vaultType === "morpho-v2"
+      ? this.morphoClient.fetchVaultV2Data(vault)
+      : this.morphoClient.fetchVaultData(vault);
+  }
+
   /**
    * Pull everything possible from `marketId` into the vault's idle market, retrying
    * until the market's free liquidity is exhausted (~100% utilization) or attempts run out.
    */
-  async emergencyWithdrawToIdle(vaultAddress: Address, marketId: Hex, maxAttempts: number) {
+  async emergencyWithdrawToIdle(
+    vaultAddress: Address,
+    marketId: Hex,
+    maxAttempts: number,
+    vaultType: MorphoVaultType = "morpho-v1",
+  ) {
     const log = this.log.child({ evt: "emergency_withdraw", vault: vaultAddress, marketId });
     log.info("Waiting for vault lock");
     return withVaultRunLock(vaultAddress, async () => {
@@ -112,7 +131,7 @@ export class ReallocationBot {
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const at = log.child({ attempt, maxAttempts });
-        const vaultResult = await this.morphoClient.fetchVaultData(vaultAddress);
+        const vaultResult = await this.fetchVaultData(vaultAddress, vaultType);
         if (vaultResult.isErr()) {
           at.error({ err: vaultResult.error }, "Failed to fetch vault data");
           errors.push(`attempt ${String(attempt)}: ${vaultResult.error.message}`);
@@ -172,17 +191,15 @@ export class ReallocationBot {
         );
 
         try {
-          const args = toReallocateArgs(allocations);
+          const call = reallocateCall(vaultResult.value, allocations);
           await simulateContract(this.publicClient, {
+            ...call,
             address: vaultAddress,
-            abi: metaMorphoAbi,
-            functionName: "reallocate",
-            args,
             account: this.walletClient.account,
-          });
+          } as Parameters<typeof simulateContract>[1]);
           const txHash = await sendTransaction(this.walletClient, {
             to: vaultAddress,
-            data: encodeFunctionData({ abi: metaMorphoAbi, functionName: "reallocate", args }),
+            data: encodeFunctionData(call as Parameters<typeof encodeFunctionData>[0]),
           });
           txs.push(txHash);
           at.info({ txHash }, "Tx sent, waiting for receipt");
@@ -270,13 +287,14 @@ export class ReallocationBot {
       const { allocations: reallocation, attempt } = simulation;
       log.info({ attempt, maxAttempts: this.retryPolicy.maxAttempts }, "Simulation succeeded");
 
+      const call = reallocateCall(vaultData, reallocation);
+      if (call.functionName === "multicall" && call.args[0].length === 0) {
+        log.info("Reallocation only moves idle funds on a v2 vault, nothing to send");
+        return;
+      }
+
       // Execute transaction
-      const calldata = encodeFunctionData({
-        abi: metaMorphoAbi,
-        functionName: "reallocate",
-        // Type assertion needed due to viem's strict readonly type inference from ABI
-        args: toReallocateArgs(reallocation),
-      });
+      const calldata = encodeFunctionData(call as Parameters<typeof encodeFunctionData>[0]);
 
       const txHash = await sendTransaction(this.walletClient, {
         to: vaultData.vaultAddress,
@@ -302,7 +320,7 @@ export class ReallocationBot {
       const message = err instanceof Error ? err.message : "";
       let reason: string | undefined;
       // Name known Morpho contract errors
-      if (message.includes("NotAllocatorRole")) {
+      if (message.includes("NotAllocatorRole") || message.includes("Unauthorized")) {
         reason = "The account is not an allocator for this vault";
       } else if (message.includes("InconsistentReallocation")) {
         reason = "Reallocation amounts are inconsistent (withdrawals != deposits)";
@@ -310,7 +328,11 @@ export class ReallocationBot {
         reason = "Not enough liquidity in one of the markets after retries";
       } else if (message.includes("MarketNotEnabled")) {
         reason = "One of the markets is not enabled for this vault";
-      } else if (message.includes("SupplyCapExceeded")) {
+      } else if (
+        message.includes("SupplyCapExceeded") ||
+        message.includes("AbsoluteCapExceeded") ||
+        message.includes("RelativeCapExceeded")
+      ) {
         reason = "Supply cap would be exceeded";
       }
       // targets are the strategy's plan; a retry may have sent a more conservative one

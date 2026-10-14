@@ -1,5 +1,7 @@
 import type { Address, Chain, Hex } from "viem";
 
+import type { MorphoVaultType } from "./vaultsCsv";
+
 export interface ChainConfig {
   chain: Chain;
   rpcUrl: string;
@@ -34,11 +36,15 @@ export interface VaultMarketData {
   rateAtTarget: bigint;
   apyAt100Utilization: bigint;
   loanTokenDecimals: number;
+  /** morpho-v2 only: the MorphoMarketV1AdapterV2 holding this market's position */
+  adapter?: Address;
 }
 
 export interface VaultData {
   vaultAddress: Address;
   marketsData: Map<Hex, VaultMarketData>;
+  /** defaults to morpho-v1 */
+  vaultType?: MorphoVaultType;
 }
 
 export interface MarketAllocation {

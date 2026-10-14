@@ -10,8 +10,7 @@ export const VAULTS_CSV_URL = new URL(
 export const MORPHO_VAULT_TYPES = ["morpho-v1", "morpho-v2"] as const;
 export type MorphoVaultType = (typeof MORPHO_VAULT_TYPES)[number];
 
-// Only morpho-v1 vaults are reallocated; morpho-v2 is stored but not run.
-export const REALLOCATABLE_VAULT_TYPE: MorphoVaultType = "morpho-v1";
+export const REALLOCATABLE_VAULT_TYPES: MorphoVaultType[] = [...MORPHO_VAULT_TYPES];
 
 // vaults.csv chain names -> chain ids
 const CHAIN_NAME_TO_ID: Record<string, number> = {
