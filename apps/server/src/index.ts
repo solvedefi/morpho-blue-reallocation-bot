@@ -6,6 +6,7 @@ import { createPublicClient, createWalletClient, http, type Address, type Hex } 
 import { privateKeyToAccount } from "viem/accounts";
 
 import { ReallocationBot } from "./bot";
+import { resumeVault } from "./bot/emergencyHalt";
 import { chainConfigs, type Config } from "./config";
 import { getChainName } from "./constants";
 import { DatabaseClient, type ChainOperationalConfig } from "./database";
@@ -234,8 +235,10 @@ async function main() {
     return false;
   };
 
-  const reloadConfiguration = async () => {
-    logger.info("Configuration change detected, reloading");
+  // `quiet` = periodic DB poll: log at debug so the 60s poll doesn't flood the logs.
+  const doReload = async (quiet: boolean) => {
+    const lvl = quiet ? "debug" : "info";
+    logger[lvl]("Configuration change detected, reloading");
     const newApyConfigResult = await dbClient.loadApyConfiguration();
 
     if (newApyConfigResult.isErr()) {
@@ -244,7 +247,7 @@ async function main() {
     }
 
     apyConfig = newApyConfigResult.value;
-    logger.info("Configuration reloaded");
+    logger[lvl]("Configuration reloaded");
     logApyConfiguration(apyConfig);
 
     // Reload chain configs to handle all changes
@@ -274,7 +277,18 @@ async function main() {
     for (const opConfig of newChainConfigs) {
       const existingBot = runningBots.get(opConfig.chainId);
 
+      // A vault coming back into the whitelist was re-enabled (UI or direct DB edit):
+      // clear any emergency halt so the regular bot runs it again.
+      const running = new Set(
+        existingBot?.startedWithConfig.vaultWhitelist.map((a) => a.toLowerCase()) ?? [],
+      );
+      for (const v of opConfig.vaultWhitelist) {
+        if (!running.has(v.address.toLowerCase())) resumeVault(opConfig.chainId, v.address);
+      }
+
       if (!existingBot) {
+        // Chains with no enabled vaults never get a running bot; skip silently on every poll.
+        if (opConfig.vaultWhitelist.length === 0) continue;
         // New chain - start bot
         logger.info(
           { chainId: opConfig.chainId, chain: getChainName(opConfig.chainId) },
@@ -310,8 +324,17 @@ async function main() {
       }
     }
 
-    logger.info("All bots updated with new configuration");
+    logger[lvl]("All bots updated with new configuration");
   };
+
+  // Serialized: API-triggered reloads and the DB poll must not interleave and double-start bots.
+  let reloading = Promise.resolve();
+  const reloadConfiguration = (quiet = false): Promise<void> =>
+    (reloading = reloading
+      .then(() => doReload(quiet))
+      .catch((error: unknown) => {
+        logger.error({ err: error }, "Configuration reload failed");
+      }));
 
   const startBotForChain = (
     opConfig: ChainOperationalConfig,
@@ -466,6 +489,10 @@ async function main() {
   }
 
   logger.info("All bots started");
+
+  // Pick up vault/chain changes made directly in the DB (bypassing the API).
+  // ponytail: full reload every 60s, cheap at this table size; LISTEN/NOTIFY if it ever isn't.
+  setInterval(() => void reloadConfiguration(true), 60_000);
 
   // Keep the process running
   await new Promise(() => {
