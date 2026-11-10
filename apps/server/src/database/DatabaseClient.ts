@@ -707,11 +707,26 @@ export class DatabaseClient {
   async findVault(
     chainId: number,
     vaultAddress: string,
-  ): Promise<Result<{ vaultAddress: Address; vaultType: string; enabled: boolean } | null, Error>> {
+  ): Promise<
+    Result<
+      {
+        vaultAddress: Address;
+        vaultType: string;
+        enabled: boolean;
+        emergencyWithdrawalsEnabled: boolean;
+      } | null,
+      Error
+    >
+  > {
     try {
       const vault = await this.prisma.vaultWhitelist.findFirst({
         where: { chainId, vaultAddress: { equals: vaultAddress, mode: "insensitive" } },
-        select: { vaultAddress: true, vaultType: true, enabled: true },
+        select: {
+          vaultAddress: true,
+          vaultType: true,
+          enabled: true,
+          emergencyWithdrawalsEnabled: true,
+        },
       });
       return ok(vault && { ...vault, vaultAddress: vault.vaultAddress as Address });
     } catch (error) {
@@ -725,7 +740,12 @@ export class DatabaseClient {
   async updateVault(
     chainId: number,
     vaultAddress: Address,
-    data: { enabled?: boolean; strategy?: string; targetUtilization?: number | null },
+    data: {
+      enabled?: boolean;
+      emergencyWithdrawalsEnabled?: boolean;
+      strategy?: string;
+      targetUtilization?: number | null;
+    },
   ): Promise<Result<null, Error>> {
     try {
       await this.prisma.vaultWhitelist.update({

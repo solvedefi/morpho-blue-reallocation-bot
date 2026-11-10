@@ -76,6 +76,8 @@ model VaultWhitelist {
   vaultName    String      @map("vault_name") @db.VarChar(100)
   vaultType    String      @default("morpho-v1") @map("vault_type") @db.VarChar(20)
   enabled      Boolean     @default(true)
+  // Gate for the emergency withdraw API; set to false after a completed emergency withdrawal
+  emergencyWithdrawalsEnabled Boolean @default(true) @map("emergency_withdrawals_enabled")
   // "apyRange" | "equalizeUtilizations"; not touched by the vaults.csv sync
   strategy     String      @default("apyRange") @db.VarChar(32)
   // Fixed utilization target in percent for equalizeUtilizations; null = weighted average

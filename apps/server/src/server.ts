@@ -99,12 +99,13 @@ const updateChainSchema = z
 const updateVaultSchema = z
   .object({
     enabled: z.boolean().optional(),
+    emergencyWithdrawalsEnabled: z.boolean().optional(),
     strategy: z.enum(VAULT_STRATEGIES).optional(),
     // percent, used by equalizeUtilizations; null resets to the weighted average
     targetUtilization: z.number().gt(0).lte(100).nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, {
-    message: "Provide enabled, strategy and/or targetUtilization",
+    message: "Provide enabled, emergencyWithdrawalsEnabled, strategy and/or targetUtilization",
   });
 
 const emergencyWithdrawSchema = z.object({
@@ -605,6 +606,14 @@ export function createServer(
         );
       }
 
+      if (!vault.emergencyWithdrawalsEnabled) {
+        log.error("Rejected: emergency withdrawals disabled for vault");
+        return c.json(
+          { success: false, error: `Emergency withdrawals are disabled for vault ${vaultAddress}` },
+          403,
+        );
+      }
+
       const bot = getEmergencyBot?.(chainId);
       if (!bot) {
         log.error("Rejected: chain not supported or bot not started yet");
@@ -650,8 +659,25 @@ export function createServer(
           { done: result.done, attempts: result.attempts, txs: result.txs },
           "Emergency withdraw finished",
         );
-        const success = result.done && vaultDisabled;
-        return c.json({ success, data: { ...result, vaultDisabled } }, success ? 200 : 500);
+        // Lock further emergency calls only once the withdrawal completed, so an unfinished one
+        // can still be retried. Re-arm with PATCH {emergencyWithdrawalsEnabled:true}.
+        let emergencyLocked = false;
+        if (result.done) {
+          const lockResult = await dbClient.updateVault(chainId, vault.vaultAddress, {
+            emergencyWithdrawalsEnabled: false,
+          });
+          if (lockResult.isErr()) {
+            log.error({ err: lockResult.error }, "Failed to disable emergency withdrawals in DB");
+          } else {
+            emergencyLocked = true;
+            log.info("Emergency withdrawals disabled for vault");
+          }
+        }
+        const success = result.done && vaultDisabled && emergencyLocked;
+        return c.json(
+          { success, data: { ...result, vaultDisabled, emergencyLocked } },
+          success ? 200 : 500,
+        );
       } catch (error) {
         log.error({ err: error }, "Emergency withdraw failed");
         return c.json(
